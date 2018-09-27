@@ -1,3 +1,5 @@
 notebooks/
 *~
 !notebooks/*.ipynb
+data/
+__pycache__/
