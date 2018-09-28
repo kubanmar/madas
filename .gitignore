@@ -1,5 +1,6 @@
 notebooks/
 *~
 !notebooks/*.ipynb
+!notebooks/*.py
 data/
 __pycache__/

@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import numpy as np
+import time, datetime, sys
 
 species_list = 'H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn,Fr,Ra,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr,Rf,Db,Sg,Bh,Hs,Mt,Ds,Rg,Cn,Nh,Fl,Mc,Lv,Ts,Og'.split(',')
 electron_charge = 1.602176565e-19
@@ -14,6 +15,7 @@ class MaterialsDatabase():
         self.atoms_db_name = 'ase_atoms_' + filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         self.api_key = 'eyJhbGciOiJIUzI1NiIsImlhdCI6MTUyMzg4MDE1OSwiZXhwIjoxNjgxNTYwMTU5fQ.eyJpZCI6ImVuY2d1aSJ9.MsMWQa3IklH7cQTxRaIRSF9q8D_2LD5Fs2-irpWPTp4'
+        self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         if not os.path.exists(db_path):
             os.mkdir(db_path)
         if not os.path.exists(self.filepath):
@@ -32,8 +34,6 @@ class MaterialsDatabase():
         with open(self.filepath,'w') as f:
             json.dump(db_from_file, f, indent = 4)
 
-    def _SI_to_Angstom(self, length):
-        return np.power(length,10^10)
 
     def add_atoms(self, mat_id):
         """
@@ -64,7 +64,71 @@ class MaterialsDatabase():
                     new_material['tags'] = [tags]
             self.materials_dict[mat_id] = new_material
         else:
-            print('already in db')
+            print('already in db: %s' %(mat_id))
+
+    def fill_database(self, json_query, tags = None):
+        if tags == None:
+            tags = str(datetime.datetime.now())
+        materials_list = self._get_all_materials(json_query)
+        if len(materials_list) == 0:
+            sys.exit("Empty list returned. Change search query.")
+        for index, material in enumerate(materials_list):
+            trys = 0
+            success = False
+            while trys < 10 and not success:
+                try:
+                    [mid, cid] = self._choose_calculation(material['id'], material['calculations_list_matching_criteria'])
+                    self.add_material(mid, cid, tags = tags)
+                    success = True
+                except KeyError:
+                    trys += 1
+                    #time.sleep(1)
+                    continue
+            if index % 10 == 0:
+                print('Processed {:.3f} %'.format( index / len(materials_list) * 100))
+        self.update_database_file()
+
+    def _get_all_materials(self, json_query):
+        auth = (self.api_key, '')
+        try:
+            json_query['search_by']['per_page'] = 1000
+            post = requests.post(self.api_url, auth = auth, json=json_query)
+            pages = post.json()['pages']
+        except KeyError:
+            sys.exit("DB initialization error. Please retry.")
+        if pages == None:
+            return post.json()['results']
+        else:
+            results = []
+            for result in post.json()['results']:
+                results.append(result)
+            to_load = [x for x in range(2,pages['pages']+1)]
+            while len(to_load) > 0:
+                for page in to_load:
+                    json_query['search_by']['page'] = page
+                    post = requests.post(self.api_url, auth = auth, json=json_query)
+                    if post.status_code == 200:
+                        for result in post.json()['results']:
+                            results.append(result)
+                        to_load.remove(page)
+                    else:
+                        continue
+        return results
+
+    def _choose_calculation(self,mid, cid_list):
+        score_list = []
+        for cid in cid_list:
+            data = self._get_dos(mid, cid)
+            energies = data['dos_energies']
+            score = self._calc_dos_score(energies=energies)
+            score_list.append([score, [mid, cid]])
+        score_list.sort()
+        return score_list[0][1]
+
+    def _calc_dos_score(self,energies):
+        point_density = (abs(max(energies) - min(energies)) / len(energies)) / electron_charge
+        return point_density
+
 
     def _get_properties_NOMAD(self, mid, cid):
         auth = (self.api_key, '')
@@ -102,3 +166,6 @@ class MaterialsDatabase():
         url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s?property=dos' %(str(mid), str(cid))
         json_answer = requests.get(url, auth = auth).json()
         return json_answer['dos']
+
+    def _SI_to_Angstom(self, length):
+        return np.power(length,10^10)
