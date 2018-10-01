@@ -7,6 +7,8 @@ import time, datetime, sys
 species_list = 'H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn,Fr,Ra,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr,Rf,Db,Sg,Bh,Hs,Mt,Ds,Rg,Cn,Nh,Fl,Mc,Lv,Ts,Og'.split(',')
 electron_charge = 1.602176565e-19
 
+from fingerprints import Fingerprint
+
 class MaterialsDatabase():
 
     def __init__(self, filename = 'materials_database.json', db_path = 'data'):
@@ -34,18 +36,23 @@ class MaterialsDatabase():
         with open(self.filepath,'w') as f:
             json.dump(db_from_file, f, indent = 4)
 
-
     def add_atoms(self, mat_id):
         """
         creates the atoms object and links to the file and index where this thing is stored in the ase db
         """
-        pass
+        pass #TODO unwritten
 
-    def add_fingerprint(self, fp_function, properties, fp_name):
+    def add_fingerprint(self, fp_type, fp_data = None):
         """
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
-        pass
+        for mid in self.materials_dict.keys():
+            if 'fingerprints' not in self.materials_dict[mid].keys():
+                self.materials_dict[mid]['fingerprints'] = {}
+            fingerprint = Fingerprint(fp_type, self.materials_dict[mid]['properties'], fp_data)
+            self.materials_dict[mid]['fingerprints'][fp_type] = fingerprint.calculate()
+        self.update_database_file()
+
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """
@@ -88,6 +95,7 @@ class MaterialsDatabase():
                 print('Processed {:.3f} %'.format( index / len(materials_list) * 100))
         self.update_database_file()
 
+
     def _get_all_materials(self, json_query):
         auth = (self.api_key, '')
         try:
@@ -128,7 +136,6 @@ class MaterialsDatabase():
     def _calc_dos_score(self,energies):
         point_density = (abs(max(energies) - min(energies)) / len(energies)) / electron_charge
         return point_density
-
 
     def _get_properties_NOMAD(self, mid, cid):
         auth = (self.api_key, '')
