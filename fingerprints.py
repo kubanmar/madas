@@ -9,23 +9,33 @@ class Fingerprint():
         if data == None:
             self.calculate()
         else:
-            self.reconstruct_from_data()
+            self.data = data
+            self._reconstruct_from_data()
         #TODO Catch: neither data nor properties
-
-    def dump_data(self):
-        """
-        Is meant to return all the data that is required to construct the fingerprint again.
-        """
-        return self.fp_type, self.data #This is not enough, apparently.
-
-    def _reconstruct_from_data(self):
-        pass
 
     def calculate(self):
         if self.fp_type == 'DOS':
             json_data = self.properties['dos']
             cell_volume = self.properties['cell_volume']
             grid = Grid.create()
-            fingerprint = DOSFingerprint(json_data, cell_volume, grid)
-            self.data = fingerprint.get_data()
+            self.fingerprint = DOSFingerprint(json_data, cell_volume, grid)
+            self.data = self.fingerprint.get_data()
+            #print(self.data) #DEBUG
+        return self.data
+
+    def calc_similiarity(self, mid, database):
+        if self.fp_type == 'DOS':
+            if not hasattr(self, 'grid'):
+                grid = Grid.create(id = self.data['grid_id'])
+            fingerprint = database.get_fingerprint(mid, 'DOS')
+            if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
+                sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
+            return grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+
+    def _reconstruct_from_data(self):
+        if self.fp_type == 'DOS':
+            self.fingerprint = DOSFingerprint(None, None, None)
+            self.fingerprint.bins = bytes.fromhex(self.data['bins'])
+            self.fingerprint.indices = self.data['indices']
+            self.fingerprint.grid_id = self.data['grid_id']
         return self.data

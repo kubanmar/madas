@@ -1,8 +1,8 @@
-import os
-import json
-import requests
+import os, sys
+import json, requests
+import time, datetime
+
 import numpy as np
-import time, datetime, sys
 
 species_list = 'H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn,Fr,Ra,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr,Rf,Db,Sg,Bh,Hs,Mt,Ds,Rg,Cn,Nh,Fl,Mc,Lv,Ts,Og'.split(',')
 electron_charge = 1.602176565e-19
@@ -29,6 +29,24 @@ class MaterialsDatabase():
                 self.materials_dict = json.load(f)
         #check for atoms_db
 
+    def get_property(self, mid, property_name):
+        if property_name in ['dos_values', 'dos_energies']:
+            return self.materials_dict[mid][property_name]
+        elif property_name in self.materials_dict[mid]['properties'].keys():
+            return self.materials_dict[mid]['properties'][property_name]
+        else:
+            return None
+
+    def get_fingerprint(self, mid, fp_type):
+        try:
+            fp_data = self.materials_dict[mid]['fingerprints'][fp_type]
+        except KeyError:
+            sys.exit('Fingerprint %s is not calculated.' %(fp_type))
+        return Fingerprint(fp_type, data = fp_data)
+
+    def get_formula(self, mid):
+        return self.materials_dict[mid]['properties']['formula']
+
     def update_database_file(self):
         with open(self.filepath,'r') as f:
             db_from_file = json.load(f)
@@ -47,19 +65,18 @@ class MaterialsDatabase():
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
         for mid in self.materials_dict.keys():
-            if 'fingerprints' not in self.materials_dict[mid].keys():
+            if 'fingerprints' not in self.materials_dict[mid].keys():  
                 self.materials_dict[mid]['fingerprints'] = {}
             fingerprint = Fingerprint(fp_type, self.materials_dict[mid]['properties'], fp_data)
             self.materials_dict[mid]['fingerprints'][fp_type] = fingerprint.calculate()
         self.update_database_file()
-
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """
         This thing should download the data and construct the infrastructure that is necessary
         to create the different fingerprints.
         """
-        mat_id = str(nomad_material_id)+':'+str(nomad_calculation_id)
+        mat_id = self._make_mid(nomad_material_id, nomad_calculation_id)
         if not mat_id in self.materials_dict.keys():
             new_material = {}
             new_material['properties'] = self._get_properties_NOMAD(nomad_material_id, nomad_calculation_id)
@@ -153,7 +170,7 @@ class MaterialsDatabase():
         properties['energy'] = [json_answer['code_name'], totengy]
         #get also material properties
         json_answer = requests.get(mat_url, auth = auth).json()
-        for keyword in ['formula', 'point_group', 'space_group']:
+        for keyword in ['formula', 'point_group', 'space_group_number']:
             properties[keyword] = json_answer[keyword]
         properties['dos'] = self._get_dos(mid, cid)
         return properties
@@ -176,3 +193,6 @@ class MaterialsDatabase():
 
     def _SI_to_Angstom(self, length):
         return np.power(length,10^10)
+
+    def _make_mid(self, nmid, ncid):
+        return str(nmid)+':'+str(ncid)

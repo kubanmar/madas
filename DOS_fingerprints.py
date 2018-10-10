@@ -9,14 +9,17 @@ class DOSFingerprint():
 
     def __init__(self, json_data, cell_volume, grid):
         self.stepsize = 0.05
-        energy, dos = self._rescale_dos(json_data, cell_volume)
-        self.energy, self.dos = self._integrate_dos_to_bins(energy, dos)
-        self.indices, self.bins = self._calc_byte_fingerprint(self.energy, self.dos, grid.grid())
-        self.grid_id = grid.id
+        if json_data != None:
+            energy, dos = self._rescale_dos(json_data, cell_volume)
+            self.energy, self.dos = self._integrate_dos_to_bins(energy, dos)
+            self.indices, self.bins = self._calc_byte_fingerprint(self.energy, self.dos, grid.grid())
+            self.grid_id = grid.id
+        # TODO catch errors of not giving all arguments
 
     def get_data(self):
         data = {}
-        data['bins'] = self.bins
+        #print(self.bins, self.bins.hex()) #DEBUG
+        data['bins'] = self.bins.hex()
         data['indices'] = self.indices
         data['grid_id'] = self.grid_id
         return data
@@ -31,12 +34,14 @@ class DOSFingerprint():
             dos_object = dos_object['dos']
         energies = []
         dos = []
+        #print(volume) #DEBUG
         for idx, energy in enumerate(dos_object['dos_energies']):
             energies.append(energy / electron_charge)
             current_dos = dos_object['dos_values'][0][idx]  # WARNING: the [0] omitts any spin-polarization. Has to be clarified before final implementation.
             if current_dos < 0:
                 current_dos = 0
-            dos.append(current_dos / volume / electron_charge)
+            dos.append(current_dos / 1e-30 / electron_charge) # WARNING! This transformation only (!) applies to VASP calculations
+            #print(current_dos, current_dos / volume / electron_charge) #DEBUG
         return energies, dos
 
     def _interpolate_dos(self, dos_values, energy_values, requested_energy):
@@ -151,7 +156,7 @@ class DOSFingerprint():
             bin_fp += self._binary_bin(current_dos, grid[grid_index][1])
             grid_index += 1
         byte_fp = bitarray(bin_fp).tobytes()
-        return [grid_start, grid_index], str(byte_fp)[2:-1]
+        return [grid_start, grid_index], byte_fp
 
 class Grid():
     """A grid object, specifying the energy/dos grid for the fingerprint generation."""
@@ -159,13 +164,21 @@ class Grid():
     @staticmethod
     def create(id=None, mu=-2, sigma=7, grid_type='dg_cut', num_bins=56, cutoff=(-10, 5)):
         self = Grid()
-        id = "%s_%s_%s_%s" % (grid_type, str(mu), str(sigma), str(cutoff)) if id is None else id
-        self.id = id.replace(".", "_")
-        self.grid_type = grid_type
         self.num_bins = num_bins
-        self.mu = mu
-        self.sigma = sigma
-        self.cutoff = cutoff
+        if id is None:
+            id = "%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
+            self.id = id
+            self.grid_type = grid_type
+            self.mu = mu
+            self.sigma = sigma
+            self.cutoff = cutoff
+        else:
+            self.id = id
+            values = id.split(':')
+            self.grid_type = values[0]
+            self.mu = float(values[1])
+            self.sigma = float(values[2])
+            self.cutoff = tuple([float(x) for x in values[3][1:-1].split(',')])
 
         return self
 
@@ -299,17 +312,9 @@ class Grid():
 
     def tanimoto(self, fp1, fp2):
         bit_array1, bit_array2 = self.match_fingerprints(fp1, fp2)
+        #print(bit_array1, bit_array2) #DEBUG
         a = bit_array1.count()
         b = bit_array2.count()
         c = (bit_array1 & bit_array2).count()
         tc = c / float(a + b - c)
         return tc
-
-    def __str__(self):
-        return "Grid(%s)" % self.id
-
-
-
-
-    def __str__(self):
-        return "ByteFingerprint(%s)" % self.id

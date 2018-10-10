@@ -4,3 +4,4 @@ notebooks/
 !notebooks/*.py
 data/
 __pycache__/
+tests_for_NOMAD.py
