@@ -2,7 +2,7 @@ import math
 import matplotlib.pyplot as ppl
 from bitarray import bitarray
 
-electron_charge = 1.602176565e-19
+from utils import electron_charge
 
 
 class DOSFingerprint():
