@@ -1,15 +1,16 @@
 from DOS_fingerprints import DOSFingerprint, Grid
-
+import json
 
 class Fingerprint():
 
-    def __init__(self, fp_type, properties = None, parameters = None, data = None):
+    def __init__(self, fp_key, properties = None, db_row = None):
         self.properties = properties
-        self.fp_type = fp_type
-        if data == None:
+        self.fp_type = fp_key.split(':')[0]
+        self.fp_key_data = fp_key.split(':')[1:]
+        if db_row == None:
             self.calculate()
         else:
-            self.data = data
+            self.data = self._get_db_data(db_row)
             self._reconstruct_from_data()
         #TODO Catch: neither data nor properties
 
@@ -20,8 +21,16 @@ class Fingerprint():
             grid = Grid.create()
             self.fingerprint = DOSFingerprint(json_data, cell_volume, grid)
             self.data = self.fingerprint.get_data()
-            #print(self.data) #DEBUG
+            #print(db_id, db_data) #DEBUG
         return self.data
+
+    def write_to_database(self, database_key, database):
+        database.update(database_key, DOS = self.fp_key_data, DOS_values = self.db_data)
+
+    def _get_db_data(self, row):
+        if self.fp_type == "DOS":
+            data = json.loads(row.DOS)
+        return data
 
     def calc_similiarity(self, mid, database):
         if self.fp_type == 'DOS':

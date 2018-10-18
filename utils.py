@@ -46,5 +46,5 @@ def get_lattice_description(elements, lattice_parameters):
     positions = [x[1] for x in elements]
     cell=get_lattice_parameters_from_string(lattice_parameters)
     scaled_positions=[[x[0] * cell[0], x[1] * cell[1], x[2] * cell[2]] for x in positions]
-    structure=Atoms(symbols=labels,positions=scaled_positions,cell=cell)
-    return [structure, [labels,positions,cell]]
+    structure=Atoms(symbols=labels,positions=scaled_positions,cell=cell, pbc = True)
+    return structure

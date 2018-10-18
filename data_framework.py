@@ -11,23 +11,12 @@ from utils import electron_charge, get_lattice_description
 
 class MaterialsDatabase():
 
-    def __init__(self, filename = 'materials_database.json', db_path = 'data'):
-        self.filename = filename
-        self.filepath = os.path.join(db_path, self.filename)
-        self.atoms_db_name = 'ase_atoms_' + filename
+    def __init__(self, filename = 'materials_database.db', db_path = 'data'):
+        self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         key_data = open('api_key','r').readline()
         self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
-        if not os.path.exists(db_path):
-            os.mkdir(db_path)
-        if not os.path.exists(self.filepath):
-            with open(self.filepath,'w') as f:
-                json.dump({}, f, indent = 4)
-            self.materials_dict = {}
-        else:
-            with open(self.filepath,'r') as f:
-                self.materials_dict = json.load(f)
         self.atoms_db = connect(self.atoms_db_path)
 
     def get_property(self, mid, property_name):
@@ -40,43 +29,42 @@ class MaterialsDatabase():
 
     def get_fingerprint(self, mid, fp_type):
         try:
-            fp_data = self.materials_dict[mid]['fingerprints'][fp_type]
+            row = self.atoms_db.get(mid = mid)
         except KeyError:
-            sys.exit('Fingerprint %s is not calculated.' %(fp_type))
-        return Fingerprint(fp_type, data = fp_data)
+            sys.exit('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
+        return Fingerprint(fp_type, db_row = row)
 
     def get_formula(self, mid):
-        return self.materials_dict[mid]['properties']['formula']
-
-    def update_database_file(self):
-        with open(self.filepath,'r') as f:
-            db_from_file = json.load(f)
-        db_from_file.update(self.materials_dict)
-        with open(self.filepath,'w') as f:
-            json.dump(db_from_file, f, indent = 4)
+        row = self._get_row_by_mid(mid)
+        return row.formula
 
     def get_atoms(self, mid):
-        return self.atoms_db.get_atoms(self.materials_dict[mid]['atoms']['atoms_id'])
+        try:
+            return self.atoms_db.get_atoms(mid = mid)
+        except KeyError:
+            print("not in db: ", mid)
 
-
-    def add_fingerprint(self, fp_type, fp_data = None):
+    def add_fingerprint(self, fp_type):
         """
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
-        for mid in self.materials_dict.keys():
-            if 'fingerprints' not in self.materials_dict[mid].keys():
-                self.materials_dict[mid]['fingerprints'] = {}
-            fingerprint = Fingerprint(fp_type, self.materials_dict[mid]['properties'], fp_data)
-            self.materials_dict[mid]['fingerprints'][fp_type] = fingerprint.calculate()
-        self.update_database_file()
+        for row in self.atoms_db.select():
+            fingerprint = Fingerprint(fp_type, row.data.properties)
+            to_store =  json.dumps(fingerprint.calculate())
+            self.atoms_db.update(row.id, DOS = to_store)
+            #fingerprint.write_to_database(row.id, self.atoms_db)
+        #self.update_database_file()
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """
         This thing should download the data and construct the infrastructure that is necessary
         to create the different fingerprints.
         """
-        mat_id = self._make_mid(nomad_material_id, nomad_calculation_id)
-        if not mat_id in self.materials_dict.keys():
+        mid = self._make_mid(nomad_material_id, nomad_calculation_id)
+        try: #This is a not-so-nice hack. There must be a better solution.
+            self.atoms_db.get(mid=mid)
+            print('already in db: %s' %(mid))
+        except KeyError:
             new_material = {}
             new_material['properties'] = self._get_properties_NOMAD(nomad_material_id, nomad_calculation_id)
             new_material['elements'] = self._get_elements_NOMAD(nomad_material_id)
@@ -85,10 +73,8 @@ class MaterialsDatabase():
                     new_material['tags'] = tags
                 else:
                     new_material['tags'] = [tags]
-            new_material = self._add_atoms(new_material)
-            self.materials_dict[mat_id] = new_material
-        else:
-            print('already in db: %s' %(mat_id))
+            atoms = self._make_atoms(new_material)
+            self.atoms_db.write(atoms, data = new_material, mid = mid)
 
     def fill_database(self, json_query, tags = None):
         if tags == None:
@@ -108,10 +94,19 @@ class MaterialsDatabase():
                     trys += 1
                     #time.sleep(1)
                     continue
-            if index % 10 == 0:
-                print('Processed {:.3f} %'.format( index / len(materials_list) * 100))
-        self.update_database_file()
+            if not success:
+                print("Failed to add ", str(material),'.')
+            if (index+1) % 10 == 0:
+                print('Processed {:.3f} %'.format( (index + 1) / len(materials_list) * 100))
+        print('Finished processing.')
 
+
+    def _get_row_by_mid(self, mid):
+        try:
+            row = self.atoms_db.get(mid = mid)
+            return row
+        except KeyError:
+            print("not in db: ", mid)
 
     def _get_all_materials(self, json_query):
         auth = (self.api_key, '')
@@ -197,12 +192,9 @@ class MaterialsDatabase():
     def _make_mid(self, nmid, ncid):
         return str(nmid)+':'+str(ncid)
 
-    def _add_atoms(self, new_material):
+    def _make_atoms(self, new_material):
         """
         creates the atoms object and links to the file and index where this thing is stored in the ase db
         """
-        [atoms, atoms_raw] = get_lattice_description(new_material['elements'], new_material['properties']['lattice_parameters'])
-        new_material['atoms'] = {}
-        new_material['atoms']['data'] = atoms_raw
-        new_material['atoms']['atoms_id'] = self.atoms_db.write(atoms)
-        return new_material
+        atoms = get_lattice_description(new_material['elements'], new_material['properties']['lattice_parameters'])
+        return atoms
