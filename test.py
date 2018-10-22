@@ -16,12 +16,16 @@ if False:
     test_db.add_fingerprint("DOS")
 
 if True:
-    GaAs_id = test_db._make_mid(1659, 142776)
-    GaAs_dos_fp = test_db.get_fingerprint(GaAs_id, "DOS")
-    for row in test_db.atoms_db.select():
-        print(GaAs_dos_fp.calc_similiarity(row.mid, test_db))
+    test_db.add_fingerprint("SYM")
 
 if True:
+    GaAs_id = test_db._make_mid(1659, 142776)
+    GaAs_dos_fp = test_db.get_fingerprint(GaAs_id, "DOS")
+    GaAs_sym_fp = test_db.get_fingerprint(GaAs_id, "SYM")
+    for row in test_db.atoms_db.select():
+        print(GaAs_dos_fp.calc_similiarity(row.mid, test_db),GaAs_sym_fp.calc_similiarity(row.mid, test_db))
+
+if False:
     import spglib
     from ase.spacegroup import get_spacegroup
 

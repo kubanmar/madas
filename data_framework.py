@@ -49,10 +49,10 @@ class MaterialsDatabase():
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
         for row in self.atoms_db.select():
-            fingerprint = Fingerprint(fp_type, row.data.properties)
-            to_store =  json.dumps(fingerprint.calculate())
-            self.atoms_db.update(row.id, DOS = to_store)
-            #fingerprint.write_to_database(row.id, self.atoms_db)
+            fingerprint = Fingerprint(fp_type, row.data.properties, row.toatoms())
+            #to_store =  json.dumps(fingerprint.calculate())
+            #self.atoms_db.update(row.id, DOS = to_store)
+            fingerprint.write_to_database(row.id, self.atoms_db)
         #self.update_database_file()
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
