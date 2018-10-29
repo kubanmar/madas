@@ -3,7 +3,6 @@ import json, requests
 import time, datetime
 
 import numpy as np
-from ase.db.jsondb import JSONDatabase
 from ase.db import connect
 
 from fingerprints import Fingerprint
@@ -11,19 +10,20 @@ from utils import electron_charge, get_lattice_description
 
 class MaterialsDatabase():
 
-    def __init__(self, filename = 'materials_database.db', db_path = 'data'):
+    def __init__(self, filename = 'materials_database.db', db_path = 'data', path_to_api_key = '.'):
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
-        key_data = open('api_key','r').readline()
+        key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
         self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         self.atoms_db = connect(self.atoms_db_path)
 
     def get_property(self, mid, property_name):
+        row = self._get_row_by_mid(mid)
         if property_name in ['dos_values', 'dos_energies']:
-            return self.materials_dict[mid][property_name]
-        elif property_name in self.materials_dict[mid]['properties'].keys():
-            return self.materials_dict[mid]['properties'][property_name]
+            return row.data.properties['dos'][property_name]
+        elif property_name in row.data.properties.keys():
+            return row.data.properties[property_name]
         else:
             return None
 
@@ -54,6 +54,8 @@ class MaterialsDatabase():
             #self.atoms_db.update(row.id, DOS = to_store)
             fingerprint.write_to_database(row.id, self.atoms_db)
         #self.update_database_file()
+        #            db.update([i+1], **{property_name:pval}) ##stolen from Santiago ##TODO try!
+
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """

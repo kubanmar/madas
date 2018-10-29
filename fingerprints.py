@@ -1,5 +1,6 @@
 from DOS_fingerprints import DOSFingerprint, Grid
 from SYM_fingerprints import SYMFingerprint, get_SYM_sim
+from SOAP_fingerprint import SOAPfingerprint
 import json
 
 class Fingerprint():
@@ -23,6 +24,8 @@ class Fingerprint():
             self.fingerprint = DOSFingerprint(json_data, cell_volume, grid)
         elif self.fp_type == "SYM":
             self.fingerprint = SYMFingerprint(self.atoms)
+        elif self.fp_type == "SOAP":
+            self.fingerprint = SOAPfingerprint(self.atoms)
         self.data = self.fingerprint.get_data()
         return self.data
 
@@ -32,6 +35,8 @@ class Fingerprint():
             database.update(row_id, DOS = data)
         elif self.fp_type == 'SYM':
             database.update(row_id, SYM = data)
+        elif self.fp_type == 'SOAP':
+            database.update(row_id, SOAP = data)
 
     def _get_db_data(self, row):
         if self.fp_type == "DOS":

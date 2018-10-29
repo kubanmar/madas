@@ -15,8 +15,11 @@ if False:
 if False:
     test_db.add_fingerprint("DOS")
 
-if True:
+if False:
     test_db.add_fingerprint("SYM")
+
+if False:
+    test_db.add_fingerprint("SOAP")
 
 if True:
     GaAs_id = test_db._make_mid(1659, 142776)

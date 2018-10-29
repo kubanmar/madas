@@ -15,7 +15,7 @@ class SYMFingerprint():
     def get_data(self):
         data = {'symop':[]}
         data['sg'] = self.sg.no
-        for item in self.symop: #DEBUG
+        for item in self.symop:
             symop = []
             for subitem in item:
                 symop.append(subitem.tolist())
@@ -23,7 +23,6 @@ class SYMFingerprint():
         return data
 
 def get_SYM_sim(symop_mat_1, symop_mat_2):
-    #Pseudocode:: for item in fingerprint do check if symop in fingerprint2, then do some kind of tanimoto with the total number entries in each thing.
     if len(symop_mat_1) < len(symop_mat_2):
         symop1 = symop_mat_1
         symop2 = symop_mat_2
