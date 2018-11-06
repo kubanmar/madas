@@ -1,6 +1,7 @@
 import os, sys
 import json, requests
 import time, datetime
+import random
 
 import numpy as np
 from ase.db import connect
@@ -102,6 +103,13 @@ class MaterialsDatabase():
                 print('Processed {:.3f} %'.format( (index + 1) / len(materials_list) * 100))
         print('Finished processing.')
 
+    def get_random(self, return_id = True):
+        n_rows = self.atoms_db.count()
+        row = self.atoms_db.get(random.randint(0, n_rows))
+        if return_id:
+            return row.mid
+        else:
+            return row
 
     def _get_row_by_mid(self, mid):
         try:

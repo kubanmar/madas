@@ -7,13 +7,13 @@ class SOAPfingerprint():
         l_max = 5
         r_cut = 10.0
         if atoms_object != None:
-            self.atoms_object = atoms_object
+            self.atoms = atoms_object
             my_alphas, my_betas = soaplite.getBasisFunc(r_cut, n_max)
             self.x = soaplite.get_periodic_soap_structure(atoms_object, my_alphas, my_betas)
 
     def get_data(self):
         data = {'densities':[]}
-        data['positions'] = self.atoms_object.get_positions().tolist()
+        data['positions'] = self.atoms.get_positions().tolist()
         for position in self.x:
             density = [value for value in position]
             data['densities'].append(density)

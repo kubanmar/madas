@@ -21,7 +21,7 @@ if False:
 if False:
     test_db.add_fingerprint("SOAP")
 
-if True:
+if False:
     GaAs_id = test_db._make_mid(1659, 142776)
     GaAs_dos_fp = test_db.get_fingerprint(GaAs_id, "DOS")
     GaAs_sym_fp = test_db.get_fingerprint(GaAs_id, "SYM")
@@ -29,8 +29,12 @@ if True:
         print(GaAs_dos_fp.calc_similiarity(row.mid, test_db),GaAs_sym_fp.calc_similiarity(row.mid, test_db))
 
 if False:
-    import spglib
-    from ase.spacegroup import get_spacegroup
+    print(test_db.get_random())
 
-    for row in test_db.atoms_db.select():
-        print(get_spacegroup(row.toatoms(), method = 'spglib').get_symop())
+if True:
+    rnd_str = test_db.get_random(False).toatoms()
+    from CLUS_fingerprint import CLUSfingerprint
+    new_clus_fp = CLUSfingerprint(rnd_str)
+    print(rnd_str)
+    print(new_clus_fp._get_pristine_subs())
+    new_clus_fp._gen_clusters_pool()
