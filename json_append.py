@@ -1,6 +1,5 @@
 import json,sys
 from os.path import exists
-from os import remove
 
 def _seek_terminating_char(f, char = '}'):
     for offset in range(1,11):
@@ -16,7 +15,6 @@ def write_json_file(json_data, filename):
     if not exists(filename):
         with open(filename,'w') as f:
             json.dump(json_data, f, indent = 4)
-            f.write('\n\n\n\n\n')
     else:
         with open(filename, 'rb+') as f:
             _seek_terminating_char(f)

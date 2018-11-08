@@ -316,5 +316,8 @@ class Grid():
         a = bit_array1.count()
         b = bit_array2.count()
         c = (bit_array1 & bit_array2).count()
-        tc = c / float(a + b - c)
+        try:
+            tc = c / float(a + b - c)
+        except ZeroDivisionError:
+            tc = 0
         return tc

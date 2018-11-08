@@ -35,4 +35,8 @@ def get_SYM_sim(symop_mat_1, symop_mat_2):
     for item in symop1:
         if item in symop2:
             c += 1
-    return c / (a+b-c)
+    try:
+        tc = c / (a+b-c)
+    except ZeroDivisionError:
+        tc = 0
+    return tc

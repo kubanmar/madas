@@ -5,7 +5,7 @@ import json
 
 class Fingerprint():
 
-    def __init__(self, fp_type, properties = None, atoms = None, db_row = None):
+    def __init__(self, fp_type, properties = None, atoms = None, db_row = None, database = None):
         self.properties = properties
         self.fp_type = fp_type
         self.atoms = atoms
@@ -14,6 +14,8 @@ class Fingerprint():
         else:
             self.data = self._get_db_data(db_row)
             self._reconstruct_from_data()
+        if database != None:
+            self.database = database
         #TODO Catch: neither data nor properties
 
     def calculate(self):
@@ -48,13 +50,35 @@ class Fingerprint():
     def calc_similiarity(self, mid, database):
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
-                grid = Grid.create(id = self.data['grid_id'])
+                self.grid = Grid.create(id = self.data['grid_id'])
             fingerprint = database.get_fingerprint(mid, 'DOS')
             if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
                 sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
-            return grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
         if self.fp_type == 'SYM':
             fingerprint = database.get_fingerprint(mid, 'SYM')
+            return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
+
+    def calc_similiarity_multiprocess(self, mid):
+        if self.fp_type == 'DOS':
+            if not hasattr(self, 'grid'):
+                self.grid = Grid.create(id = self.data['grid_id'])
+            fingerprint = self.database.get_fingerprint(mid, 'DOS')
+            if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
+                sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
+            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+        if self.fp_type == 'SYM':
+            fingerprint = self.database.get_fingerprint(mid, 'SYM')
+            return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
+
+    def get_similarity(self, fingerprint):
+        if self.fp_type == 'DOS':
+            if not hasattr(self, 'grid'):
+                self.grid = Grid.create(id = self.data['grid_id'])
+            if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
+                sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
+            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+        if self.fp_type == 'SYM':
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
 
     def _reconstruct_from_data(self):

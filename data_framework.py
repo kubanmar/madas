@@ -28,12 +28,15 @@ class MaterialsDatabase():
         else:
             return None
 
-    def get_fingerprint(self, mid, fp_type):
+    def get_fingerprint(self, mid, fp_type, multiprocess = False):
         try:
             row = self.atoms_db.get(mid = mid)
         except KeyError:
             sys.exit('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
-        return Fingerprint(fp_type, db_row = row)
+        if multiprocess:
+            return Fingerprint(fp_type, db_row = row, database = self)
+        else:
+            return Fingerprint(fp_type, db_row = row)
 
     def get_formula(self, mid):
         row = self._get_row_by_mid(mid)

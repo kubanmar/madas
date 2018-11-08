@@ -30,3 +30,30 @@ class CLUSfingerprint():
             new_atoms.set_atomic_numbers([z for x in zs])
             pristine_atoms.append(new_atoms)
         return pristine_atoms
+
+    def show_cluster(self, cluster_index):
+        from ase.visualize import view
+        print(self.cpool[cluster_index].get_positions())
+
+""" #From ASE forum, but does not work properly.
+def primitive_from_conventional_cell(atoms, spacegroup=1, setting=1):
+    #Returns primitive cell given an Atoms object for a conventional
+    #cell and it's spacegroup.
+    from ase.lattice.spacegroup import Spacegroup
+    from ase.utils.geometry  import cut
+    sg = Spacegroup(spacegroup, setting)
+    prim_cell = sg.scaled_primitive_cell  # Check if we need to transpose
+    return cut(atoms, a=prim_cell[0], b=prim_cell[1], c=prim_cell[2])
+
+# Simple test
+import ase
+from ase.lattice.spacegroup import crystal
+
+# fcc
+al = crystal('Al', [(0, 0, 0)], spacegroup=225, cellpar=4.05)
+al_prim = primitive_from_conventional_cell(al, 225)
+
+# bcc
+fe = crystal('Fe', [(0,0,0)], spacegroup=229, cellpar=2.87)
+fe_prim = primitive_from_conventional_cell(fe, 229)
+"""

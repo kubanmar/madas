@@ -6,3 +6,4 @@ data/
 __pycache__/
 tests_for_NOMAD.py
 api_key
+cellconfig.json

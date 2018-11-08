@@ -38,3 +38,4 @@ if True:
     print(rnd_str)
     print(new_clus_fp._get_pristine_subs())
     new_clus_fp._gen_clusters_pool()
+    new_clus_fp.show_cluster(12)
