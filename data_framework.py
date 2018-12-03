@@ -38,6 +38,33 @@ class MaterialsDatabase():
         else:
             return Fingerprint(fp_type, db_row = row)
 
+    def get_similarity_matrix(self, fp_type):
+        fingerprint_list = []
+        mid_list = []
+        for row in self.atoms_db.select():
+            fingerprint_list.append(Fingerprint(fp_type, db_row = row))
+            mid_list.append(row.mid)
+        sim_mat = []
+        for idx, fp in enumerate(fingerprint_list):
+            matrix_row = []
+            for jdx, fp2 in enumerate(fingerprint_list[idx:]):
+                matrix_row.append(fp.get_similarity(fp2))
+            sim_mat.append(np.array(matrix_row))
+        return np.array(sim_mat), mid_list
+
+    @staticmethod
+    def similarity_matrix_row(mid, mid_list, sim_mat):
+        row = []
+        mid_idx = mid_list.index(mid)
+        for idx in range(len(mid_list)):
+            if idx < mid_idx:
+                row.append(sim_mat[idx][mid_idx-idx])
+            elif idx > mid_idx:
+                row.append(sim_mat[mid_idx][idx-mid_idx])
+            else:
+                row.append(sim_mat[idx][0])
+        return row
+
     def get_formula(self, mid):
         row = self._get_row_by_mid(mid)
         return row.formula

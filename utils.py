@@ -29,6 +29,40 @@ def plot_FP_in_grid(byte_fingerprint, grid_id):
             bit_position+=1
     ppl.bar(x,y,width=all_width,align='edge')
 
+def get_plotting_data(material_id, calc_nr): #TODO convert to current code
+    electron_charge=1.6021766e-19
+    name=EncApi.default().get_material_property(material_id,property="formula")
+    dos_json=EncApi.default().get_calc_property(material_id,calc_nr,property="dos")
+    volume=EncApi.default().get_calc_property(material_id,calc_nr,property="cell_volume")
+    energy=[]
+    dos=[]
+    for index in range(len(dos_json['dos_energies'])):
+        energy.append(dos_json['dos_energies'][index]/electron_charge)
+        #print(dos_json['dos_values'][index][0])
+        dos.append(dos_json['dos_values'][0][index]/electron_charge/volume)
+    return name,energy,dos
+
+def plot_similar_dos(value_array): #TODO convert to current code
+    """Values in value_array are expected to be [material_id,calculation_number,distance]"""
+    colors=['black','red','violet','blue','cyan','green','yellow','orange']
+    colors=colors+colors
+    for index,item in enumerate(value_array):
+        name,energy,dos=get_plotting_data(item[0],item[1])
+        if item[2]==0.:
+            label=str(name)+' (reference)'
+        else:
+            label=str(name)+' Tc='+str(round(1-item[2],5))
+        ppl.plot(energy,dos,label=label,color=colors[index],alpha=0.5)
+        ppl.fill_between(energy,0,dos,facecolor=colors[index],alpha=0.5/(index+1))
+    ppl.axis([-20,10,0,5],fontsize='25')
+    ppl.xlabel('Energy [eV]',fontsize='40')
+    ppl.ylabel('DOS [states/unit cell/eV]',fontsize='40')
+    ppl.xticks(fontsize='30')
+    ppl.yticks(fontsize='30')
+    ppl.legend(fontsize='10')
+    ppl.show()
+
+
 def get_lattice_parameters_from_string(string):
     lcs=string.split(',')
     lcs[0]=lcs[0][1:]

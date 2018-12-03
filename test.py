@@ -1,7 +1,9 @@
 from data_framework import MaterialsDatabase
+import matplotlib.pyplot as plt
 import sys
 
-test_db = MaterialsDatabase(filename = 'test_db.db')
+#test_db = MaterialsDatabase(filename = 'test_db.db')
+test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 
 if False:
     test_db.add_material(1659, 142776) # this -of course- is GaAs
@@ -31,7 +33,7 @@ if False:
 if False:
     print(test_db.get_random())
 
-if True:
+if False:
     rnd_str = test_db.get_random(False).toatoms()
     from CLUS_fingerprint import CLUSfingerprint
     new_clus_fp = CLUSfingerprint(rnd_str)
@@ -39,3 +41,19 @@ if True:
     print(new_clus_fp._get_pristine_subs())
     new_clus_fp._gen_clusters_pool()
     new_clus_fp.show_cluster(12)
+
+if True:
+    simat, mid_list = test_db.get_similarity_matrix("DOS")
+    sims = []
+    print(test_db.similarity_matrix_row(mid_list[1], mid_list, simat))
+    for mid, row in zip(mid_list,simat):
+        print(mid, row)
+        for item in row:
+            sims.append(item)
+    sims.sort()
+    plt.plot([x for x in range(len(sims))],sims,'.')
+#    plt.figure()
+#    for item in mid_list:
+#        sim_row = test_db.similarity_matrix_row(item, mid_list, simat)
+#        plt.plot([x for x in range(len(sim_row))],sim_row, '.-')
+    plt.show()
