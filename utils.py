@@ -1,11 +1,12 @@
 from bitarray import bitarray
 import numpy as np
 from ase import Atoms
+import matplotlib.pyplot as plt
 
 species_list = 'Vac,H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn,Fr,Ra,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr,Rf,Db,Sg,Bh,Hs,Mt,Ds,Rg,Cn,Nh,Fl,Mc,Lv,Ts,Og'.split(',')
 electron_charge = 1.602176565e-19
 
-def plot_FP_in_grid(byte_fingerprint, grid_id):
+def plot_FP_in_grid(byte_fingerprint, grid_id): #TODO adapt to current code version
     x=[]
     y=[]
     all_width=[]
@@ -27,40 +28,45 @@ def plot_FP_in_grid(byte_fingerprint, grid_id):
                 y.append(dos_value)
                 all_width.append(width)
             bit_position+=1
-    ppl.bar(x,y,width=all_width,align='edge')
+    plt.bar(x,y,width=all_width,align='edge')
 
-def get_plotting_data(material_id, calc_nr): #TODO convert to current code
+def get_plotting_data(mid, database):
     electron_charge=1.6021766e-19
-    name=EncApi.default().get_material_property(material_id,property="formula")
-    dos_json=EncApi.default().get_calc_property(material_id,calc_nr,property="dos")
-    volume=EncApi.default().get_calc_property(material_id,calc_nr,property="cell_volume")
+    name = database.get_formula(mid)
+    dos_json = database.get_property(mid, 'dos')
+    volume = database.get_property(mid, 'cell_volume')
     energy=[]
     dos=[]
     for index in range(len(dos_json['dos_energies'])):
         energy.append(dos_json['dos_energies'][index]/electron_charge)
         #print(dos_json['dos_values'][index][0])
-        dos.append(dos_json['dos_values'][0][index]/electron_charge/volume)
+        dos.append(dos_json['dos_values'][0][index]/ 1e-30 /electron_charge/volume)
     return name,energy,dos
 
-def plot_similar_dos(value_array): #TODO convert to current code
-    """Values in value_array are expected to be [material_id,calculation_number,distance]"""
-    colors=['black','red','violet','blue','cyan','green','yellow','orange']
-    colors=colors+colors
-    for index,item in enumerate(value_array):
-        name,energy,dos=get_plotting_data(item[0],item[1])
-        if item[2]==0.:
-            label=str(name)+' (reference)'
-        else:
-            label=str(name)+' Tc='+str(round(1-item[2],5))
-        ppl.plot(energy,dos,label=label,color=colors[index],alpha=0.5)
-        ppl.fill_between(energy,0,dos,facecolor=colors[index],alpha=0.5/(index+1))
-    ppl.axis([-20,10,0,5],fontsize='25')
-    ppl.xlabel('Energy [eV]',fontsize='40')
-    ppl.ylabel('DOS [states/unit cell/eV]',fontsize='40')
-    ppl.xticks(fontsize='30')
-    ppl.yticks(fontsize='30')
-    ppl.legend(fontsize='10')
-    ppl.show()
+def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
+    """
+    Plot DOS of materials similar to a reference material.
+    """
+    plt.figure()
+    label, energy, dos = get_plotting_data(reference_mid, database)
+    label=str(label)+' (reference)'
+    plt.plot(energy,dos,label=label,alpha=0.5)
+    plt.fill_between(energy,0,dos,alpha=0.5)
+    for index, key in enumerate(sim_dict[reference_mid].keys()):
+        mid = sim_dict[reference_mid][key]
+        label, energy, dos = get_plotting_data(mid, database)
+        label = label + ' Tc='+str(round(float(key), 5))
+        if index < nmax:
+            plt.plot(energy,dos,label=label,alpha=0.5)
+            plt.fill_between(energy,0,dos,alpha=0.5/(index+2))
+    plt.axis(fontsize='25')
+    plt.xlabel('Energy [eV]',fontsize='40')
+    plt.ylabel('DOS [states/unit cell/eV]',fontsize='40')
+    plt.xticks(fontsize='30')
+    plt.yticks(fontsize='30')
+    plt.legend(fontsize='10')
+    if show:
+        plt.show()
 
 
 def get_lattice_parameters_from_string(string):
@@ -82,3 +88,26 @@ def get_lattice_description(elements, lattice_parameters):
     scaled_positions=[[x[0] * cell[0], x[1] * cell[1], x[2] * cell[2]] for x in positions]
     structure=Atoms(symbols=labels,positions=scaled_positions,cell=cell, pbc = True)
     return structure
+
+import json,sys
+from os.path import exists
+
+def _seek_terminating_char(f, char = '}'):
+    for offset in range(1,11):
+        byteoffset = offset * (-1)
+        f.seek(byteoffset, 2)
+        data = f.read()
+        if bytes(char,'utf-8') in data:
+            f.seek(byteoffset, 2)
+            return
+    sys.exit("No valid char found.")
+
+def write_json_file(json_data, filename):
+    if not exists(filename):
+        with open(filename,'w') as f:
+            json.dump(json_data, f, indent = 4)
+    else:
+        with open(filename, 'rb+') as f:
+            _seek_terminating_char(f)
+            f.write(bytes(',','utf-8'))
+            f.write(bytes(json.dumps(json_data, indent = 4),'utf-8')[1:])
