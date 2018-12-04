@@ -2,8 +2,8 @@ from data_framework import MaterialsDatabase
 import matplotlib.pyplot as plt
 import sys
 
-#test_db = MaterialsDatabase(filename = 'test_db.db')
-test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
+test_db = MaterialsDatabase(filename = 'test_db.db')
+#test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 
 if False:
     test_db.add_material(1659, 142776) # this -of course- is GaAs
@@ -14,7 +14,7 @@ if False:
     test_json = {"search_by":{"element":"Al,Si,P","exclusive":"0","page":1,"per_page":10},"has_dos":"Yes", "code_name":["VASP"]}
     test_db.fill_database(test_json)
 
-if False:
+if True:
     test_db.add_fingerprint("DOS")
 
 if False:

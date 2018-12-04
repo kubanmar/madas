@@ -13,7 +13,7 @@ neighbors_dict = {}
 
 neighbors_filename = 'data/DOS_nearest_neighbors_test.json'
 
-if False:
+if True:
 
     sim_matrix, mid_list = db.get_similarity_matrix(fp_type)
 
@@ -28,7 +28,7 @@ if False:
     with open(neighbors_filename,'w') as f:
         json.dump(neighbors_dict, f, indent = 4, sort_keys = True)
 
-if True:
+if False:
     with open(neighbors_filename,'r') as f:
         neighbors_dict = json.load(f)
 
