@@ -6,17 +6,22 @@ import json
 
 #db = MaterialsDatabase(filename = 'test_db.db')
 db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
+#db = MaterialsDatabase(filename = 'carbon_oxygen_structures.db')
 
 fp_type = "DOS"
 
 neighbors_dict = {}
 
-neighbors_filename = 'data/DOS_nearest_neighbors_test.json'
+neighbors_filename = 'data/DOS_nearest_neighbors_test_earth_mover.json'
 
-if True:
+load = False
 
-    sim_matrix, mid_list = db.get_similarity_matrix(fp_type)
+if not load:
 
+    sim_matrix, mid_list = db.get_similarity_matrix(fp_type, s='earth_mover')
+    #sim_matrix2, mid_list = db.get_similarity_matrix(fp_type)
+    #sim_matrix += sim_matrix2
+    #sim_matrix /= 2
     n_neighbors = 10
 
     for mid in mid_list:
@@ -28,7 +33,7 @@ if True:
     with open(neighbors_filename,'w') as f:
         json.dump(neighbors_dict, f, indent = 4, sort_keys = True)
 
-if False:
+if load:
     with open(neighbors_filename,'r') as f:
         neighbors_dict = json.load(f)
 
@@ -37,10 +42,10 @@ def neighbors_dict_statistics(neighbors_dict, show = True):
     liste = []
     for key in neighbors_dict.keys():
         liste.append(sorted([float(x) for x in neighbors_dict[key].keys()])[-1])
-    plt.hist(liste, bins = 100)
+    plt.hist(liste, bins = 10)
     if show:
         plt.show()
 
-neighbors_dict_statistics(neighbors_dict, show = False)
+neighbors_dict_statistics(neighbors_dict, show = True)
 
-plot_similar_dos('92506:170248', neighbors_dict, db, nmax = 4)
+#plot_similar_dos('53839:88585', neighbors_dict, db, nmax = 5)

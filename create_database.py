@@ -1,7 +1,7 @@
 from data_framework import MaterialsDatabase
 
-diamond_parent_lattice = False
-carbon_oxygen = True
+diamond_parent_lattice = True
+carbon_oxygen = False
 
 if diamond_parent_lattice:
     db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')

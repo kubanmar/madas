@@ -1,6 +1,6 @@
 from DOS_fingerprints import DOSFingerprint, Grid
 from SYM_fingerprints import SYMFingerprint, get_SYM_sim
-from SOAP_fingerprint import SOAPfingerprint
+from SOAP_fingerprint import SOAPfingerprint, get_SOAP_sim
 import json
 
 class Fingerprint():
@@ -45,6 +45,8 @@ class Fingerprint():
             data = json.loads(row.DOS)
         elif self.fp_type == "SYM":
             data = json.loads(row.SYM)
+        elif self.fp_type == 'SOAP':
+            data = json.loads(row.SOAP)
         return data
 
     def calc_similiarity(self, mid, database):
@@ -58,6 +60,9 @@ class Fingerprint():
         if self.fp_type == 'SYM':
             fingerprint = database.get_fingerprint(mid, 'SYM')
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
+        if self.fp_type == 'SOAP':
+            fingerprint = database.get_fingerprint(mid, 'SOAP')
+            return get_SOAP_sim(self.data, fingerprint.data)
 
     def calc_similiarity_multiprocess(self, mid):
         if self.fp_type == 'DOS':
@@ -71,13 +76,17 @@ class Fingerprint():
             fingerprint = self.database.get_fingerprint(mid, 'SYM')
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
 
-    def get_similarity(self, fingerprint):
+    def get_similarity(self, fingerprint, s = 'tanimoto'):
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
                 self.grid = Grid.create(id = self.data['grid_id'])
             if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
                 sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
-            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+            if s == 'tanimoto':
+                similarity = self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
+            elif s == 'earth_mover':
+                similarity = self.grid.earth_mover_similarity(self.fingerprint, fingerprint.fingerprint)
+            return  similarity
         if self.fp_type == 'SYM':
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
 
@@ -89,4 +98,6 @@ class Fingerprint():
             self.fingerprint.grid_id = self.data['grid_id']
         elif self.fp_type == 'SYM':
             self.fingerprint = SYMFingerprint(None, symop = self.data['symop'], sg = self.data['sg'])
+        elif self.fp_type == 'SOAP':
+            self.fingerprint = SOAPfingerprint(None, self.data)
         return self.data

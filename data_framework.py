@@ -38,7 +38,7 @@ class MaterialsDatabase():
         else:
             return Fingerprint(fp_type, db_row = row)
 
-    def get_similarity_matrix(self, fp_type):
+    def get_similarity_matrix(self, fp_type, **kwargs):
         fingerprint_list = []
         mid_list = []
         for row in self.atoms_db.select():
@@ -48,7 +48,7 @@ class MaterialsDatabase():
         for idx, fp in enumerate(fingerprint_list):
             matrix_row = []
             for jdx, fp2 in enumerate(fingerprint_list[idx:]):
-                matrix_row.append(fp.get_similarity(fp2))
+                matrix_row.append(fp.get_similarity(fp2, **kwargs))
             sim_mat.append(np.array(matrix_row))
         return np.array(sim_mat), mid_list
 

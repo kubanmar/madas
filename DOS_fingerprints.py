@@ -321,3 +321,24 @@ class Grid():
         except ZeroDivisionError:
             tc = 0
         return tc
+
+    def earth_mover_distance(self, fp1, fp2, normalize = True):
+        a, b = self.match_fingerprints(fp1, fp2)
+        bit_xor = a ^ b
+        a_moved = (a & bit_xor).count()
+        b_moved = (b & bit_xor).count()
+        if a_moved > b_moved:
+            distance = a_moved
+            norm_length = a.count()
+        else:
+            distance = b_moved
+            norm_length = b.count()
+        if normalize:
+            try:
+                distance = distance / norm_length
+            except ZeroDivisionError:
+                distance = 1
+        return distance
+
+    def earth_mover_similarity(self, a, b):
+        return 1 - self.earth_mover_distance(a,b)
