@@ -2,6 +2,7 @@ import os, sys
 import json, requests
 import time, datetime
 import random
+import logging
 
 import numpy as np
 from ase.db import connect
@@ -18,6 +19,7 @@ class MaterialsDatabase():
         self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         self.atoms_db = connect(self.atoms_db_path)
+        self._init_loggers(path = db_path)
 
     def get_property(self, mid, property_name):
         row = self._get_row_by_mid(mid)
@@ -141,6 +143,30 @@ class MaterialsDatabase():
         else:
             return row
 
+    def _init_loggers(self, path):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        network = logging.getLogger('network')
+        network.setLevel(logging.DEBUG)
+
+        log = logging.getLogger('log')
+        log.setLevel(logging.DEBUG)
+
+        network_file = logging.FileHandler(os.path.join(path,'network.log'))
+        network_file.setLevel(logging.INFO)
+        network_file.setFormatter(formatter)
+
+        error_file = logging.FileHandler(os.path.join(path,'errors.log'))
+        error_file.setLevel(logging.ERROR)
+        error_file.setFormatter(formatter)
+
+        log.addHandler(error_file)
+        network.addHandler(network_file)
+        network.addHandler(error_file)
+
+        self.log = log
+        self.netlog = network
+
     def _get_row_by_mid(self, mid):
         try:
             row = self.atoms_db.get(mid = mid)
@@ -196,7 +222,7 @@ class MaterialsDatabase():
         #calculation properties
         json_answer = requests.get(calc_url, auth = auth).json()
         properties = {}
-        for keyword in ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density']:
+        for keyword in ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri']:
             properties[keyword] = json_answer[keyword]
         for x in json_answer['energy']:
             if x['e_kind'] == 'Total E':
