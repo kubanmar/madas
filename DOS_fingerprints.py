@@ -1,6 +1,7 @@
 import math
 import matplotlib.pyplot as ppl
 from bitarray import bitarray
+import logging
 
 from utils import electron_charge
 
@@ -165,6 +166,7 @@ class Grid():
     def create(id=None, mu=-2, sigma=7, grid_type='dg_cut', num_bins=56, cutoff=(-10, 5)):
         self = Grid()
         self.num_bins = num_bins
+        self.log = logging.getLogger('log')
         if id is None:
             id = "%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
             self.id = id
@@ -316,10 +318,7 @@ class Grid():
         a = bit_array1.count()
         b = bit_array2.count()
         c = (bit_array1 & bit_array2).count()
-        try:
-            tc = c / float(a + b - c)
-        except ZeroDivisionError:
-            tc = 0
+        tc = c / float(a + b - c)
         return tc
 
     def earth_mover_distance(self, fp1, fp2, normalize = True):
@@ -334,10 +333,7 @@ class Grid():
             distance = b_moved
             norm_length = b.count()
         if normalize:
-            try:
-                distance = distance / norm_length
-            except ZeroDivisionError:
-                distance = 1
+            distance = distance / norm_length
         return distance
 
     def earth_mover_similarity(self, a, b):

@@ -19,7 +19,7 @@ class MaterialsDatabase():
         self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         self.atoms_db = connect(self.atoms_db_path)
-        self._init_loggers(path = db_path)
+        self._init_loggers(db_path, filename.split('.db')[0])
 
     def get_property(self, mid, property_name):
         row = self._get_row_by_mid(mid)
@@ -36,15 +36,15 @@ class MaterialsDatabase():
         except KeyError:
             sys.exit('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
         if multiprocess:
-            return Fingerprint(fp_type, db_row = row, database = self)
+            return Fingerprint(fp_type, mid = mid, db_row = row, database = self)
         else:
-            return Fingerprint(fp_type, db_row = row)
+            return Fingerprint(fp_type, mid = mid, db_row = row)
 
     def get_similarity_matrix(self, fp_type, **kwargs):
         fingerprint_list = []
         mid_list = []
         for row in self.atoms_db.select():
-            fingerprint_list.append(Fingerprint(fp_type, db_row = row))
+            fingerprint_list.append(Fingerprint(fp_type, mid = row.mid, db_row = row))
             mid_list.append(row.mid)
         sim_mat = []
         for idx, fp in enumerate(fingerprint_list):
@@ -82,7 +82,7 @@ class MaterialsDatabase():
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
         for row in self.atoms_db.select():
-            fingerprint = Fingerprint(fp_type, row.data.properties, row.toatoms())
+            fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
             #to_store =  json.dumps(fingerprint.calculate())
             #self.atoms_db.update(row.id, DOS = to_store)
             fingerprint.write_to_database(row.id, self.atoms_db)
@@ -127,10 +127,12 @@ class MaterialsDatabase():
                     success = True
                 except KeyError:
                     trys += 1
+                    self.netlog.info('Failed to load material '+str(material['id'])+' at try '+str(trys))
                     #time.sleep(1)
                     continue
             if not success:
                 print("Failed to add ", str(material),'.')
+                self.netlog.error('Failed to add material '+str(material['id']))
             if (index+1) % 10 == 0:
                 print('Processed {:.3f} %'.format( (index + 1) / len(materials_list) * 100))
         print('Finished processing.')
@@ -143,7 +145,7 @@ class MaterialsDatabase():
         else:
             return row
 
-    def _init_loggers(self, path):
+    def _init_loggers(self, path, db_filename):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
         network = logging.getLogger('network')
@@ -152,11 +154,11 @@ class MaterialsDatabase():
         log = logging.getLogger('log')
         log.setLevel(logging.DEBUG)
 
-        network_file = logging.FileHandler(os.path.join(path,'network.log'))
+        network_file = logging.FileHandler(os.path.join(path,db_filename+'_network.log'))
         network_file.setLevel(logging.INFO)
         network_file.setFormatter(formatter)
 
-        error_file = logging.FileHandler(os.path.join(path,'errors.log'))
+        error_file = logging.FileHandler(os.path.join(path,db_filename+'_errors.log'))
         error_file.setLevel(logging.ERROR)
         error_file.setFormatter(formatter)
 

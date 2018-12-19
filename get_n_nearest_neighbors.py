@@ -5,8 +5,8 @@ import sys
 import json
 
 #db = MaterialsDatabase(filename = 'test_db.db')
-db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
-#db = MaterialsDatabase(filename = 'carbon_oxygen_structures.db')
+#db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
+db = MaterialsDatabase(filename = 'carbon_oxygen_structures.db')
 
 fp_type = "DOS"
 
