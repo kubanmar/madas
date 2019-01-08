@@ -81,11 +81,24 @@ class MaterialsDatabase():
         """
         i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
         """
-        for row in self.atoms_db.select():
+        fingerprints = []
+        ids = []
+        self.log.info('Number of entries in db: ' + str(self.atoms_db.count()))
+        self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
+        for id in range(1,self.atoms_db.count()+1):
+            self.log.debug('db update for id '+str(id))
+            row = self.atoms_db.get(id)
             fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
             #to_store =  json.dumps(fingerprint.calculate())
             #self.atoms_db.update(row.id, DOS = to_store)
-            fingerprint.write_to_database(row.id, self.atoms_db)
+            #fingerprints[-1].write_to_database(row.id, self.atoms_db)
+            self.atoms_db.update(row.id, **{fp_type:fingerprint.get_data_json()})
+        #self.log.info('Writing to db for fp_type: ' + str(fp_type))
+        #with self.atoms_db:
+        #    for id, fingerprint in zip(ids, fingerprints):
+        #        self.log.debug('db update for id '+str(id))
+        #        self.atoms_db.update(id, **{fp_type:fingerprint.get_data_json()})
+        self.log.info('Finished for fp_type: ' + str(fp_type))
         #self.update_database_file()
         #            db.update([i+1], **{property_name:pval}) ##stolen from Santiago ##TODO try!
 
@@ -162,9 +175,20 @@ class MaterialsDatabase():
         error_file.setLevel(logging.ERROR)
         error_file.setFormatter(formatter)
 
+        performance_file = logging.FileHandler(os.path.join(path,db_filename+'_perf.log'))
+        performance_file.setLevel(logging.DEBUG)
+        performance_file.setFormatter(formatter)
+
+        console = logging.StreamHandler()
+        console.setLevel(logging.DEBUG)
+        console.setFormatter(formatter)
+
         log.addHandler(error_file)
+        log.addHandler(performance_file)
+        log.addHandler(console)
         network.addHandler(network_file)
         network.addHandler(error_file)
+        network.addHandler(console)
 
         self.log = log
         self.netlog = network

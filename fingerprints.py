@@ -34,6 +34,12 @@ class Fingerprint():
         self.data = self.fingerprint.get_data()
         return self.data
 
+    def get_data_json(self):
+        if not hasattr(self, 'data'):
+            return 'None'
+        data = json.dumps(self.data)
+        return data
+
     def write_to_database(self, row_id, database):
         data = json.dumps(self.calculate())
         if self.fp_type == 'DOS':

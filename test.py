@@ -6,7 +6,7 @@ test_db = MaterialsDatabase(filename = 'test_db.db')
 #test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 print('Loaded database.')
 
-if True:
+if False:
     test_db.add_material(1659, 142776) # this -of course- is GaAs
     print(test_db.get_formula(test_db._make_mid(1659, 142776)))
     #test_db.update_database_file()
@@ -18,7 +18,7 @@ if False:
 if True:
     test_db.add_fingerprint("DOS")
 
-if True:
+if False:
     test_db.add_fingerprint("SYM")
 
 if False:
@@ -28,6 +28,10 @@ if True:
     test_id = test_db.atoms_db.get(1).mid
     print('Got material:', test_id)
     print(test_db.get_property(test_id, 'mainfile_uri'))
+
+if True:
+    for row in test_db.atoms_db:
+        print(row.formula)
 
 if True:
     test_db.netlog.info('Logging works!')
