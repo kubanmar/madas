@@ -40,12 +40,16 @@ class MaterialsDatabase():
         else:
             return Fingerprint(fp_type, mid = mid, db_row = row)
 
-    def get_similarity_matrix(self, fp_type, **kwargs):
+    def get_similarity_matrix(self, fp_type, **kwargs): #TODO remove
         fingerprint_list = []
         mid_list = []
-        for row in self.atoms_db.select():
-            fingerprint_list.append(Fingerprint(fp_type, mid = row.mid, db_row = row))
-            mid_list.append(row.mid)
+        for id in range(1,self.atoms_db.count()+1):
+            row = self.atoms_db.get(id)
+            if hasattr(row, fp_type):
+                fingerprint_list.append(Fingerprint(fp_type, mid = row.mid, db_row = row))
+                mid_list.append(row.mid)
+            else:
+                self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
         sim_mat = []
         for idx, fp in enumerate(fingerprint_list):
             matrix_row = []
@@ -55,7 +59,7 @@ class MaterialsDatabase():
         return np.array(sim_mat), mid_list
 
     @staticmethod
-    def similarity_matrix_row(mid, mid_list, sim_mat):
+    def similarity_matrix_row(mid, mid_list, sim_mat): #TODO remove
         row = []
         mid_idx = mid_list.index(mid)
         for idx in range(len(mid_list)):
@@ -77,30 +81,26 @@ class MaterialsDatabase():
         except KeyError:
             print("not in db: ", mid)
 
-    def add_fingerprint(self, fp_type):
+    def add_fingerprint(self, fp_type, start_from = None):
         """
-        i.e. use fp_function to calculate fingerprint based on propterties and store in db using fp_name
+        i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
         """
         fingerprints = []
         ids = []
         self.log.info('Number of entries in db: ' + str(self.atoms_db.count()))
         self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
-        for id in range(1,self.atoms_db.count()+1):
+        if start_from == None:
+            start_from = 1
+        for id in range(start_from,self.atoms_db.count()+1):
             self.log.debug('db update for id '+str(id))
             row = self.atoms_db.get(id)
-            fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
-            #to_store =  json.dumps(fingerprint.calculate())
-            #self.atoms_db.update(row.id, DOS = to_store)
-            #fingerprints[-1].write_to_database(row.id, self.atoms_db)
+            try:
+                fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
+            except:
+                self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
+                continue
             self.atoms_db.update(row.id, **{fp_type:fingerprint.get_data_json()})
-        #self.log.info('Writing to db for fp_type: ' + str(fp_type))
-        #with self.atoms_db:
-        #    for id, fingerprint in zip(ids, fingerprints):
-        #        self.log.debug('db update for id '+str(id))
-        #        self.atoms_db.update(id, **{fp_type:fingerprint.get_data_json()})
         self.log.info('Finished for fp_type: ' + str(fp_type))
-        #self.update_database_file()
-        #            db.update([i+1], **{property_name:pval}) ##stolen from Santiago ##TODO try!
 
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
@@ -125,6 +125,9 @@ class MaterialsDatabase():
             self.atoms_db.write(atoms, data = new_material, mid = mid)
 
     def fill_database(self, json_query, tags = None):
+        """
+        Fills the database with one calculation per material for a given NOMAD search query.
+        """
         if tags == None:
             tags = str(datetime.datetime.now())
         materials_list = self._get_all_materials(json_query)
@@ -141,7 +144,6 @@ class MaterialsDatabase():
                 except KeyError:
                     trys += 1
                     self.netlog.info('Failed to load material '+str(material['id'])+' at try '+str(trys))
-                    #time.sleep(1)
                     continue
             if not success:
                 print("Failed to add ", str(material),'.')
@@ -151,6 +153,9 @@ class MaterialsDatabase():
         print('Finished processing.')
 
     def get_random(self, return_id = True):
+        """
+        Returns a random entry from the database.
+        """
         n_rows = self.atoms_db.count()
         row = self.atoms_db.get(random.randint(0, n_rows))
         if return_id:
@@ -277,9 +282,6 @@ class MaterialsDatabase():
         url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s?property=dos' %(str(mid), str(cid))
         json_answer = requests.get(url, auth = auth).json()
         return json_answer['dos']
-
-    def _SI_to_Angstom(self, length):
-        return np.power(length,10^10)
 
     def _make_mid(self, nmid, ncid):
         return str(nmid)+':'+str(ncid)

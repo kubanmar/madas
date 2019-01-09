@@ -15,7 +15,7 @@ if False:
     test_json = {"search_by":{"element":"Al,Si,P","exclusive":"0","page":1,"per_page":10},"has_dos":"Yes", "code_name":["VASP"]}
     test_db.fill_database(test_json)
 
-if True:
+if False:
     test_db.add_fingerprint("DOS")
 
 if False:
@@ -24,16 +24,16 @@ if False:
 if False:
     test_db.add_fingerprint("SOAP")
 
-if True:
+if False:
     test_id = test_db.atoms_db.get(1).mid
     print('Got material:', test_id)
     print(test_db.get_property(test_id, 'mainfile_uri'))
 
-if True:
+if False:
     for row in test_db.atoms_db:
         print(row.formula)
 
-if True:
+if False:
     test_db.netlog.info('Logging works!')
 
 if False:
@@ -73,3 +73,18 @@ if False:
 #        sim_row = test_db.similarity_matrix_row(item, mid_list, simat)
 #        plt.plot([x for x in range(len(sim_row))],sim_row, '.-')
     plt.show()
+
+if False:
+    from fingerprints.CLUS_fingerprint import CLUSfingerprint
+
+if False:
+    from similarity import SimilarityMatrix
+
+    matrix = SimilarityMatrix()
+    matrix.calculate("DOS", test_db.atoms_db)
+
+    print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))
+
+    matrix.save()
+    matrix.load()
+    print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))

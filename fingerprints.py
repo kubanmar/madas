@@ -36,12 +36,13 @@ class Fingerprint():
 
     def get_data_json(self):
         if not hasattr(self, 'data'):
-            return 'None'
+            self.log.error('Reqested data for material '+mid+', but data is not yet calculated.')
+            self.data = self.calculate()
         data = json.dumps(self.data)
         return data
 
     def write_to_database(self, row_id, database):
-        data = json.dumps(self.calculate())
+        data = self.get_data_json()
         if self.fp_type == 'DOS':
             database.update(row_id, DOS = data)
         elif self.fp_type == 'SYM':
@@ -58,7 +59,7 @@ class Fingerprint():
             data = json.loads(row.SOAP)
         return data
 
-    def calc_similiarity(self, mid, database):
+    def calc_similiarity(self, mid, database): #TODO Outdated
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
                 self.grid = Grid.create(id = self.data['grid_id'])
@@ -73,7 +74,7 @@ class Fingerprint():
             fingerprint = database.get_fingerprint(mid, 'SOAP')
             return get_SOAP_sim(self.data, fingerprint.data)
 
-    def calc_similiarity_multiprocess(self, mid):
+    def calc_similiarity_multiprocess(self, mid): #TODO Outdated
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
                 self.grid = Grid.create(id = self.data['grid_id'])
