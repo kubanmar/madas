@@ -41,7 +41,7 @@ class Fingerprint():
         data = json.dumps(self.data)
         return data
 
-    def write_to_database(self, row_id, database):
+    def write_to_database(self, row_id, database): #TODO Outdated
         data = self.get_data_json()
         if self.fp_type == 'DOS':
             database.update(row_id, DOS = data)

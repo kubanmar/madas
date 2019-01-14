@@ -11,14 +11,19 @@ class SimilarityMatrix():
     A matrix, that stores all (symmetric) similarites between materials in a database.
     """
 
-    def __init__(self, root = '.', data_path = 'data'):
+    def __init__(self, root = '.', data_path = 'data', large = False):
         self.matrix = []
         self.mids = []
         self.fp_type = None
         self.log = logging.getLogger('log')
         self.data_path = os.path.join(root, data_path)
+        self.large = large
 
-    def calculate(self, fp_type, db, **kwargs):
+    def calculate(self, fp_type, db, filename = 'similarity_matrix.csv', **kwargs):
+        if self.large: #For large databases, the matrix will not fit the RAM, thus calculation gets killed.
+            full_path = os.path.join(self.data_path, filename)
+            outfile = open(full_path, 'w')
+            csvwriter = csv.writer(outfile)
         self.fp_type = fp_type
         fingerprints = []
         for id in range(1, db.count()+1):
@@ -28,17 +33,29 @@ class SimilarityMatrix():
                 self.mids.append(row.mid)
             else:
                 self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
+        self.log.debug('SimilaritMatrix: All fingerprints loaded.')
+        if self.large:
+            csvwriter.writerow(self.mids)
         for idx, fp in enumerate(fingerprints):
             matrix_row = []
             for jdx, fp2 in enumerate(fingerprints[idx:]):
                 matrix_row.append(fp.get_similarity(fp2, **kwargs))
-            self.matrix.append(np.array(matrix_row))
-        self.matrix = np.array(self.matrix)
-        if self.matrix.shape[0] == 0:
-            self.log.error('Empty similarity matrix.')
-            raise RuntimeError('Similarity matrix could not be generated.')
+            if not self.large:
+                self.matrix.append(np.array(matrix_row))
+            else:
+                csvwriter.writerow(matrix_row)
+        if self.large:
+            outfile.close()
+            self.matrix = None
+        else:
+            self.matrix = np.array(self.matrix)
+            if self.matrix.shape[0] == 0:
+                self.log.error('Empty similarity matrix.')
+                raise RuntimeError('Similarity matrix could not be generated.')
 
     def get_row(self, mid):
+        if self.large:
+            raise NotImplementedError("Matrix row is not supported for large matrices.") #TODO You can implement id, though.
         row = []
         mid_idx = self.mids.index(mid)
         for idx in range(len(self.mids)):
@@ -54,8 +71,8 @@ class SimilarityMatrix():
         neighbors = self.get_row(mid)
         neighbors_zipped = [(sim, idx) for idx, sim in enumerate(neighbors)]
         n_nearest = sorted(neighbors_zipped)[(-1 * k + 1):-1] #last n entries without last (because is self-similiarty = 1)
-        neighbors_dict = {self.mids[x[1]]:x[0] for x in n_nearest}
-        return neighbors_dict
+        neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
+        return neighbors_list
 
     def gen_neighbors_dict(self, k = 10):
         neighbors_dict = {}
@@ -64,6 +81,9 @@ class SimilarityMatrix():
         return neighbors_dict
 
     def save(self, filename = 'similarity_matrix.csv'):
+        if self.large:
+            self.log.error('Warning: Writing not implemented for large matrices. File is written during generation process.')
+            return
         full_path = os.path.join(self.data_path, filename)
         with open(full_path, 'w', newline='') as f:
             csvwriter = csv.writer(f)
@@ -72,6 +92,9 @@ class SimilarityMatrix():
                 csvwriter.writerow(row)
 
     def load(self, filename = 'similarity_matrix.csv'):
+        if self.large:
+            self.log.error('Warning: Loading not implemented for large matrices.')
+            return None
         full_path = os.path.join(self.data_path, filename)
         self.matrix = []
         with open(full_path, 'r', newline='') as f:
@@ -137,5 +160,23 @@ def orphans(neighbors_dict, group_member_list): #TODO needs updates for changed 
             orphans[mid] = neighbors_dict[mid]
     return orphans
 
-def similarity_search(atoms_db, mid, fp_type, k = 10):
-    pass
+def similarity_search(db, mid, fp_type, k = 10, **kwargs):
+    """
+    brute-force searches an MaterialsDatabase for k most similar materials and returns them as a list
+    """
+    neighbors = []
+    reference = db.get_fingerprint(mid, fp_type)
+    for index in range(1, db.atoms_db.count()+1):
+        row = db.atoms_db.get(index)
+        fingerprint = Fingerprint(fp_type, mid = row.mid, db_row = row)
+        similarity = reference.get_similarity(fingerprint, **kwargs)
+        if index <= k and row.mid != mid:
+            neighbors.append([similarity, row.mid])
+        elif row.mid == mid:
+            continue
+        else:
+            if similarity > neighbors[-1][0]:
+                neighbors.append([similarity, row.mid])
+                neighbors.sort(reverse = True)
+                neighbors = neighbors[0:k]
+    return neighbors

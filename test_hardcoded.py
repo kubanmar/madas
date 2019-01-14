@@ -77,14 +77,34 @@ if False:
 if False:
     from fingerprints.CLUS_fingerprint import CLUSfingerprint
 
-if False:
-    from similarity import SimilarityMatrix
+if True:
+    #from similarity import SimilarityMatrix
 
-    matrix = SimilarityMatrix()
-    matrix.calculate("DOS", test_db.atoms_db)
+    matrix = test_db.get_similarity_matrix("DOS")#SimilarityMatrix()
+    #matrix.calculate("DOS", test_db.atoms_db)
 
     print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))
 
-    matrix.save()
-    matrix.load()
+    matrix.save(filename = 'similarity_matrix_small.csv')
+    matrix.load(filename = 'similarity_matrix_small.csv')
     print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))
+
+    neighbors_dict = matrix.gen_neighbors_dict()
+
+    import json
+
+    with open('test_matrix_neighbors_dict.json','w') as f:
+        json.dump(neighbors_dict,f, indent = 4)
+
+    for key in neighbors_dict.keys():
+        print(key)
+        for neighbor in neighbors_dict[key]:
+            print(neighbor)
+
+if True:
+    matrix = test_db.get_similarity_matrix("DOS", large = True)#SimilarityMatrix()
+
+if True:
+    from similarity import similarity_search
+
+    print(similarity_search(test_db, test_db.atoms_db.get(1).mid, "DOS", k = 2))

@@ -8,18 +8,20 @@ import numpy as np
 from ase.db import connect
 
 from fingerprints import Fingerprint
+from similarity import SimilarityMatrix
 from utils import electron_charge, get_lattice_description
 
 class MaterialsDatabase():
 
-    def __init__(self, filename = 'materials_database.db', db_path = 'data', path_to_api_key = '.'):
+    def __init__(self, filename = 'materials_database.db', db_path = 'data', path_to_api_key = '.', silent_logging = False):
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
+        self.db_path = db_path
         key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
         self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         self.atoms_db = connect(self.atoms_db_path)
-        self._init_loggers(db_path, filename.split('.db')[0])
+        self._init_loggers(db_path, filename.split('.db')[0], silent_logging = silent_logging)
 
     def get_property(self, mid, property_name):
         row = self._get_row_by_mid(mid)
@@ -40,36 +42,10 @@ class MaterialsDatabase():
         else:
             return Fingerprint(fp_type, mid = mid, db_row = row)
 
-    def get_similarity_matrix(self, fp_type, **kwargs): #TODO remove
-        fingerprint_list = []
-        mid_list = []
-        for id in range(1,self.atoms_db.count()+1):
-            row = self.atoms_db.get(id)
-            if hasattr(row, fp_type):
-                fingerprint_list.append(Fingerprint(fp_type, mid = row.mid, db_row = row))
-                mid_list.append(row.mid)
-            else:
-                self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
-        sim_mat = []
-        for idx, fp in enumerate(fingerprint_list):
-            matrix_row = []
-            for jdx, fp2 in enumerate(fingerprint_list[idx:]):
-                matrix_row.append(fp.get_similarity(fp2, **kwargs))
-            sim_mat.append(np.array(matrix_row))
-        return np.array(sim_mat), mid_list
-
-    @staticmethod
-    def similarity_matrix_row(mid, mid_list, sim_mat): #TODO remove
-        row = []
-        mid_idx = mid_list.index(mid)
-        for idx in range(len(mid_list)):
-            if idx < mid_idx:
-                row.append(sim_mat[idx][mid_idx-idx])
-            elif idx > mid_idx:
-                row.append(sim_mat[mid_idx][idx-mid_idx])
-            else:
-                row.append(sim_mat[idx][0])
-        return row
+    def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
+        simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
+        simat.calculate(fp_type, self.atoms_db, **kwargs)
+        return simat
 
     def get_formula(self, mid):
         row = self._get_row_by_mid(mid)
@@ -101,7 +77,6 @@ class MaterialsDatabase():
                 continue
             self.atoms_db.update(row.id, **{fp_type:fingerprint.get_data_json()})
         self.log.info('Finished for fp_type: ' + str(fp_type))
-
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """
@@ -163,7 +138,7 @@ class MaterialsDatabase():
         else:
             return row
 
-    def _init_loggers(self, path, db_filename):
+    def _init_loggers(self, path, db_filename, silent_logging):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
         network = logging.getLogger('network')
@@ -190,10 +165,11 @@ class MaterialsDatabase():
 
         log.addHandler(error_file)
         log.addHandler(performance_file)
-        log.addHandler(console)
         network.addHandler(network_file)
         network.addHandler(error_file)
-        network.addHandler(console)
+        if not silent_logging:
+            log.addHandler(console)
+            network.addHandler(console)
 
         self.log = log
         self.netlog = network
