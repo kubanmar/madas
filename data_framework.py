@@ -32,7 +32,7 @@ class MaterialsDatabase():
         else:
             return None
 
-    def get_fingerprint(self, mid, fp_type, multiprocess = False):
+    def get_fingerprint(self, mid, fp_type, multiprocess = False, log = True):
         try:
             row = self.atoms_db.get(mid = mid)
         except KeyError:
@@ -40,7 +40,7 @@ class MaterialsDatabase():
         if multiprocess:
             return Fingerprint(fp_type, mid = mid, db_row = row, database = self)
         else:
-            return Fingerprint(fp_type, mid = mid, db_row = row)
+            return Fingerprint(fp_type, mid = mid, db_row = row, log = log)
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
         simat = SimilarityMatrix(root = root, data_path = data_path, large = large)

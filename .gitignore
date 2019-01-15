@@ -9,3 +9,4 @@ api_key
 cellconfig.json
 testlog.xml
 test_matrix_neighbors_dict.json
+*.out

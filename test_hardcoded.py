@@ -2,8 +2,8 @@ from data_framework import MaterialsDatabase
 import matplotlib.pyplot as plt
 import sys
 
-test_db = MaterialsDatabase(filename = 'test_db.db')
-#test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
+#test_db = MaterialsDatabase(filename = 'test_db.db')
+test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 print('Loaded database.')
 
 if False:
@@ -77,34 +77,53 @@ if False:
 if False:
     from fingerprints.CLUS_fingerprint import CLUSfingerprint
 
-if True:
+if False:
     #from similarity import SimilarityMatrix
+
+    import time
+
+    t1 = time.time()
 
     matrix = test_db.get_similarity_matrix("DOS")#SimilarityMatrix()
     #matrix.calculate("DOS", test_db.atoms_db)
 
-    print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))
-
-    matrix.save(filename = 'similarity_matrix_small.csv')
-    matrix.load(filename = 'similarity_matrix_small.csv')
-    print(matrix.get_k_nearest(test_db.atoms_db.get(1).mid))
-
     neighbors_dict = matrix.gen_neighbors_dict()
 
-    import json
+    t2 = time.time()
 
-    with open('test_matrix_neighbors_dict.json','w') as f:
-        json.dump(neighbors_dict,f, indent = 4)
+    print("I took ", t2 - t1, 'time units!')
 
-    for key in neighbors_dict.keys():
-        print(key)
-        for neighbor in neighbors_dict[key]:
-            print(neighbor)
+    nonsense = input()
 
-if True:
+    if False:
+        import json
+
+        with open('test_matrix_neighbors_dict.json','w') as f:
+            json.dump(neighbors_dict,f, indent = 4)
+
+        for key in neighbors_dict.keys():
+            print(key)
+            for neighbor in neighbors_dict[key]:
+                print(neighbor)
+
+        print(len([x for x in neighbors_dict.keys()]))
+
+if False:
     matrix = test_db.get_similarity_matrix("DOS", large = True)#SimilarityMatrix()
 
-if True:
+if False:
     from similarity import similarity_search
 
     print(similarity_search(test_db, test_db.atoms_db.get(1).mid, "DOS", k = 2))
+
+if True:
+    from similarity import parallel_similarity_search
+    import time
+
+    t1 = time.time()
+
+    parallel_similarity_search(test_db.atoms_db, 'DOS', debug = False)
+
+    t2 = time.time()
+
+    print("I took ", t2 - t1, 'time units!')

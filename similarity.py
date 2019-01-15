@@ -2,6 +2,8 @@ import numpy as np
 import logging
 from fingerprints import Fingerprint
 import os, csv
+import multiprocessing
+import json
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
@@ -11,15 +13,20 @@ class SimilarityMatrix():
     A matrix, that stores all (symmetric) similarites between materials in a database.
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False):
+    def __init__(self, root = '.', data_path = 'data', large = False, filename = 'similarity_matrix.csv'):
         self.matrix = []
         self.mids = []
         self.fp_type = None
         self.log = logging.getLogger('log')
         self.data_path = os.path.join(root, data_path)
         self.large = large
+        self.filename = filename
 
     def calculate(self, fp_type, db, filename = 'similarity_matrix.csv', **kwargs):
+        """
+        Calculates the SimilarityMatrix.
+            If SimilarityMatrix.large == True: The matrix is written to file during calculation.
+        """
         if self.large: #For large databases, the matrix will not fit the RAM, thus calculation gets killed.
             full_path = os.path.join(self.data_path, filename)
             outfile = open(full_path, 'w')
@@ -54,17 +61,26 @@ class SimilarityMatrix():
                 raise RuntimeError('Similarity matrix could not be generated.')
 
     def get_row(self, mid):
-        if self.large:
-            raise NotImplementedError("Matrix row is not supported for large matrices.") #TODO You can implement id, though.
         row = []
+        if self.mids == []:
+            self._load_mids()
         mid_idx = self.mids.index(mid)
-        for idx in range(len(self.mids)):
-            if idx < mid_idx:
-                row.append(self.matrix[idx][mid_idx-idx])
-            elif idx > mid_idx:
-                row.append(self.matrix[mid_idx][idx-mid_idx])
-            else:
-                row.append(self.matrix[idx][0])
+        if self.large:
+            full_path = os.path.join(self.data_path, self.filename)
+            with open(full_path, 'r', newline='') as f:
+                csvreader = csv.reader(f)
+                for row in csvreader:
+                    pass #CONTINUE HERE LATER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    # if index(row) < index(mid), choose entry
+                    # else add row
+        else:
+            for idx in range(len(self.mids)):
+                if idx < mid_idx:
+                    row.append(self.matrix[idx][mid_idx-idx])
+                elif idx > mid_idx:
+                    row.append(self.matrix[mid_idx][idx-mid_idx])
+                else:
+                    row.append(self.matrix[idx][0])
         return row
 
     def get_k_nearest(self, mid, k = 10):
@@ -81,6 +97,7 @@ class SimilarityMatrix():
         return neighbors_dict
 
     def save(self, filename = 'similarity_matrix.csv'):
+        self.filename = filename
         if self.large:
             self.log.error('Warning: Writing not implemented for large matrices. File is written during generation process.')
             return
@@ -92,6 +109,7 @@ class SimilarityMatrix():
                 csvwriter.writerow(row)
 
     def load(self, filename = 'similarity_matrix.csv'):
+        self.filename = filename
         if self.large:
             self.log.error('Warning: Loading not implemented for large matrices.')
             return None
@@ -107,6 +125,16 @@ class SimilarityMatrix():
                 else:
                     self.matrix.append(np.array([float(x) for x in row]))
         self.matrix = np.array(self.matrix)
+
+    def _load_mids(self):
+        with open(self.filename) as f:
+            mids = f.readline()
+        mids = mids.split(',')
+        return mids
+
+    def _get_index_in_matrix(self, mid1, mid2): #TODO its not finished!
+        row_index = self.mids.index(mid1)
+        column_index = len(self.mids)
 
 class SimilarityCrawler(): #TODO needs updates for changed k-nearest-neighbor-dict
 
@@ -180,3 +208,41 @@ def similarity_search(db, mid, fp_type, k = 10, **kwargs):
                 neighbors.sort(reverse = True)
                 neighbors = neighbors[0:k]
     return neighbors
+
+def parallel_similarity_search(db, fp_type, k = 10, debug = False, **kwargs):
+    fingerprints = []
+    for id in range(1, db.count()+1):
+        row = db.get(id)
+        if hasattr(row, fp_type):
+            fingerprints.append(Fingerprint(fp_type, mid = row.mid, db_row = row, log = False))
+    if debug:
+        print('loaded fingerprints')
+    with multiprocessing.Pool() as p:
+        p.map(get_nearest_neighbors_from_fingerprint_list,[[reference, fingerprints, k] for reference in fingerprints])
+    if debug:
+        print('finished')
+
+def get_nearest_neighbors_from_fingerprint_list(ref_fp_fp_list_k_neighbors):
+    """
+    input:
+        (<referencefingerprint>, <fingerprint list>, <nr of neighbors>)
+    output:
+        mid: [mid1: similarity1, ...]
+    """
+    reference = ref_fp_fp_list_k_neighbors[0]
+    fp_list = ref_fp_fp_list_k_neighbors[1]
+    k = ref_fp_fp_list_k_neighbors[2]
+    similarity_list = []
+    count = 0
+    for index, item in enumerate(fp_list):
+        similarity = reference.get_similarity(item)
+        listlen = len(similarity_list)
+        if count < k:
+            count += 1
+            similarity_list.append([reference.get_similarity(item), item.mid])
+            continue
+        if similarity > similarity_list[-1][0]:
+            similarity_list.append([reference.get_similarity(item), item.mid])
+            similarity_list.sort(reverse = True)
+            similarity_list = similarity_list[:k]
+    print(json.dumps({reference.mid:{x[1]:x[0] for x in similarity_list}}))
