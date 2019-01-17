@@ -93,6 +93,8 @@ if False:
 
     print("I took ", t2 - t1, 'time units!')
 
+    matrix.save()
+
     nonsense = input()
 
     if False:
@@ -107,6 +109,7 @@ if False:
                 print(neighbor)
 
         print(len([x for x in neighbors_dict.keys()]))
+
 
 if False:
     matrix = test_db.get_similarity_matrix("DOS", large = True)#SimilarityMatrix()
@@ -134,9 +137,12 @@ if False:
     print(row.formula)
 
 if True:
-    test_db.add_property_NOMAD('1659:142776','code_name')
-    row = test_db.atoms_db.get(code_name = 'VASP')
-    print(row.formula)
+    test_db.add_property_NOMAD('1659:142776','code_version')
+    row = test_db.atoms_db.get(1)
+    print(row.code_version)
 
 if False:
     print(test_db._get_properties_NOMAD(1659,142776))
+
+if False:
+    print(test_db.get_property('1659:142776','atomic_density'))

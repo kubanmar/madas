@@ -196,12 +196,14 @@ def similarity_search(db, mid, fp_type, k = 10, **kwargs):
     reference = db.get_fingerprint(mid, fp_type)
     for index in range(1, db.atoms_db.count()+1):
         row = db.atoms_db.get(index)
-        fingerprint = Fingerprint(fp_type, mid = row.mid, db_row = row)
-        similarity = reference.get_similarity(fingerprint, **kwargs)
-        if index <= k and row.mid != mid:
-            neighbors.append([similarity, row.mid])
-        elif row.mid == mid:
+        try:
+            fingerprint = Fingerprint(fp_type, mid = row.mid, db_row = row)
+        except AttributeError:
+            db.log.error('No Fingerprint of type %s for db entry %s.' %(fp_type, row.mid))
             continue
+        similarity = reference.get_similarity(fingerprint, **kwargs)
+        if index <= k:
+            neighbors.append([similarity, row.mid])
         else:
             if similarity > neighbors[-1][0]:
                 neighbors.append([similarity, row.mid])

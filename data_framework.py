@@ -50,11 +50,15 @@ class MaterialsDatabase():
         row = self._get_row_by_mid(mid)
         return row.formula
 
+    def get_material(self,mid):
+        return self._get_row_by_mid(mid)
+
     def get_atoms(self, mid):
         try:
             return self.atoms_db.get_atoms(mid = mid)
         except KeyError:
-            print("not in db: ", mid)
+            self.log.error("not in db: %s" %(mid))
+            return None
 
     def add_fingerprint(self, fp_type, start_from = None):
         """
@@ -198,7 +202,7 @@ class MaterialsDatabase():
             row = self.atoms_db.get(mid = mid)
             return row
         except KeyError:
-            print("not in db: ", mid)
+            self.log("not in db: %s" %(mid))
 
     def _get_all_materials(self, json_query):
         auth = (self.api_key, '')
