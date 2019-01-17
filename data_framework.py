@@ -17,8 +17,7 @@ class MaterialsDatabase():
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         self.db_path = db_path
-        key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
-        self.api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
+        self.api_key = self._read_api_key(path_to_api_key)
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
         self.atoms_db = connect(self.atoms_db_path)
         self._init_loggers(db_path, filename.split('.db')[0], silent_logging = silent_logging)
@@ -138,6 +137,26 @@ class MaterialsDatabase():
         else:
             return row
 
+    def update_entry(self, mid, dictionary):
+        self._update_atoms_db(self.atoms_db, mid, dictionary)
+
+    def update_entries(self, mid_list, dictionary_list):
+        with self.atoms_db as db:
+            for mid, dictionary in zip(mid_list, dictionary_list):
+                self._update_atoms_db(db, mid, dictionary)
+
+    def add_property_NOMAD(self, mid, property, is_materials_property = False):
+        nomad_mid, nomad_cid = mid.split(':')
+        if is_materials_property:
+            json_answer = self._get_NOMAD_data(nomad_mid, None, self.api_key, property = property)
+        else:
+            json_answer = self._get_NOMAD_data(nomad_mid, nomad_cid, self.api_key, property = property)
+        try:
+            prop = json_answer[property]
+        except KeyError:
+            self.log.error("Failed to write property %s to db entry %s." %(property, mid))
+        self.update_entry(mid, {property : prop})
+
     def _init_loggers(self, path, db_filename, silent_logging):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -223,12 +242,9 @@ class MaterialsDatabase():
         return point_density
 
     def _get_properties_NOMAD(self, mid, cid):
-        auth = (self.api_key, '')
-        mat_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s' %(str(mid))
-        calc_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s' %(str(mid), str(cid))
-        #calculation properties
-        json_answer = requests.get(calc_url, auth = auth).json()
+        json_answer = self._get_NOMAD_data(mid, cid, self.api_key)
         properties = {}
+        #calculation properties
         for keyword in ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri']:
             properties[keyword] = json_answer[keyword]
         for x in json_answer['energy']:
@@ -237,7 +253,7 @@ class MaterialsDatabase():
                 break
         properties['energy'] = [json_answer['code_name'], totengy]
         #get also material properties
-        json_answer = requests.get(mat_url, auth = auth).json()
+        json_answer = self._get_NOMAD_data(mid, None, self.api_key)
         for keyword in ['formula', 'point_group', 'space_group_number']:
             properties[keyword] = json_answer[keyword]
         properties['dos'] = self._get_dos(mid, cid)
@@ -268,3 +284,36 @@ class MaterialsDatabase():
         """
         atoms = get_lattice_description(new_material['elements'], new_material['properties']['lattice_parameters'])
         return atoms
+
+    @staticmethod
+    def _get_NOMAD_data(mid, cid, api_key, property = None):
+        """
+        Gets the results of a certain calculation with material id ``mid`` and calculation id ``cid`` from NOMAD.
+        if ``cid`` == None: get materials properties instead
+        if property != None: search for single property instead
+        """
+        auth = (api_key, '')
+        if cid == None:
+            url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s' %(str(mid))
+        else:
+            url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s' %(str(mid), str(cid))
+        if property != None:
+            url += '?property=%s' %(str(property))
+        json_answer = requests.get(url, auth = auth).json()
+        return json_answer
+
+    @staticmethod
+    def _update_atoms_db(atoms_db, mid, dictionary):
+        row = atoms_db.get(mid = mid)
+        id = row.id
+        for key in dictionary.keys():
+            value = dictionary[key]
+            if isinstance(value, (list,np.ndarray)):
+                value = json.dumps(value) #TODO Catch error.
+            atoms_db.update(id, **{key:value})
+
+    @staticmethod
+    def _read_api_key(path_to_api_key):
+        key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
+        api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
+        return api_key

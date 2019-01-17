@@ -2,8 +2,8 @@ from data_framework import MaterialsDatabase
 import matplotlib.pyplot as plt
 import sys
 
-#test_db = MaterialsDatabase(filename = 'test_db.db')
-test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
+test_db = MaterialsDatabase(filename = 'test_db.db')
+#test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 print('Loaded database.')
 
 if False:
@@ -116,7 +116,7 @@ if False:
 
     print(similarity_search(test_db, test_db.atoms_db.get(1).mid, "DOS", k = 2))
 
-if True:
+if False:
     from similarity import parallel_similarity_search
     import time
 
@@ -127,3 +127,16 @@ if True:
     t2 = time.time()
 
     print("I took ", t2 - t1, 'time units!')
+
+if False:
+    test_db.update_entry('1659:142776',{'test':False})
+    row = test_db.atoms_db.get(test = 'false')
+    print(row.formula)
+
+if True:
+    test_db.add_property_NOMAD('1659:142776','code_name')
+    row = test_db.atoms_db.get(code_name = 'VASP')
+    print(row.formula)
+
+if False:
+    print(test_db._get_properties_NOMAD(1659,142776))
