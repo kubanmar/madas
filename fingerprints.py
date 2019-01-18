@@ -1,6 +1,7 @@
 from DOS_fingerprints import DOSFingerprint, Grid
 from SYM_fingerprints import SYMFingerprint, get_SYM_sim
 from SOAP_fingerprint import SOAPfingerprint, get_SOAP_sim
+from PROP_Fingerprint import PROPFingerprint, get_PROP_sym
 import json
 import logging
 
@@ -34,6 +35,8 @@ class Fingerprint():
             self.fingerprint = SYMFingerprint(self.atoms)
         elif self.fp_type == "SOAP":
             self.fingerprint = SOAPfingerprint(self.atoms)
+        elif self.fp_type == "PROP":
+            self.fingerprint = PROPFingerprint(self.properties)
         self.data = self.fingerprint.get_data()
         return self.data
 
@@ -60,6 +63,8 @@ class Fingerprint():
             data = json.loads(row.SYM)
         elif self.fp_type == 'SOAP':
             data = json.loads(row.SOAP)
+        elif self.fp_type == 'PROP':
+            data = json.loads(row.PROP)
         return data
 
     def calc_similiarity(self, mid, database): #TODO Outdated
@@ -110,8 +115,10 @@ class Fingerprint():
                     if self.log != None:
                         self.log.error('ZeroDivisionError for '+str(self.mid)+' and '+str(fingerprint.mid))
             return  similarity
-        if self.fp_type == 'SYM':
+        elif self.fp_type == 'SYM':
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
+        elif self.fp_type == 'PROP':
+            return get_PROP_sym(self.fingerprint, fingerprint.fingerprint)
 
     def _reconstruct_from_data(self):
         if self.fp_type == 'DOS':
@@ -123,4 +130,6 @@ class Fingerprint():
             self.fingerprint = SYMFingerprint(None, symop = self.data['symop'], sg = self.data['sg'])
         elif self.fp_type == 'SOAP':
             self.fingerprint = SOAPfingerprint(None, self.data)
+        elif self.fp_type == 'PROP':
+            self.fingerprint = PROPFingerprint(None, self.data)
         return self.data

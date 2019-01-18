@@ -136,7 +136,7 @@ if False:
     row = test_db.atoms_db.get(test = 'false')
     print(row.formula)
 
-if True:
+if False:
     test_db.add_property_NOMAD('1659:142776','code_version')
     row = test_db.atoms_db.get(1)
     print(row.code_version)
@@ -146,3 +146,18 @@ if False:
 
 if False:
     print(test_db.get_property('1659:142776','atomic_density'))
+
+if False:
+    from PROP_Fingerprint import PROPFingerprint
+    from PROP_Fingerprint import get_PROP_sym
+    GaAs_prop_fp = PROPFingerprint(test_db.atoms_db.get(1).data['properties'])
+    next_prop_fp = PROPFingerprint(test_db.atoms_db.get(2).data['properties'])
+    print(get_PROP_sym(GaAs_prop_fp, next_prop_fp))
+
+if False:
+    test_db.add_fingerprint("PROP")
+
+if True:
+    matrix = test_db.get_similarity_matrix('PROP')
+    for row in matrix.matrix:
+        print(row)
