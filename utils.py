@@ -94,6 +94,18 @@ def get_lattice_description(elements, lattice_parameters):
     structure=Atoms(symbols=labels,positions=scaled_positions,cell=cell, pbc = True)
     return structure
 
+def list_chunks(long_list, chunk_length = 5):
+    chunked_list = []
+    chunk = []
+    for index,item in enumerate(long_list):
+        chunk.append(item)
+        if index % chunk_length == 0:
+            chunked_list.append(chunk)
+            chunk = []
+    if chunk != []:
+        chunked_list.append(chunk)
+    return chunked_list
+
 import json,sys
 from os.path import exists
 

@@ -13,13 +13,14 @@ from utils import electron_charge, get_lattice_description
 
 class MaterialsDatabase():
 
-    def __init__(self, filename = 'materials_database.db', db_path = 'data', path_to_api_key = '.', silent_logging = False):
+    def __init__(self, filename = 'materials_database.db', db_path = 'data', path_to_api_key = '.', silent_logging = False, connect_db = True):
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         self.db_path = db_path
         self.api_key = self._read_api_key(path_to_api_key)
         self.api_url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
-        self.atoms_db = connect(self.atoms_db_path)
+        if connect_db:
+            self._connect_db()
         self._init_loggers(db_path, filename.split('.db')[0], silent_logging = silent_logging)
 
     def get_property(self, mid, property_name):
@@ -70,16 +71,31 @@ class MaterialsDatabase():
         self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
         if start_from == None:
             start_from = 1
-        for id in range(start_from,self.atoms_db.count()+1):
-            self.log.debug('db update for id '+str(id))
-            row = self.atoms_db.get(id)
-            try:
-                fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
-            except:
-                self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
-                continue
-            self.atoms_db.update(row.id, **{fp_type:fingerprint.get_data_json()})
+        with self.atoms_db as db:
+            for row_id in range(start_from,db.count()+1):
+                row = db.get(row_id)
+                try:
+                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
+                except:
+                    self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
+                    continue
+                fingerprints.append([row.id, fingerprint.get_data_json()])
+            self.log.info('Writing %s fingerprints to database.' %(fp_type))
+        for data in fingerprints:
+            self.atoms_db.update(data[0], **{fp_type:data[1]})
+            self.log.debug('db update for id '+str(data[0]))
         self.log.info('Finished for fp_type: ' + str(fp_type))
+
+    def put_data_to_none(self, data_key):
+        ids = []
+        from utils import list_chunks
+        with self.atoms_db as db:
+            for row_id in range(1,db.count()+1):
+                row = db.get(row_id)
+                ids.append(row.id)
+        self.log.info('Changing value of key %s to "none"' %(data_key))
+        for index, idx in enumerate(ids):
+            self.atoms_db.update(idx, **{data_key:json.dumps(None)})
 
     def add_material(self, nomad_material_id, nomad_calculation_id, tags = None):
         """
@@ -160,6 +176,9 @@ class MaterialsDatabase():
         except KeyError:
             self.log.error("Failed to write property %s to db entry %s." %(property, mid))
         self.update_entry(mid, {property : prop})
+
+    def _connect_db(self):
+        self.atoms_db = connect(self.atoms_db_path)
 
     def _init_loggers(self, path, db_filename, silent_logging):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

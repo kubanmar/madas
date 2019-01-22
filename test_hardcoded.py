@@ -2,7 +2,8 @@ from data_framework import MaterialsDatabase
 import matplotlib.pyplot as plt
 import sys
 
-test_db = MaterialsDatabase(filename = 'test_db.db')
+if False:
+    test_db = MaterialsDatabase(filename = 'test_db.db')
 #test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 print('Loaded database.')
 
@@ -157,7 +158,38 @@ if False:
 if False:
     test_db.add_fingerprint("PROP")
 
-if True:
+if False:
     matrix = test_db.get_similarity_matrix('PROP')
     for row in matrix.matrix:
         print(row)
+
+if False:
+    from IAD_Fingerprint import IADFingerprint
+    GaAs = test_db.atoms_db.get(1).toatoms()
+    testfp = IADFingerprint(GaAs)
+    print(testfp.get_data())
+
+if False:
+    test_db.add_fingerprint("IAD")
+
+if False:
+    matrix = test_db.get_similarity_matrix("IAD")
+    print(matrix.matrix)
+
+if True:
+    #db = MaterialsDatabase(filename="diamond_parent_lattice.db")
+    db = MaterialsDatabase(filename="carbon_oxygen_structures.db")
+    #db.put_data_to_none("SOAP")
+    db.add_fingerprint("IAD")
+    #db._connect_db()
+    dos_matrix = db.get_similarity_matrix("DOS")
+    prop_matrix = db.get_similarity_matrix("IAD")
+    pairs = []
+    for idx in range(len(dos_matrix.matrix)):
+        for jdx in range(len(dos_matrix.matrix[idx])):
+            pairs.append([dos_matrix.matrix[idx][jdx],prop_matrix.matrix[idx][jdx]])
+    xs = [x[0] for x in pairs]
+    ys = [x[1] for x in pairs]
+    import matplotlib.pyplot as plt
+    plt.scatter(xs,ys,alpha=0.5)
+    plt.show()

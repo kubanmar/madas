@@ -2,6 +2,7 @@ from DOS_fingerprints import DOSFingerprint, Grid
 from SYM_fingerprints import SYMFingerprint, get_SYM_sim
 from SOAP_fingerprint import SOAPfingerprint, get_SOAP_sim
 from PROP_Fingerprint import PROPFingerprint, get_PROP_sym
+from IAD_Fingerprint import IADFingerprint, get_IAD_sim
 import json
 import logging
 
@@ -37,6 +38,8 @@ class Fingerprint():
             self.fingerprint = SOAPfingerprint(self.atoms)
         elif self.fp_type == "PROP":
             self.fingerprint = PROPFingerprint(self.properties)
+        elif self.fp_type == 'IAD':
+            self.fingerprint = IADFingerprint(self.atoms)
         self.data = self.fingerprint.get_data()
         return self.data
 
@@ -46,7 +49,7 @@ class Fingerprint():
             self.data = self.calculate()
         data = json.dumps(self.data)
         return data
-
+    """
     def write_to_database(self, row_id, database): #TODO Outdated
         data = self.get_data_json()
         if self.fp_type == 'DOS':
@@ -55,7 +58,7 @@ class Fingerprint():
             database.update(row_id, SYM = data)
         elif self.fp_type == 'SOAP':
             database.update(row_id, SOAP = data)
-
+    """
     def _get_db_data(self, row):
         if self.fp_type == "DOS":
             data = json.loads(row.DOS)
@@ -65,8 +68,10 @@ class Fingerprint():
             data = json.loads(row.SOAP)
         elif self.fp_type == 'PROP':
             data = json.loads(row.PROP)
+        elif self.fp_type == 'IAD':
+            data = json.loads(row.IAD)
         return data
-
+    """
     def calc_similiarity(self, mid, database): #TODO Outdated
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
@@ -93,7 +98,7 @@ class Fingerprint():
         if self.fp_type == 'SYM':
             fingerprint = self.database.get_fingerprint(mid, 'SYM')
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
-
+    """
     def get_similarity(self, fingerprint, s = 'tanimoto'):
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):
@@ -119,6 +124,8 @@ class Fingerprint():
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
         elif self.fp_type == 'PROP':
             return get_PROP_sym(self.fingerprint, fingerprint.fingerprint)
+        elif self.fp_type == 'IAD':
+            return get_IAD_sim(self.data, fingerprint.data)
 
     def _reconstruct_from_data(self):
         if self.fp_type == 'DOS':
@@ -132,4 +139,6 @@ class Fingerprint():
             self.fingerprint = SOAPfingerprint(None, self.data)
         elif self.fp_type == 'PROP':
             self.fingerprint = PROPFingerprint(None, self.data)
+        elif self.fp_type == 'IAD':
+            self.fingerprint = IADFingerprint(None,self.data)
         return self.data

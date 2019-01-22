@@ -40,7 +40,7 @@ class SimilarityMatrix():
                 self.mids.append(row.mid)
             else:
                 self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
-        self.log.debug('SimilaritMatrix: All fingerprints loaded.')
+        self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
             csvwriter.writerow(self.mids)
         for idx, fp in enumerate(fingerprints):

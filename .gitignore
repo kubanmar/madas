@@ -10,3 +10,7 @@ cellconfig.json
 testlog.xml
 test_matrix_neighbors_dict.json
 *.out
+*.log
+unit_test_data/
+!unit_test_data/test_backup.db
+!unit_test_data/saved_matrix.csv
