@@ -4,16 +4,25 @@ from fingerprints import Fingerprint
 import os, csv
 import multiprocessing
 import json
+import copy
+import math
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
+
+def _calc_sim_multiprocess(fp1__fp2):
+    fp1 = fp1__fp2[0]
+    fp2 = fp1__fp2[1]
+    s =fp1.get_similarity(fp2)
+    return s
+
 
 class SimilarityMatrix():
     """
     A matrix, that stores all (symmetric) similarites between materials in a database.
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False, filename = 'similarity_matrix.csv'):
+    def __init__(self, root = '.', data_path = 'data', large = False, filename = 'similarity_matrix.csv', print_to_screen = True):
         self.matrix = []
         self.mids = []
         self.fp_type = None
@@ -21,8 +30,9 @@ class SimilarityMatrix():
         self.data_path = os.path.join(root, data_path)
         self.large = large
         self.filename = filename
+        self.print_to_screen = print_to_screen
 
-    def calculate(self, fp_type, db, filename = 'similarity_matrix.csv', **kwargs):
+    def calculate(self, fp_type, db, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
         """
         Calculates the SimilarityMatrix.
             If SimilarityMatrix.large == True: The matrix is written to file during calculation.
@@ -36,21 +46,31 @@ class SimilarityMatrix():
         for id in range(1, db.count()+1):
             row = db.get(id)
             if hasattr(row, fp_type):
-                fingerprints.append(Fingerprint(fp_type, mid = row.mid, db_row = row))
-                self.mids.append(row.mid)
+                try:
+                    fingerprints.append(Fingerprint(fp_type, mid = row.mid, db_row = row, log = False))
+                    self.mids.append(row.mid)
+                except (TypeError, json.decoder.JSONDecodeError):
+                    self.log.error('"None" for fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
             else:
                 self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
         self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
             csvwriter.writerow(self.mids)
+        n_matrix_rows = len(fingerprints)
         for idx, fp in enumerate(fingerprints):
-            matrix_row = []
-            for jdx, fp2 in enumerate(fingerprints[idx:]):
-                matrix_row.append(fp.get_similarity(fp2, **kwargs))
-            if not self.large:
-                self.matrix.append(np.array(matrix_row))
+            if not multiprocess:
+                matrix_row = []
+                for jdx, fp2 in enumerate(fingerprints[idx:]):
+                    matrix_row.append(fp.get_similarity(fp2, **kwargs))
+                if not self.large:
+                    self.matrix.append(np.array(matrix_row))
+                else:
+                    csvwriter.writerow(matrix_row)
             else:
-                csvwriter.writerow(matrix_row)
+                with multiprocessing.Pool() as p:
+                    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
+                print('SimilarityMatrix generated:', idx/n_matrix_rows*100,'%', end = '\r')
         if self.large:
             outfile.close()
             self.matrix = None
@@ -59,6 +79,13 @@ class SimilarityMatrix():
             if self.matrix.shape[0] == 0:
                 self.log.error('Empty similarity matrix.')
                 raise RuntimeError('Similarity matrix could not be generated.')
+            print('\nFinished SimilarityMatrix generation.\n')
+
+    def get_complement(self, maximum = 1):
+        complement = []
+        for row in self.matrix:
+            complement.append(maximum-row)
+        return np.array(complement)
 
     def get_row(self, mid):
         row = []
@@ -126,6 +153,22 @@ class SimilarityMatrix():
                     self.matrix.append(np.array([float(x) for x in row]))
         self.matrix = np.array(self.matrix)
 
+    def get_matching_matrices(self, second_matrix):
+        not_in_second_matrix = []
+        for mid in self.mids:
+            if not (mid in second_matrix.mids):
+                not_in_second_matrix.append(mid)
+        not_in_self = []
+        for mid in second_matrix.mids:
+            if not (mid in self.mids):
+                not_in_self.append(mid)
+        matching_self, matching_mids = self.get_cleared_matrix(not_in_second_matrix)
+        matching_matrix, matching_mids2 = second_matrix.get_cleared_matrix(not_in_self)
+        if sorted(matching_mids) != sorted(matching_mids2):
+            print('OOOPS!', matching_mids, matching_mids2)
+        return matching_self, matching_matrix, matching_mids
+
+
     def _load_mids(self):
         with open(self.filename) as f:
             mids = f.readline()
@@ -135,6 +178,29 @@ class SimilarityMatrix():
     def _get_index_in_matrix(self, mid1, mid2): #TODO its not finished!
         row_index = self.mids.index(mid1)
         column_index = len(self.mids)
+
+    def get_cleared_matrix(self, leave_out_mids):
+        if self.large:
+            raise NotImplementedError("Cleared matrix is not implemented for large matrices.")
+        matrix_copy = copy.deepcopy(self.matrix)
+        mids_copy = copy.deepcopy(self.mids)
+        for mid in leave_out_mids:
+            mid_index = mids_copy.index(mid)
+            mids_copy.remove(mid)
+            matrix_copy = self._remove_index_from_matrix(matrix_copy, mid_index)
+        return matrix_copy, mids_copy
+
+    @staticmethod
+    def _remove_index_from_matrix(array, index):
+        array_copy = copy.deepcopy(array)
+        to_delete_index = index
+        for index, row in enumerate(array_copy):
+            if index == to_delete_index:
+                break
+            entry_index = to_delete_index - index
+            array_copy[index] = np.delete(row,entry_index)
+        array_copy = np.delete(array_copy,to_delete_index)
+        return array_copy
 
 class SimilarityCrawler(): #TODO needs updates for changed k-nearest-neighbor-dict
 

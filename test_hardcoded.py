@@ -177,19 +177,39 @@ if False:
     print(matrix.matrix)
 
 if True:
+    from similarity import SimilarityMatrix
     #db = MaterialsDatabase(filename="diamond_parent_lattice.db")
     db = MaterialsDatabase(filename="carbon_oxygen_structures.db")
-    #db.put_data_to_none("SOAP")
-    db.add_fingerprint("IAD")
-    #db._connect_db()
-    dos_matrix = db.get_similarity_matrix("DOS")
-    prop_matrix = db.get_similarity_matrix("IAD")
+    #db.add_fingerprint("IAD")
+    dos_matrix = SimilarityMatrix()
+    dos_matrix.load(filename = 'CO_structures_DOS_simat.csv')
+    prop_matrix = SimilarityMatrix()
+    prop_matrix.load(filename = 'CO_structures_SOAP_simat.csv')
+    prop_matrix.matrix = prop_matrix.get_complement(maximum = 2)
+    print('Got all matrices!')
+    matrix1, matrix2, mids = dos_matrix.get_matching_matrices(prop_matrix)
+    print('Matrices matched.')
     pairs = []
-    for idx in range(len(dos_matrix.matrix)):
-        for jdx in range(len(dos_matrix.matrix[idx])):
-            pairs.append([dos_matrix.matrix[idx][jdx],prop_matrix.matrix[idx][jdx]])
+    for idx in range(len(matrix1)):
+        for jdx in range(len(matrix1[idx])):
+            pairs.append([matrix1[idx][jdx],matrix2[idx][jdx]])
     xs = [x[0] for x in pairs]
     ys = [x[1] for x in pairs]
     import matplotlib.pyplot as plt
-    plt.scatter(xs,ys,alpha=0.5)
+    plt.scatter(xs,ys,alpha=0.5, s= 0.5)
     plt.show()
+
+if False:
+    GaAs = test_db.atoms_db.get(1)
+    from SOAP_fingerprint import SOAPfingerprint
+    GaAs_SOAP = SOAPfingerprint(GaAs.toatoms())
+    GaAs_SOAP.get_data()
+
+if False:
+    #test_db.add_fingerprint('SOAP')
+    simat = test_db.get_similarity_matrix("SOAP")
+    simat.save("soap_test_db_simat.csv")
+
+if False:
+    test_db = MaterialsDatabase('carbon_oxygen_structures.db')
+    test_db.add_fingerprint("SOAP")

@@ -126,6 +126,8 @@ class Fingerprint():
             return get_PROP_sym(self.fingerprint, fingerprint.fingerprint)
         elif self.fp_type == 'IAD':
             return get_IAD_sim(self.data, fingerprint.data)
+        elif self.fp_type == "SOAP":
+            return get_SOAP_sim(self.fingerprint, fingerprint.fingerprint)
 
     def _reconstruct_from_data(self):
         if self.fp_type == 'DOS':
