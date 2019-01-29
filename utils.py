@@ -55,7 +55,7 @@ def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
     label=str(label)+' (reference)'
     plt.plot(energy,dos,label=label,alpha=0.5)
     plt.fill_between(energy,0,dos,alpha=0.5)
-    similar_materials = [(key, sim_dict[reference_mid][key]) for key in sim_dict[reference_mid].keys()]
+    similar_materials = [(sim_dict[reference_mid][key], key) for key in sim_dict[reference_mid].keys()]
     similar_materials.sort(reverse = True)
     for index, item in enumerate(similar_materials):
         mid = item[1]

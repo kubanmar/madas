@@ -83,8 +83,9 @@ class MaterialsDatabase():
             self.log.info('Writing %s fingerprints to database.' %(fp_type))
         for data in fingerprints:
             self.atoms_db.update(data[0], **{fp_type:data[1]})
-            self.log.debug('db update for id '+str(data[0]))
+            self.log.debug('db update for id '+str(data[0])+' with fingerprint '+str(fp_type))
         self.log.info('Finished for fp_type: ' + str(fp_type))
+        self._update_metadata({'fingerprints' : [fp_type]})
 
     def put_data_to_none(self, data_key):
         ids = []
@@ -176,6 +177,21 @@ class MaterialsDatabase():
         except KeyError:
             self.log.error("Failed to write property %s to db entry %s." %(property, mid))
         self.update_entry(mid, {property : prop})
+
+    def _update_metadata(self, update_dict):
+        metadata = self.atoms_db.metadata
+        for key in update_dict.keys():
+            try:
+                metadata[key]
+                if isinstance(update_dict[key], list):
+                    if not isinstance(metadata[key], list):
+                        metadata[key] = [metadata[key]]
+                    for item in update_dict[key]:
+                        metadata[key].append(item)
+                else: metadata[key] = update_dict[key]
+            except KeyError:
+                metadata.update({key:update_dict[key]})
+        self.atoms_db.metadata = metadata
 
     def _connect_db(self):
         self.atoms_db = connect(self.atoms_db_path)

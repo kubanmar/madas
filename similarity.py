@@ -70,7 +70,7 @@ class SimilarityMatrix():
                 with multiprocessing.Pool() as p:
                     self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
             if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
-                print('SimilarityMatrix generated:', idx/n_matrix_rows*100,'%', end = '\r')
+                print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
         if self.large:
             outfile.close()
             self.matrix = None
@@ -113,7 +113,13 @@ class SimilarityMatrix():
     def get_k_nearest(self, mid, k = 10):
         neighbors = self.get_row(mid)
         neighbors_zipped = [(sim, idx) for idx, sim in enumerate(neighbors)]
-        n_nearest = sorted(neighbors_zipped)[(-1 * k + 1):-1] #last n entries without last (because is self-similiarty = 1)
+        neighbors_zipped.sort()
+        for item in neighbors_zipped[1:]:
+            if item[0] >= 1.0:
+                k += 1
+            else:
+                break
+        n_nearest = neighbors_zipped[(-1 * k + 1):-1] #last n entries without last (because is self-similiarty = 1)
         neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
         return neighbors_list
 
