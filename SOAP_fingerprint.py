@@ -60,4 +60,4 @@ def get_SOAP_sim(soap1, soap2):
     arr2 = soap2.matrix.toarray()
     molecules = np.vstack([arr1, arr2])
     distance = squareform(pdist(molecules))
-    return 2 - distance[0][1] #we need similarity, thus max(distance) - distance; assuming max(distance) = 2 here.
+    return (2.0 - distance[0][1])/2.0 #we need similarity, thus max(distance) - distance; assuming max(distance) = 2 here.

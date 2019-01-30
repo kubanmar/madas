@@ -2,7 +2,7 @@ from data_framework import MaterialsDatabase
 import matplotlib.pyplot as plt
 import sys
 
-if False:
+if True:
     test_db = MaterialsDatabase(filename = 'test_db.db')
 #test_db = MaterialsDatabase(filename = 'diamond_parent_lattice.db')
 print('Loaded database.')
@@ -176,7 +176,7 @@ if False:
     matrix = test_db.get_similarity_matrix("IAD")
     print(matrix.matrix)
 
-if True:
+if False:
     from similarity import SimilarityMatrix
     #db = MaterialsDatabase(filename="diamond_parent_lattice.db")
     db = MaterialsDatabase(filename="carbon_oxygen_structures.db")
@@ -213,3 +213,18 @@ if False:
 if False:
     test_db = MaterialsDatabase('carbon_oxygen_structures.db')
     test_db.add_fingerprint("SOAP")
+
+if False:
+    from utils import merge_k_nearest_neighbor_dicts
+    matrix = test_db.get_similarity_matrix("DOS")
+    k_nearest = matrix.gen_neighbors_dict()
+    matrix2 = test_db.get_similarity_matrix("SYM")
+    k_nearest2 = matrix2.gen_neighbors_dict()
+    print(merge_k_nearest_neighbor_dicts(["DOS", "SYM"],[k_nearest, k_nearest2]))
+
+if True:
+    from utils import plot_similar_dos
+    matrix = test_db.get_similarity_matrix("DOS")
+    k_nearest = matrix.gen_neighbors_dict()
+    key, data = [x for x in k_nearest.items()][0]
+    plot_similar_dos(key, k_nearest, test_db)

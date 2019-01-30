@@ -113,13 +113,14 @@ class SimilarityMatrix():
     def get_k_nearest(self, mid, k = 10):
         neighbors = self.get_row(mid)
         neighbors_zipped = [(sim, idx) for idx, sim in enumerate(neighbors)]
-        neighbors_zipped.sort()
-        for item in neighbors_zipped[1:]:
+        neighbors_zipped.sort(reverse = True)
+        k_new = k
+        for item in neighbors_zipped:
             if item[0] >= 1.0:
-                k += 1
+                k_new += 1
             else:
                 break
-        n_nearest = neighbors_zipped[(-1 * k + 1):-1] #last n entries without last (because is self-similiarty = 1)
+        n_nearest = neighbors_zipped[:k_new] #last n entries without last (because is self-similiarty = 1)
         neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
         return neighbors_list
 
@@ -208,7 +209,7 @@ class SimilarityMatrix():
         array_copy = np.delete(array_copy,to_delete_index)
         return array_copy
 
-class SimilarityCrawler(): #TODO needs updates for changed k-nearest-neighbor-dict
+class SimilarityCrawler():
 
     def __init__(self, first_members, threshold = 0.9):
         self.members = {}
@@ -227,9 +228,9 @@ class SimilarityCrawler(): #TODO needs updates for changed k-nearest-neighbor-di
         for group in associates:
             used_members = used_members + group
         for mid in self.members.keys():
-            for similarity in self.members[mid].keys():
+            for new_mid, similarity in self.members[mid]:
                 if float(similarity) >= self.threshold:
-                    candidate = self.members[mid][similarity]
+                    candidate = new_mid
                     if not candidate in self.members.keys() and not candidate in used_members:
                         new_member = candidate
                         expanded = True
@@ -249,7 +250,7 @@ class SimilarityCrawler(): #TODO needs updates for changed k-nearest-neighbor-di
     def report(self):
         return [x for x in self.members.keys()]
 
-def orphans(neighbors_dict, group_member_list): #TODO needs updates for changed k-nearest-neighbor-dict
+def orphans(neighbors_dict, group_member_list): 
     orphans = {}
     full_list = []
     for item in group_member_list:

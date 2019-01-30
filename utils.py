@@ -43,7 +43,7 @@ def get_plotting_data(mid, database):
     for index in range(len(dos_json['dos_energies'])):
         energy.append(dos_json['dos_energies'][index]/electron_charge)
         #print(dos_json['dos_values'][index][0])
-        dos.append(dos_json['dos_values'][0][index]/ 1e-30 /electron_charge/volume)
+        dos.append(dos_json['dos_values'][0][index]/ 1e-30 /electron_charge) #WARNING only using current data
     return name,energy,dos
 
 def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
@@ -55,7 +55,7 @@ def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
     label=str(label)+' (reference)'
     plt.plot(energy,dos,label=label,alpha=0.5)
     plt.fill_between(energy,0,dos,alpha=0.5)
-    similar_materials = [(sim_dict[reference_mid][key], key) for key in sim_dict[reference_mid].keys()]
+    similar_materials = [(sim, mid) for mid, sim in sim_dict[reference_mid]]
     similar_materials.sort(reverse = True)
     for index, item in enumerate(similar_materials):
         mid = item[1]
@@ -128,3 +128,19 @@ def write_json_file(json_data, filename):
             _seek_terminating_char(f)
             f.write(bytes(',','utf-8'))
             f.write(bytes(json.dumps(json_data, indent = 4),'utf-8')[1:])
+
+def merge_k_nearest_neighbor_dicts(fp_type_list, dicts):
+    merged_dict = {}
+    for index, fp_type in enumerate(fp_type_list):
+        materials = [key for key in dicts[index].keys()]
+        for material in materials:
+            data = dicts[index][material]
+            if not material in merged_dict.keys():
+                merged_dict[material] = {mid:{fp_type:sim} for mid, sim in data}
+            else:
+                for mid, sim in data:
+                    if not mid in merged_dict[material].keys():
+                        merged_dict[material][mid] = {fp_type:sim}
+                    else:
+                        merged_dict[material][mid].update({fp_type:sim})
+    return merged_dict
