@@ -6,8 +6,9 @@ Features: <br>
   * ASE Database to locally store materials data
   * Fingerprints:
     * DOS --> Calculated from DFT DOS values
-    * Symmetry --> All symmetry operations of a material
+    * SYM --> All symmetry operations of a material
+    * SOAP --> A SOAP implementation using DScribe (https://singroup.github.io/dscribe/)
+    * IAD --> InterAtomic Distances
+    * PROP --> Materials properties as available from the Encyclopedia
 
-Finally, similarities of materials can be calculated:
-  * DOS: Overlap of DOS 
-  * Symmetry: Number of shared symmetry operations
+More information can be found in the Wiki: https://git.physik.hu-berlin.de/kuban/similarity-data-framework/wikis/home
