@@ -61,10 +61,11 @@ class MaterialsDatabase():
             self.log.error("not in db: %s" %(mid))
             return None
 
-    def add_fingerprint(self, fp_type, start_from = None):
+    def add_fingerprint(self, fp_type, start_from = None, name = None):
         """
         i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
         """
+        name = fp_type if name == None else name
         fingerprints = []
         ids = []
         self.log.info('Number of entries in db: ' + str(self.atoms_db.count()))
@@ -82,7 +83,7 @@ class MaterialsDatabase():
                 fingerprints.append([row.id, fingerprint.get_data_json()])
             self.log.info('Writing %s fingerprints to database.' %(fp_type))
         for data in fingerprints:
-            self.atoms_db.update(data[0], **{fp_type:data[1]})
+            self.atoms_db.update(data[0], **{name:data[1]})
             self.log.debug('db update for id '+str(data[0])+' with fingerprint '+str(fp_type))
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})
@@ -141,11 +142,9 @@ class MaterialsDatabase():
                     self.netlog.info('Failed to load material '+str(material['id'])+' at try '+str(trys))
                     continue
             if not success:
-                print("Failed to add ", str(material),'.')
                 self.netlog.error('Failed to add material '+str(material['id']))
-            if (index+1) % 10 == 0:
-                print('Processed {:.3f} %'.format( (index + 1) / len(materials_list) * 100))
-        print('Finished processing.')
+            print('Processed {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
+        print('\nFinished processing.')
 
     def get_random(self, return_id = True):
         """

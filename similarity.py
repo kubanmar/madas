@@ -1,11 +1,13 @@
 import numpy as np
 import logging
-from fingerprints import Fingerprint
 import os, csv
 import multiprocessing
 import json
 import copy
 import math
+import matplotlib.pyplot as plt
+
+from fingerprints import Fingerprint
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
@@ -81,11 +83,22 @@ class SimilarityMatrix():
                 raise RuntimeError('Similarity matrix could not be generated.')
             print('\nFinished SimilarityMatrix generation.\n')
 
-    def get_complement(self, maximum = 1):
+    def get_complement(self, maximum = 1, get_matrix_object = False):
         complement = []
         for row in self.matrix:
             complement.append(maximum-row)
+        if get_matrix_object:
+            distance_matrix = SimilarityMatrix(filename = 'distance_matrix.csv')
+            distance_matrix.matrix = complement
+            distance_matrix.mids = self.mids
+            return distance_matrix
         return np.array(complement)
+
+    def get_square_matrix(self):
+        square_matrix = []
+        for mid in self.mids:
+            square_matrix.append(self.get_row(mid))
+        return np.array(square_matrix)
 
     def get_row(self, mid):
         row = []
@@ -171,10 +184,33 @@ class SimilarityMatrix():
                 not_in_self.append(mid)
         matching_self, matching_mids = self.get_cleared_matrix(not_in_second_matrix)
         matching_matrix, matching_mids2 = second_matrix.get_cleared_matrix(not_in_self)
-        if sorted(matching_mids) != sorted(matching_mids2):
+        if matching_mids != matching_mids2:
             print('OOOPS!', matching_mids, matching_mids2)
         return matching_self, matching_matrix, matching_mids
 
+    def get_correlation(self, second_matrix):
+        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
+        m_diff = matching_self - matching_matrix
+        summe = 0
+        for row in m_diff:
+            summe += np.dot(row,row)
+        return np.sqrt(summe)
+
+    def plot_correlation(self, second_matrix, show = True):
+        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
+        pairs = []
+        for idx in range(len(matching_self)):
+            for jdx in range(len(matching_self[idx])):
+                pairs.append([matching_self[idx][jdx],matching_matrix[idx][jdx]])
+        xs = np.array([x[0] for x in pairs])
+        ys = np.array([x[1] for x in pairs])
+        fit = np.polyfit(xs, ys, 1, full = True)
+        import matplotlib.pyplot as plt
+        polyfunction = np.poly1d(fit[0])
+        plt.scatter(xs,ys, s=1, alpha=0.1)
+        plt.scatter(xs, polyfunction(xs), s=1)
+        if show:
+            plt.show()
 
     def _load_mids(self):
         with open(self.filename) as f:
@@ -250,7 +286,52 @@ class SimilarityCrawler():
     def report(self):
         return [x for x in self.members.keys()]
 
-def orphans(neighbors_dict, group_member_list): 
+class DBSCANClusterer():
+
+    def __init__(self, distance_matrix = np.array(None), mid_list = np.array(None)):
+        from sklearn.cluster import DBSCAN
+        self.matrix = [] if distance_matrix.all() == None else distance_matrix
+        self.mids = [] if mid_list == None else mid_list
+        self.dbscan = DBSCAN(eps = 0.5, metric='precomputed', n_jobs=-1)
+        self.clusters = []
+        self.orphans = []
+
+    def set_threshold(self, threshold):
+        self.dbscan.set_params(eps = threshold)
+
+    def cluster(self, distance_matrix = None, mid_list = None):
+        if distance_matrix == None:
+            distance_matrix = self.matrix
+        if mid_list == None:
+            mid_list = self.mids
+        self.dbscan.fit(distance_matrix)
+        labels = self.dbscan.labels_
+        self.clusters = []
+        self.orphans = []
+        for label in np.unique(labels):
+            if label == -1:
+                self.orphans.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
+            self.clusters.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
+        return len(self.clusters)
+
+    def maximize_n_clusters(self, distance_matrix = None, mid_list = None):
+        return_list = []
+        for threshold in range(999,0,-1):
+            self.set_threshold(threshold/1000)
+            return_list.append([threshold/1000, self.cluster(distance_matrix, mid_list)])
+        return return_list
+
+    def optimize_clusters_interactive(self, distance_matrix = None, mid_list = None):
+        liste = self.maximize_n_clusters(distance_matrix, mid_list)
+        xs = [x[0] for x in liste]
+        ys = [x[1] for x in liste]
+        plt.plot(xs,ys)
+        plt.show()
+        threshold = float(input('Enter threshold:'))
+        self.set_threshold(threshold)
+
+
+def get_orphans(neighbors_dict, group_member_list):
     orphans = {}
     full_list = []
     for item in group_member_list:

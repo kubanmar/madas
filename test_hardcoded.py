@@ -222,9 +222,102 @@ if False:
     k_nearest2 = matrix2.gen_neighbors_dict()
     print(merge_k_nearest_neighbor_dicts(["DOS", "SYM"],[k_nearest, k_nearest2]))
 
-if True:
+if False:
     from utils import plot_similar_dos
     matrix = test_db.get_similarity_matrix("DOS")
     k_nearest = matrix.gen_neighbors_dict()
     key, data = [x for x in k_nearest.items()][0]
     plot_similar_dos(key, k_nearest, test_db)
+
+
+if False:
+    matrix = test_db.get_similarity_matrix("DOS")
+    smatrix = matrix.get_square_matrix()
+    for row in smatrix:
+        print(row)
+
+if False:
+    from similarity import DBSCANClusterer, SimilarityMatrix
+
+    #matrix = test_db.get_similarity_matrix("DOS")
+    matrix = SimilarityMatrix()
+    matrix.load(filename='random_database_DOS_simat.csv')
+    smatrix = matrix.get_square_matrix()
+
+    dbscan = DBSCANClusterer(distance_matrix = 1-smatrix, mid_list = matrix.mids)
+    dbscan.set_threshold(0.4)
+
+    print(dbscan.cluster())
+
+    optimization_list = dbscan.maximize_n_clusters()
+
+    xs = [x[0] for x in optimization_list]
+    ys = [x[1] for x in optimization_list]
+
+    import matplotlib.pyplot as plt
+
+    plt.scatter(xs,ys,s=1)
+    plt.show()
+
+if False:
+    import numpy as np
+    from similarity import SimilarityMatrix
+    matrix1 = SimilarityMatrix()
+    matrix1.load(filename='random_database_SOAP_simat.csv')
+    #matrix1.load(filename='diamond_parent_lattice_DOS_simat.csv')
+    matrix2 = SimilarityMatrix()
+    matrix2.load(filename='random_database_PROP_simat.csv')
+    #matrix2.load(filename='diamond_parent_lattice_PROP_simat.csv')
+    #matrix2.matrix *= 2
+    #matrix2.matrix *= 1.3
+    print(matrix1.get_correlation(matrix2))
+    matrix1.plot_correlation(matrix2)
+
+if False:
+    import matplotlib.pyplot as plt
+    from similarity import SimilarityMatrix
+
+    def _get_matrices():
+        fp_type_list = ["DOS", "SOAP", "IAD", "PROP", "SYM"]
+        simmatrices = []
+        for fp_type in fp_type_list:
+            filename = 'diamond_parent_lattice_'+fp_type+'_simat.csv'
+            matrix = SimilarityMatrix(data_path='data')
+            matrix.load(filename = filename)
+            simmatrices.append(matrix)
+        for index, simmat in enumerate(simmatrices):
+            for jndex in range(index+1, len(simmatrices)-1):
+                mat1, mat2, mids = simmat.get_matching_matrices(simmatrices[jndex])
+                simmat.matrix = mat1
+                simmat.mids = mids
+                simmatrices[jndex].matrix = mat2
+                simmatrices[jndex].mids = mids
+        return simmatrices
+
+    def get_matrix_entries(matrix):
+        entries = []
+        for row in matrix.matrix:
+            for entry in row:
+                entries.append(entry)
+        return entries
+
+    matrices = _get_matrices()
+
+    DOS_sims = get_matrix_entries(matrices[0])
+    SOAP_sims = get_matrix_entries(matrices[1])
+    PROP_sims = get_matrix_entries(matrices[3])
+
+    materials = [[DOS_sims[index], SOAP_sims[index], PROP_sims[index]] for index in range(len(DOS_sims))]
+    """
+    from sklearn.cluster import MeanShift
+    mean = MeanShift(cluster_all=False, n_jobs=-1)
+    mean.fit(materials)
+    print(mean.labels_)
+    """
+    #import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(DOS_sims, SOAP_sims, PROP_sims, s=0.1, depthshade=False)
+    plt.show()

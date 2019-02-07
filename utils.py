@@ -73,6 +73,14 @@ def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
     if show:
         plt.show()
 
+def plot_dos_material_list(material_list, db, show = False):
+    plt.figure()
+    for index, material in enumerate(material_list):
+        name, energy, dos = get_plotting_data(material, db)
+        plt.plot(energy, dos, label = name)
+        plt.legend()
+    if show:
+        plt.show()
 
 def get_lattice_parameters_from_string(string):
     lcs=string.split(',')

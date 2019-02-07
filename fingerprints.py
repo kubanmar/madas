@@ -8,9 +8,10 @@ import logging
 
 class Fingerprint():
 
-    def __init__(self, fp_type, mid = None, properties = None, atoms = None, db_row = None, database = None, log = True):
+    def __init__(self, fp_type, mid = None, properties = None, atoms = None, db_row = None, database = None, log = True, name = None):
         self.properties = properties
         self.mid = mid
+        self.name = fp_type if name == None else name
         self.fp_type = fp_type
         self.atoms = atoms
         if log: # The presence of a log does not allow for parallelization of the similarity.
