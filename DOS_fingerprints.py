@@ -262,7 +262,7 @@ class Grid():
             ppl.plot(plot_x, plot_y, 'k-')
         ppl.show()
 
-    def plot_grid_bars(self, leave_out=False, leave_out_window=(0, 0)):
+    def plot_grid_bars(self, leave_out=False, leave_out_window=(0, 0), show = True):
         import matplotlib.pyplot as ppl
         grid = self.grid()
         x = []
@@ -291,7 +291,8 @@ class Grid():
             edgecolor.append('grey')
 
         ppl.bar(x, y, width=width_vec, facecolor='none', edgecolor=edgecolor, align='edge', linewidth=1)
-        ppl.show()
+        if show:
+            ppl.show()
 
     def match_fingerprints(self, fingerprint1, fingerprint2):
         fp1 = bitarray()

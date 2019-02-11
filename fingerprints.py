@@ -8,30 +8,31 @@ import logging
 
 class Fingerprint():
 
-    def __init__(self, fp_type, mid = None, properties = None, atoms = None, db_row = None, database = None, log = True, name = None):
+    def __init__(self, fp_type, mid = None, properties = None, atoms = None, db_row = None, log = True, fp_name = None, calculate = True, **kwargs): #database = None,
         self.properties = properties
         self.mid = mid
-        self.name = fp_type if name == None else name
+        self.fp_name = fp_type if fp_name == None else fp_name
         self.fp_type = fp_type
         self.atoms = atoms
-        if log: # The presence of a log does not allow for parallelization of the similarity.
-            self.log = logging.getLogger('log')
-        else:
-            self.log = None
+        #if log: # The presence of a log does not allow for parallelization of the similarity.
+        self.log = logging.getLogger('log') if log else None
+        #else:
+        #    self.log = None
         if db_row == None:
-            self.calculate()
+            if calculate:
+                self.calculate(**kwargs)
         else:
             self.data = self._get_db_data(db_row)
             self._reconstruct_from_data()
-        if database != None:
-            self.database = database
+        #if database != None:
+        #    self.database = database
         #TODO Catch: neither data nor properties
 
-    def calculate(self):
+    def calculate(self, **kwargs):
         if self.fp_type == 'DOS':
             json_data = self.properties['dos']
             cell_volume = self.properties['cell_volume']
-            grid = Grid.create()
+            grid = Grid.create(**kwargs)
             self.fingerprint = DOSFingerprint(json_data, cell_volume, grid)
         elif self.fp_type == "SYM":
             self.fingerprint = SYMFingerprint(self.atoms)
@@ -61,6 +62,9 @@ class Fingerprint():
             database.update(row_id, SOAP = data)
     """
     def _get_db_data(self, row):
+        data = json.loads(row[self.fp_name])
+        return data
+        """
         if self.fp_type == "DOS":
             data = json.loads(row.DOS)
         elif self.fp_type == "SYM":
@@ -71,7 +75,7 @@ class Fingerprint():
             data = json.loads(row.PROP)
         elif self.fp_type == 'IAD':
             data = json.loads(row.IAD)
-        return data
+        """
     """
     def calc_similiarity(self, mid, database): #TODO Outdated
         if self.fp_type == 'DOS':
@@ -100,6 +104,10 @@ class Fingerprint():
             fingerprint = self.database.get_fingerprint(mid, 'SYM')
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
     """
+    def set_similarity_function(self, function):
+        import types
+        self.get_similarity = types.MethodType(function, self)
+
     def get_similarity(self, fingerprint, s = 'tanimoto'):
         if self.fp_type == 'DOS':
             if not hasattr(self, 'grid'):

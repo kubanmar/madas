@@ -34,7 +34,7 @@ class SimilarityMatrix():
         self.filename = filename
         self.print_to_screen = print_to_screen
 
-    def calculate(self, fp_type, db, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
+    def calculate(self, fp_type, db, fp_name = None, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
         """
         Calculates the SimilarityMatrix.
             If SimilarityMatrix.large == True: The matrix is written to file during calculation.
@@ -49,7 +49,7 @@ class SimilarityMatrix():
             row = db.get(id)
             if hasattr(row, fp_type):
                 try:
-                    fingerprints.append(Fingerprint(fp_type, mid = row.mid, db_row = row, log = False))
+                    fingerprints.append(Fingerprint(fp_type, fp_name = fp_name, mid = row.mid, db_row = row, log = False))
                     self.mids.append(row.mid)
                 except (TypeError, json.decoder.JSONDecodeError):
                     self.log.error('"None" for fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')

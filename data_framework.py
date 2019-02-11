@@ -23,6 +23,9 @@ class MaterialsDatabase():
             self._connect_db()
         self._init_loggers(db_path, filename.split('.db')[0], silent_logging = silent_logging)
 
+    def get_n_entries(self):
+        return self.atoms_db.count()
+
     def get_property(self, mid, property_name):
         row = self._get_row_by_mid(mid)
         if property_name in ['dos_values', 'dos_energies']:
@@ -32,15 +35,16 @@ class MaterialsDatabase():
         else:
             return None
 
-    def get_fingerprint(self, mid, fp_type, multiprocess = False, log = True):
+    def get_fingerprint(self, fp_type, mid = None, fp_name = None, db_id = None, log = True):
         try:
-            row = self.atoms_db.get(mid = mid)
+            if db_id != None:
+                row = self.atoms_db.get(db_id)
+                mid = row.mid
+            else:
+                row = self.atoms_db.get(mid = mid)
         except KeyError:
             sys.exit('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
-        if multiprocess:
-            return Fingerprint(fp_type, mid = mid, db_row = row, database = self)
-        else:
-            return Fingerprint(fp_type, mid = mid, db_row = row, log = log)
+        return Fingerprint(fp_type, mid = mid, db_row = row, log = log, fp_name = fp_name)
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
         simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
@@ -61,11 +65,11 @@ class MaterialsDatabase():
             self.log.error("not in db: %s" %(mid))
             return None
 
-    def add_fingerprint(self, fp_type, start_from = None, name = None):
+    def add_fingerprint(self, fp_type, start_from = None, fp_name = None, **kwargs):
         """
         i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
         """
-        name = fp_type if name == None else name
+        fp_name = fp_type if fp_name == None else fp_name
         fingerprints = []
         ids = []
         self.log.info('Number of entries in db: ' + str(self.atoms_db.count()))
@@ -76,14 +80,14 @@ class MaterialsDatabase():
             for row_id in range(start_from,db.count()+1):
                 row = db.get(row_id)
                 try:
-                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms())
+                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms(), **kwargs)
                 except:
                     self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
                     continue
                 fingerprints.append([row.id, fingerprint.get_data_json()])
             self.log.info('Writing %s fingerprints to database.' %(fp_type))
         for data in fingerprints:
-            self.atoms_db.update(data[0], **{name:data[1]})
+            self.atoms_db.update(data[0], **{fp_name:data[1]})
             self.log.debug('db update for id '+str(data[0])+' with fingerprint '+str(fp_type))
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})

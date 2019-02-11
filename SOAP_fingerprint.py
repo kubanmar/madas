@@ -50,10 +50,6 @@ class SOAPfingerprint():
         data = json.dumps([self.matrix.shape, self.matrix.data.tolist(), self.matrix.row.tolist(), self.matrix.col.tolist()])
         return data
 
-class ClusterSOAPFingerprint():
-
-    def __init__(self, atoms_object):
-        pass
 
 def get_SOAP_sim(soap1, soap2):
     arr1 = soap1.matrix.toarray()

@@ -9,14 +9,14 @@ electron_charge = 1.602176565e-19
 def _SI_to_Angstom(length):
     return np.power(length,10^10)
 
-def plot_FP_in_grid(byte_fingerprint, grid_id): #TODO adapt to current code version
+def plot_FP_in_grid(byte_fingerprint, grid, show = True): 
     x=[]
     y=[]
     all_width=[]
     bin_fp=bitarray()
     bin_fp.frombytes(byte_fingerprint.bins)
     grid_indices=byte_fingerprint.indices
-    plotgrid=grid.object.grid()
+    plotgrid=grid.grid()
     plotgrid=plotgrid[grid_indices[0]:grid_indices[1]]
     gridded_fp_energy=[x[0] for x in plotgrid]
     bit_position=0
@@ -32,6 +32,9 @@ def plot_FP_in_grid(byte_fingerprint, grid_id): #TODO adapt to current code vers
                 all_width.append(width)
             bit_position+=1
     plt.bar(x,y,width=all_width,align='edge')
+    grid.plot_grid_bars(show = False)
+    if show:
+        plt.show()
 
 def get_plotting_data(mid, database):
     electron_charge=1.6021766e-19
