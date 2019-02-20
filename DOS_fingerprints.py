@@ -1,6 +1,7 @@
 import math
 import matplotlib.pyplot as ppl
 from bitarray import bitarray
+import numpy as np
 import logging
 
 from utils import electron_charge
@@ -339,3 +340,29 @@ class Grid():
 
     def earth_mover_similarity(self, a, b):
         return 1 - self.earth_mover_distance(a,b)
+
+    def mutual_information(self,fp1,fp2):
+        bit_array1, bit_array2 = self.match_fingerprints(fp1, fp2)
+        from sklearn.metrics import normalized_mutual_info_score
+        score = normalized_mutual_info_score(bit_array1,bit_array2)
+        return score
+
+
+def get_binary_fingerprint_distribution(db, fp_name = None, bins_offset = 56, normalize = False):
+    fp_name = "DOS" if fp_name == None else fp_name
+    n_db_entries = db.get_n_entries()
+    grid = Grid().create(id = db.get_fingerprint('DOS', fp_name = fp_name, db_id = 1).fingerprint.grid_id)
+    n_e_bins = len(grid.grid())
+    histogram = np.array([int(x) for x in bitarray(n_e_bins * bins_offset * '0').to01()])
+    for db_id in range(1, n_db_entries+1):
+        fp = db.get_fingerprint('DOS', fp_name = fp_name, db_id = db_id)
+        bins = bitarray()
+        bins.frombytes(fp.fingerprint.bins)
+        fp_indices = fp.fingerprint.indices
+        offset = bitarray(bins_offset * fp_indices[0] * '0')
+        end_offset = bitarray(bins_offset * (n_e_bins - fp_indices[1]) * '0')
+        histogram_fp = offset + bins + end_offset
+        histogram += np.array([int(x) for x in histogram_fp.to01()])
+    if normalize:
+        histogram = histogram / n_db_entries
+    return histogram

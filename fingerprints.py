@@ -128,6 +128,8 @@ class Fingerprint():
                     similarity = 0
                     if self.log != None:
                         self.log.error('ZeroDivisionError for '+str(self.mid)+' and '+str(fingerprint.mid))
+            elif s == 'mutual_information':
+                similarity = self.grid.mutual_information(self.fingerprint, fingerprint.fingerprint)
             return  similarity
         elif self.fp_type == 'SYM':
             return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg

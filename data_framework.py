@@ -43,7 +43,11 @@ class MaterialsDatabase():
             else:
                 row = self.atoms_db.get(mid = mid)
         except KeyError:
-            sys.exit('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
+            self.log.error('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
+            return None
+        if row[fp_type] == None:
+            self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
+            return None
         return Fingerprint(fp_type, mid = mid, db_row = row, log = log, fp_name = fp_name)
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
@@ -241,6 +245,9 @@ class MaterialsDatabase():
             return row
         except KeyError:
             self.log("not in db: %s" %(mid))
+
+    def _get_row_by_db_id(self, db_id): #TODO catch an error, maybe?
+        return self.atoms_db.get(db_id)
 
     def _get_all_materials(self, json_query):
         auth = (self.api_key, '')

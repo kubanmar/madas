@@ -321,3 +321,9 @@ if False:
 
     ax.scatter(DOS_sims, SOAP_sims, PROP_sims, s=0.1, depthshade=False)
     plt.show()
+
+
+if False:
+    fp1 = test_db.get_fingerprint("DOS", db_id = 1)
+    fp2 = test_db.get_fingerprint("DOS", db_id = 3)
+    print(fp1.get_similarity(fp2, s = 'mutual_information'))

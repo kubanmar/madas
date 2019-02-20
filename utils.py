@@ -9,7 +9,7 @@ electron_charge = 1.602176565e-19
 def _SI_to_Angstom(length):
     return np.power(length,10^10)
 
-def plot_FP_in_grid(byte_fingerprint, grid, show = True): 
+def plot_FP_in_grid(byte_fingerprint, grid, show = True):
     x=[]
     y=[]
     all_width=[]
@@ -82,6 +82,28 @@ def plot_dos_material_list(material_list, db, show = False):
         name, energy, dos = get_plotting_data(material, db)
         plt.plot(energy, dos, label = name)
         plt.legend()
+    if show:
+        plt.show()
+
+def plot3D(x,y,z, show = True, xlabel = 'X', ylabel = 'Y', zlabel = 'Z'):
+    from matplotlib import cm, colors
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure(figsize=plt.figaspect(1.))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x,y,z, depthshade=False)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+    if show:
+        plt.show()
+
+def plot_contour(z_matrix, xvals, yvals, show = True, xlabel = 'X', ylabel = 'Y', zlabel = 'Z'):
+    fig1, ax2 = plt.subplots(constrained_layout=True)
+    cs = ax2.contourf(xvals, yvals, z_matrix)
+    ax2.set_xlabel(xlabel)
+    ax2.set_ylabel(ylabel)
+    cbar = fig1.colorbar(cs)
+    cbar.ax.set_ylabel(zlabel)
     if show:
         plt.show()
 

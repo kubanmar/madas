@@ -24,9 +24,9 @@ class SimilarityMatrix():
     A matrix, that stores all (symmetric) similarites between materials in a database.
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False, filename = 'similarity_matrix.csv', print_to_screen = True):
-        self.matrix = []
-        self.mids = []
+    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True):
+        self.matrix = [] if matrix == None else matrix
+        self.mids = [] if mids == None else mids
         self.fp_type = None
         self.log = logging.getLogger('log')
         self.data_path = os.path.join(root, data_path)
@@ -123,6 +123,13 @@ class SimilarityMatrix():
                     row.append(self.matrix[idx][0])
         return row
 
+    def get_entries(self):
+        entries = []
+        for row in self.matrix:
+            for element in row:
+                entries.append(element)
+        return np.array(entries)
+
     def get_k_nearest(self, mid, k = 10):
         neighbors = self.get_row(mid)
         neighbors_zipped = [(sim, idx) for idx, sim in enumerate(neighbors)]
@@ -155,7 +162,9 @@ class SimilarityMatrix():
             for index, row in enumerate(self.matrix):
                 csvwriter.writerow(row)
 
-    def load(self, filename = 'similarity_matrix.csv'):
+    @staticmethod
+    def load(filename = 'similarity_matrix.csv', data_path = 'data', root='.'):
+        self = SimilarityMatrix(data_path = data_path, root = root)
         self.filename = filename
         if self.large:
             self.log.error('Warning: Loading not implemented for large matrices.')
@@ -172,6 +181,7 @@ class SimilarityMatrix():
                 else:
                     self.matrix.append(np.array([float(x) for x in row]))
         self.matrix = np.array(self.matrix)
+        return self
 
     def get_matching_matrices(self, second_matrix):
         not_in_second_matrix = []
