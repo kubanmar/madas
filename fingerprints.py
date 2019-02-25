@@ -1,6 +1,7 @@
 from DOS_fingerprints import DOSFingerprint, Grid
 from SYM_fingerprints import SYMFingerprint, get_SYM_sim
 from SOAP_fingerprint import SOAPfingerprint, get_SOAP_sim
+from EWM_Fingerprint import EWMFingerprint, get_EWM_sim
 from PROP_Fingerprint import PROPFingerprint, get_PROP_sym
 from IAD_Fingerprint import IADFingerprint, get_IAD_sim
 import json
@@ -38,6 +39,8 @@ class Fingerprint():
             self.fingerprint = SYMFingerprint(self.atoms)
         elif self.fp_type == "SOAP":
             self.fingerprint = SOAPfingerprint(self.atoms)
+        elif self.fp_type == "EWM":
+            self.fingerprint = EWMFingerprint(self.atoms)
         elif self.fp_type == "PROP":
             self.fingerprint = PROPFingerprint(self.properties)
         elif self.fp_type == 'IAD':
@@ -139,6 +142,8 @@ class Fingerprint():
             return get_IAD_sim(self.data, fingerprint.data)
         elif self.fp_type == "SOAP":
             return get_SOAP_sim(self.fingerprint, fingerprint.fingerprint)
+        elif self.fp_type == "EWM":
+            return get_EWM_sim(self.fingerprint, fingerprint.fingerprint)
 
     def _reconstruct_from_data(self):
         if self.fp_type == 'DOS':
@@ -150,6 +155,8 @@ class Fingerprint():
             self.fingerprint = SYMFingerprint(None, symop = self.data['symop'], sg = self.data['sg'])
         elif self.fp_type == 'SOAP':
             self.fingerprint = SOAPfingerprint(None, self.data)
+        elif self.fp_type == 'EWM':
+            self.fingerprint = EWMFingerprint(None, self.data)
         elif self.fp_type == 'PROP':
             self.fingerprint = PROPFingerprint(None, self.data)
         elif self.fp_type == 'IAD':

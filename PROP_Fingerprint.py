@@ -3,7 +3,7 @@ from utils import get_lattice_parameters_from_string
 
 class PROPFingerprint():
 
-    def __init__(self, properties, db_data = None, properties_names = ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density']):
+    def __init__(self, properties, db_data = None, properties_names = ['atomic_density', 'mass_density']): # 'cell_volume', 'lattice_parameters',
         if db_data != None:
             self.data = db_data
             return
