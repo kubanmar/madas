@@ -142,6 +142,7 @@ class MaterialsDatabase():
             success = False
             while trys < 10 and not success:
                 try:
+                    #ERROR! Lost keyword 'calculations_list_matching_criteria'
                     [mid, cid] = self._choose_calculation(material['id'], material['calculations_list_matching_criteria'])
                     self.add_material(mid, cid, tags = tags)
                     success = True
@@ -184,6 +185,9 @@ class MaterialsDatabase():
         except KeyError:
             self.log.error("Failed to write property %s to db entry %s." %(property, mid))
         self.update_entry(mid, {property : prop})
+
+    def set_api_url(self, new_url):
+        self.api_url = new_url
 
     def _update_metadata(self, update_dict):
         metadata = self.atoms_db.metadata
@@ -294,7 +298,7 @@ class MaterialsDatabase():
         json_answer = self._get_NOMAD_data(mid, cid, self.api_key)
         properties = {}
         #calculation properties
-        for keyword in ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri']:
+        for keyword in ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri', 'code_name']:
             properties[keyword] = json_answer[keyword]
         for x in json_answer['energy']:
             if x['e_kind'] == 'Total E':
@@ -310,7 +314,8 @@ class MaterialsDatabase():
 
     def _get_elements_NOMAD(self, mid):
         auth = (self.api_key, '')
-        url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/elements?pagination=off' %(str(mid))
+        #url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/elements?pagination=off' %(str(mid))
+        url = os.path.join(self.api_url,str(mid), 'elements?pagination=off')
         json_answer = requests.get(url, auth = auth).json()
         atom_list = []
         for atom in json_answer['results']:
@@ -320,7 +325,9 @@ class MaterialsDatabase():
 
     def _get_dos(self, mid, cid):
         auth = (self.api_key, '')
-        url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s?property=dos' %(str(mid), str(cid))
+        #url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s?property=dos' %(str(mid), str(cid))
+        url = os.path.join(self.api_url,str(mid), 'calculations', str(cid)) + '?property=dos'
+        print(url)
         json_answer = requests.get(url, auth = auth).json()
         return json_answer['dos']
 

@@ -263,7 +263,7 @@ class Grid():
             ppl.plot(plot_x, plot_y, 'k-')
         ppl.show()
 
-    def plot_grid_bars(self, leave_out=False, leave_out_window=(0, 0), show = True):
+    def plot_grid_bars(self, leave_out=False, leave_out_window=(0, 0), show = True, axes = False):
         import matplotlib.pyplot as ppl
         grid = self.grid()
         x = []
@@ -291,7 +291,10 @@ class Grid():
             width_vec.append(abs(leave_out_window[1] - leave_out_window[0]))
             edgecolor.append('grey')
 
-        ppl.bar(x, y, width=width_vec, facecolor='none', edgecolor=edgecolor, align='edge', linewidth=1)
+        if axes == None:
+            ppl.bar(x, y, width=width_vec, facecolor='none', edgecolor=edgecolor, align='edge', linewidth=1)
+        else:
+            axes.bar(x, y, width=width_vec, facecolor='none', edgecolor=edgecolor, align='edge', linewidth=1)
         if show:
             ppl.show()
 

@@ -28,6 +28,7 @@ class IADFingerprint():
             for index2 in range(index+1,natoms):
                 distances.append(self._min_distance(positions[index],positions[index2],cell))
         distances = np.array(distances)
+        print(distances) #DEBUG
         histogram = self._make_hist(distances, normalization = len(distances))
         fingerprint = ''
         for entry in histogram:
@@ -45,13 +46,14 @@ class IADFingerprint():
         return self.fingerprint
 
     @staticmethod
-    def _make_hist(value_array, xlimits = [0,1], normalization = 1, bins = 100):
+    def _make_hist(value_array, xlimits = [0,1], normalization = 1, bins = 50):
         length = abs(xlimits[1] - xlimits[0])
         bin_size = length / bins
         histogram = np.zeros(bins)
         for value in value_array:
             position = int(value / bin_size)
             histogram[position-1] += 1
+        print(normalization) #DEBUG
         histogram /= normalization
         return histogram
 

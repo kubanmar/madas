@@ -9,7 +9,7 @@ electron_charge = 1.602176565e-19
 def _SI_to_Angstom(length):
     return np.power(length,10^10)
 
-def plot_FP_in_grid(byte_fingerprint, grid, show = True):
+def plot_FP_in_grid(byte_fingerprint, grid, show_grid = True, show = True, label = '', axes = None, **kwargs):
     x=[]
     y=[]
     all_width=[]
@@ -31,8 +31,12 @@ def plot_FP_in_grid(byte_fingerprint, grid, show = True):
                 y.append(dos_value)
                 all_width.append(width)
             bit_position+=1
-    plt.bar(x,y,width=all_width,align='edge')
-    grid.plot_grid_bars(show = False)
+    if axes == None:
+        plt.bar(x,y,width=all_width,align='edge', label = label)
+    else:
+        axes.bar(x,y,width=all_width,align='edge', label = label)
+    if show_grid:
+        grid.plot_grid_bars(show = False, axes = axes, **kwargs)
     if show:
         plt.show()
 
@@ -49,13 +53,32 @@ def get_plotting_data(mid, database):
         dos.append(dos_json['dos_values'][0][index]/ 1e-30 /electron_charge) #WARNING only using current data
     return name,energy,dos
 
-def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
+def sub_numbers(string):
+    subbed_string = ''
+    last_was_number = False
+    for char in string:
+        try:
+            float(char)
+            if not last_was_number:
+                subbed_string += '_{'
+            subbed_string += char
+            last_was_number = True
+        except ValueError:
+            if last_was_number:
+                subbed_string += '}'
+            subbed_string += char
+            last_was_number = False
+    if last_was_number:
+        subbed_string += '}'
+    return  r'$\mathrm{'+subbed_string+r'}$'
+
+def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10, figsize = (5,5)):
     """
     Plot DOS of materials similar to a reference material.
     """
-    plt.figure()
+    plt.figure(figsize = figsize)
     label, energy, dos = get_plotting_data(reference_mid, database)
-    label=str(label)+' (reference)'
+    label=sub_numbers(label)+' (reference)'
     plt.plot(energy,dos,label=label,alpha=0.5)
     plt.fill_between(energy,0,dos,alpha=0.5)
     similar_materials = [(sim, mid) for mid, sim in sim_dict[reference_mid]]
@@ -63,16 +86,18 @@ def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10):
     for index, item in enumerate(similar_materials):
         mid = item[1]
         label, energy, dos = get_plotting_data(mid, database)
-        label = label + ' S='+str(round(float(item[0]), 5))
-        if index < nmax:
+        label =sub_numbers(label) + r' Tc=' +str(round(float(item[0]), 5))
+        if index < nmax and mid != reference_mid:
             plt.plot(energy,dos,label=label,alpha=0.5)
             plt.fill_between(energy,0,dos,alpha=0.5/(index+2))
+        if mid == reference_mid:
+            nmax += 1
     plt.axis(fontsize='25')
     plt.xlabel('Energy [eV]',fontsize='40')
     plt.ylabel('DOS [states/unit cell/eV]',fontsize='40')
     plt.xticks(fontsize='30')
     plt.yticks(fontsize='30')
-    plt.legend(fontsize='10')
+    plt.legend(fontsize='20')
     if show:
         plt.show()
 
