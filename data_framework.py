@@ -362,8 +362,7 @@ class MaterialsDatabase():
     def _update_atoms_db(atoms_db, mid, dictionary):
         row = atoms_db.get(mid = mid)
         id = row.id
-        for key in dictionary.keys():
-            value = dictionary[key]
+        for key, value in dictionary.items():
             if isinstance(value, (list,np.ndarray)):
                 value = json.dumps(value) #TODO Catch error.
             atoms_db.update(id, **{key:value})
