@@ -216,6 +216,13 @@ class MaterialsDatabase():
         log = logging.getLogger('log')
         log.setLevel(logging.DEBUG)
 
+        api = logging.getLogger(db_filename + '_api')
+        api.setLevel(logging.DEBUG)
+
+        api_file = logging.FileHandler(os.path.join(file_path, db_filename + '_api.log'))
+        api_file.setLevel(logging.INFO)
+        api_file.setFormatter(formatter)
+
         network_file = logging.FileHandler(os.path.join(path,db_filename+'_network.log'))
         network_file.setLevel(logging.INFO)
         network_file.setFormatter(formatter)
@@ -234,14 +241,17 @@ class MaterialsDatabase():
 
         log.addHandler(error_file)
         log.addHandler(performance_file)
+        api.addHandler(api_file)
         network.addHandler(network_file)
         network.addHandler(error_file)
         if not silent_logging:
             log.addHandler(console)
             network.addHandler(console)
+            api.addHandler(console)
 
         self.log = log
         self.netlog = network
+        self.api_logger = api
 
     def _get_row_by_mid(self, mid):
         try:
@@ -252,7 +262,7 @@ class MaterialsDatabase():
 
     def _get_row_by_db_id(self, db_id): #TODO catch an error, maybe?
         return self.atoms_db.get(db_id)
-
+    """
     def _get_all_materials(self, json_query):
         auth = (self.api_key, '')
         try:
@@ -279,7 +289,7 @@ class MaterialsDatabase():
                     else:
                         continue
         return results
-
+    """"""
     def _choose_calculation(self,mid, cid_list):
         score_list = []
         for cid in cid_list:
@@ -292,8 +302,8 @@ class MaterialsDatabase():
 
     def _calc_dos_score(self,energies):
         point_density = (abs(max(energies) - min(energies)) / len(energies)) / electron_charge
-        return point_density
-
+        return point_density"""
+    '''
     def _get_properties_NOMAD(self, mid, cid):
         json_answer = self._get_NOMAD_data(mid, cid, self.api_key)
         properties = {}
@@ -311,7 +321,8 @@ class MaterialsDatabase():
             properties[keyword] = json_answer[keyword]
         properties['dos'] = self._get_dos(mid, cid)
         return properties
-
+    '''
+    '''
     def _get_elements_NOMAD(self, mid):
         auth = (self.api_key, '')
         #url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/elements?pagination=off' %(str(mid))
@@ -322,7 +333,6 @@ class MaterialsDatabase():
             position = [float(x) for x in atom['position'][1:-1].split(',')]
             atom_list.append([atom['label'], position, atom['wyckoff']])
         return atom_list
-
     def _get_dos(self, mid, cid):
         auth = (self.api_key, '')
         #url = 'https://encyclopedia.nomad-coe.eu/api/v1.0/materials/%s/calculations/%s?property=dos' %(str(mid), str(cid))
@@ -330,6 +340,7 @@ class MaterialsDatabase():
         print(url)
         json_answer = requests.get(url, auth = auth).json()
         return json_answer['dos']
+    '''
 
     def _make_mid(self, nmid, ncid):
         return str(nmid)+':'+str(ncid)
@@ -340,7 +351,7 @@ class MaterialsDatabase():
         """
         atoms = get_lattice_description(new_material['elements'], new_material['properties']['lattice_parameters'])
         return atoms
-
+    '''
     @staticmethod
     def _get_NOMAD_data(mid, cid, api_key, property = None):
         """
@@ -357,7 +368,7 @@ class MaterialsDatabase():
             url += '?property=%s' %(str(property))
         json_answer = requests.get(url, auth = auth).json()
         return json_answer
-
+    '''
     @staticmethod
     def _update_atoms_db(atoms_db, mid, dictionary):
         row = atoms_db.get(mid = mid)
@@ -366,9 +377,3 @@ class MaterialsDatabase():
             if isinstance(value, (list,np.ndarray)):
                 value = json.dumps(value) #TODO Catch error.
             atoms_db.update(id, **{key:value})
-
-    @staticmethod
-    def _read_api_key(path_to_api_key):
-        key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
-        api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
-        return api_key
