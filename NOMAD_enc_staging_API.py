@@ -8,9 +8,9 @@ material_properties_keyword_list = ['formula', 'point_group', 'space_group_numbe
 class API():
 
     def __init__(self, base_url = API_base_url, access_token = None, key_path = '.', logger = None):
-        self.base_url = base_url
+        self.set_url(base_url)
         self.auth = (self._read_api_key(key_path), '') if access_token == None else (access_token, '')
-        self.log = logger
+        self.set_logger(logger)
 
     def get_calculation(self, nomad_material_id = 1, nomad_calculation_id = 1):
         """
@@ -22,7 +22,8 @@ class API():
         "elements" : [[atomic_number, internal coordinates, wyckoff_letter], ...]
         }
         """
-        calculation = {}
+        mid = str(nomad_material_id) + ":" + str(nomad_calculation_id)
+        calculation = {'mid':mid}
         #calculation properties
         url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id)
         failure_message = 'calculation ' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
@@ -70,13 +71,49 @@ class API():
             failure_message = 'Could not obtain list of calculations for material ' + str(item['id'])
             calculations = self._api_call(url, failure_message = failure_message)
             calc_list = calculations.json()["results"]
-            calc_list = self._filter_calculation_list(calc_list, list_filter) #TODO DOES NOT WORK!
+            calc_list = self._filter_calculation_list(calc_list, list_filter)
             calc_id = self._select_calc(calc_list)
             materials.append(self.get_calculation(nomad_material_id = item['id'], nomad_calculation_id = calc_id))
+            if show_progress:
+                print('Downloaded materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
+        if show_progress:
+            print('\n')
         return materials
+
+    def get_property(self, nomad_material_id = 1, nomad_calculation_id = 1, property_name = 'cell_volume'):
+        property = None
+        url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id, property = property_name)
+        failure_message = 'calculation property' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
+        answer = self._api_call(url, failure_message = failure_message)
+        if property_name in answer.json().keys():
+            property = answer.json()[property_name]
+        else:
+            url = self._construct_url(self.base_url, material_id = nomad_material_id) + '?property=' + property_name
+            failure_message = 'material property' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
+            answer = self._api_call(url, failure_message = failure_message)
+            if property_name in answer.json().keys():
+                property = answer.json()[property_name]
+        if property == None:
+            error_message = 'No property of type ' + property_name + ' found for material ' + str(nomad_material_id) + ':' + str(nomad_calculation_id) + '.'
+            self._report_error(error_message = error_message)
+        return property
 
     def set_url(self, url):
         self.base_url = url
+
+    def set_logger(self, logger):
+        self.log = logger
+
+    def set_auth(self, api_key):
+        self.auth = (api_key, '')
+
+    def print_api_keys(self):
+        url = self._construct_url(self.base_url, 1, 'calculations', 1)
+        for key in self._api_call(url).json().keys():
+            print(key)
+        url = self._construct_url(self.base_url, 1)
+        for key in self._api_call(url).json().keys():
+            print(key)
 
     def _get_materials_list(self, search_query, per_page = 1000):
         try:
@@ -131,7 +168,7 @@ class API():
         for calc in calculation_list:
             for key, value in filter_json.items():
                 if key in calc.keys():
-                    if calc[key] == value:
+                    if (calc[key] == value) or (value == 'Yes' and calc[key] == True):
                         filtered_list.append(calc)
         return filtered_list
 
@@ -149,7 +186,9 @@ class API():
         calc_list = self._filter_calculation_list(calc_list, filter_json={'has_dos':True})
         scored_list = [(self._evaluate_calc(calc), calc['id']) for calc in calc_list]
         scored_list.sort(reverse = True)
-        return scored_list[0][1]
+        website_sorted = [x for x in scored_list if x[0] == scored_list[0][0]]
+        return website_sorted[-1][1]
+        #return scored_list[0][1]
 
     def _report_error(self, error_message):
         if self.log != None:
@@ -188,6 +227,9 @@ class API():
 
     @staticmethod
     def _read_api_key(path_to_api_key):
-        key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
-        api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
+        try:
+            key_data = open(os.path.join(path_to_api_key,'api_key'),'r').readline()
+            api_key = key_data[:-1] if key_data[-1] == '\n' else key_data
+        except FileNotFoundError:
+            api_key = None
         return api_key
