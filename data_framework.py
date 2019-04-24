@@ -10,7 +10,7 @@ from ase.db import connect
 from fingerprints import Fingerprint
 from similarity import SimilarityMatrix
 from utils import electron_charge, get_lattice_description
-from NOMAD_enc_staging_API import API
+from NOMAD_enc_API import API
 
 class MaterialsDatabase():
 
@@ -18,6 +18,8 @@ class MaterialsDatabase():
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         self.db_path = db_path
+        if not os.path.exists(db_path):
+            os.makedirs(db_path)
         self._init_loggers(db_path, filename.split('.db')[0], silent_logging = silent_logging)
         if api == None:
             self.api = API(key_path = path_to_api_key, logger = self.api_logger)
@@ -89,6 +91,8 @@ class MaterialsDatabase():
                 row = db.get(row_id)
                 try:
                     fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms(), **kwargs)
+                except AttributeError:
+                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data, atoms = row.toatoms(), **kwargs)
                 except:
                     self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
                     continue
@@ -129,11 +133,17 @@ class MaterialsDatabase():
         """
         Fills the database with one calculation per material for a given NOMAD search query.
         """
+        self.log.info('Filling database with calculations matching the following query: ' + json.dumps(json_query) )
         materials = self.api.get_calculations_by_search(json_query)
         with self.atoms_db as db:
             for material in materials:
-                atoms = self._make_atoms(material)
-                db.write(atoms, data = material, mid = material['mid'])
+                mid = material['mid']
+                try:
+                    self.atoms_db.get(mid=mid)
+                    print('already in db: %s' %(mid))
+                except KeyError:
+                    atoms = self._make_atoms(material)
+                    db.write(atoms, data = material, mid = mid)
 
     def get_random(self, return_id = True):
         """

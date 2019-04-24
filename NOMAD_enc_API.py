@@ -67,6 +67,7 @@ class API():
             self._report_error('Empty materials list returned. Try different search query.')
             sys.exit()
         materials = []
+        self.log.info('Got materals list.')
         for index, item in enumerate(materials_list):
             url = self._construct_url(base_url = self.base_url, material_id = item['id'], api_endpoint = 'calculations')
             failure_message = 'Could not obtain list of calculations for material ' + str(item['id'])
