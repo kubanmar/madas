@@ -1,6 +1,7 @@
 import os, json, requests
 
-API_base_url = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
+API_base_url ='https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
+API_base_url_dev = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
 
 calculation_properties_keyword_list = ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri', 'code_name']
 material_properties_keyword_list = ['formula', 'point_group', 'space_group_number']
