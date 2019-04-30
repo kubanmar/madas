@@ -83,6 +83,22 @@ class SimilarityMatrix():
                 raise RuntimeError('Similarity matrix could not be generated.')
             print('\nFinished SimilarityMatrix generation.\n')
 
+    def calculate2(self, fingerprints, mids = None, similarity_function = None):
+        self.matrix = []
+        self.mids = mids
+        n_matrix_rows = len(fingerprints)
+        for idx, fp in enumerate(fingerprints):
+            with multiprocessing.Pool() as p:
+                self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
+                print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
+        self.matrix = np.array(self.matrix)
+        if self.matrix.shape[0] == 0:
+            self.log.error('Empty similarity matrix.')
+            raise RuntimeError('Similarity matrix could not be generated.')
+        print('\nFinished SimilarityMatrix generation.\n')
+
+
     def get_complement(self, maximum = 1, get_matrix_object = False):
         complement = []
         for row in self.matrix:
@@ -94,17 +110,28 @@ class SimilarityMatrix():
             return distance_matrix
         return np.array(complement)
 
+    def get_entry(self, mid1, mid2):
+        idx1 = self.mids.index(mid1)
+        idx2 = self.mids.index(mid2)
+        if idx1 < idx2:
+            return self.matrix[idx1][idx2-idx1]
+        else:
+            return self.matrix[idx2][idx1-idx2]
+
     def get_square_matrix(self):
         square_matrix = []
-        for mid in self.mids:
-            square_matrix.append(self.get_row(mid))
+        for idx in range(len(self.matrix)):
+            square_matrix.append(self.get_row(idx, use_matrix_index = True))
         return np.array(square_matrix)
 
-    def get_row(self, mid):
+    def get_row(self, mid, use_matrix_index = False):
         row = []
-        if self.mids == []:
-            self._load_mids()
-        mid_idx = self.mids.index(mid)
+        if not use_matrix_index:
+            if self.mids == []: # TODO Remove, too data centric
+                self._load_mids()
+            mid_idx = self.mids.index(mid)
+        else:
+            mid_idx = mid
         if self.large:
             full_path = os.path.join(self.data_path, self.filename)
             with open(full_path, 'r', newline='') as f:
@@ -114,7 +141,7 @@ class SimilarityMatrix():
                     # if index(row) < index(mid), choose entry
                     # else add row
         else:
-            for idx in range(len(self.mids)):
+            for idx in range(len(self.matrix)):
                 if idx < mid_idx:
                     row.append(self.matrix[idx][mid_idx-idx])
                 elif idx > mid_idx:

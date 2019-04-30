@@ -4,7 +4,7 @@ from SOAP_fingerprint import SOAPfingerprint, get_SOAP_sim
 from EWM_Fingerprint import EWMFingerprint, get_EWM_sim
 from PROP_Fingerprint import PROPFingerprint, get_PROP_sym
 from IAD_Fingerprint import IADFingerprint, get_IAD_sim
-import json
+import json, types, copy
 import logging
 
 class Fingerprint():
@@ -25,8 +25,6 @@ class Fingerprint():
         else:
             self.data = self._get_db_data(db_row)
             self._reconstruct_from_data()
-        #if database != None:
-        #    self.database = database
         #TODO Catch: neither data nor properties
 
     def calculate(self, **kwargs):
@@ -54,62 +52,16 @@ class Fingerprint():
             self.data = self.calculate()
         data = json.dumps(self.data)
         return data
-    """
-    def write_to_database(self, row_id, database): #TODO Outdated
-        data = self.get_data_json()
-        if self.fp_type == 'DOS':
-            database.update(row_id, DOS = data)
-        elif self.fp_type == 'SYM':
-            database.update(row_id, SYM = data)
-        elif self.fp_type == 'SOAP':
-            database.update(row_id, SOAP = data)
-    """
+
     def _get_db_data(self, row):
         data = json.loads(row[self.fp_name])
         return data
-        """
-        if self.fp_type == "DOS":
-            data = json.loads(row.DOS)
-        elif self.fp_type == "SYM":
-            data = json.loads(row.SYM)
-        elif self.fp_type == 'SOAP':
-            data = json.loads(row.SOAP)
-        elif self.fp_type == 'PROP':
-            data = json.loads(row.PROP)
-        elif self.fp_type == 'IAD':
-            data = json.loads(row.IAD)
-        """
-    """
-    def calc_similiarity(self, mid, database): #TODO Outdated
-        if self.fp_type == 'DOS':
-            if not hasattr(self, 'grid'):
-                self.grid = Grid.create(id = self.data['grid_id'])
-            fingerprint = database.get_fingerprint(mid, 'DOS')
-            if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
-                sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
-            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
-        if self.fp_type == 'SYM':
-            fingerprint = database.get_fingerprint(mid, 'SYM')
-            return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
-        if self.fp_type == 'SOAP':
-            fingerprint = database.get_fingerprint(mid, 'SOAP')
-            return get_SOAP_sim(self.data, fingerprint.data)
 
-    def calc_similiarity_multiprocess(self, mid): #TODO Outdated
-        if self.fp_type == 'DOS':
-            if not hasattr(self, 'grid'):
-                self.grid = Grid.create(id = self.data['grid_id'])
-            fingerprint = self.database.get_fingerprint(mid, 'DOS')
-            if fingerprint.fingerprint.grid_id != self.fingerprint.grid_id:
-                sys.exit('Error: DOS grid types to not agree.') # TODO This is by far no nice solution.
-            return self.grid.tanimoto(self.fingerprint, fingerprint.fingerprint)
-        if self.fp_type == 'SYM':
-            fingerprint = self.database.get_fingerprint(mid, 'SYM')
-            return get_SYM_sim(self.fingerprint.symop, fingerprint.fingerprint.symop) #, self.fingerprint.sg, fingerprint.fingerprint.sg
-    """
     def set_similarity_function(self, function):
-        import types
-        self.get_similarity = types.MethodType(function, self)
+        #import types
+        #self.get_similarity = types.MethodType(function, self)
+        setattr(self, function.__name__, function) #TODO understand that better!
+        setattr(self, 'get_similarity', types.MethodType(function, self))
 
     def get_similarity(self, fingerprint, s = 'tanimoto'):
         if self.fp_type == 'DOS':

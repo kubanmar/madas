@@ -78,6 +78,7 @@ class MaterialsDatabase():
     def add_fingerprint(self, fp_type, start_from = None, fp_name = None, **kwargs):
         """
         i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
+        REFACTOR: Split up in two functions to 1.: Generate the fingerprint, 2: write to db
         """
         fp_name = fp_type if fp_name == None else fp_name
         fingerprints = []
@@ -114,6 +115,11 @@ class MaterialsDatabase():
         self.log.info('Changing value of key %s to "none"' %(data_key))
         for index, idx in enumerate(ids):
             self.atoms_db.update(idx, **{data_key:json.dumps(None)})
+
+    def delete_keys(self, data_key):
+        with self.atoms_db as db:
+            for row_id in range(1,db.count()+1):
+                self.atoms_db.update(row_id, delete_keys = [data_key])
 
     def add_material(self, nomad_material_id, nomad_calculation_id):
         """
