@@ -181,9 +181,14 @@ class MaterialsDatabase():
         self._update_atoms_db(self.atoms_db, mid, dictionary)
 
     def update_entries(self, mid_list, dictionary_list):
-        with self.atoms_db as db:
-            for mid, dictionary in zip(mid_list, dictionary_list):
-                self._update_atoms_db(db, mid, dictionary)
+        chunk = []
+        for mid, dictionary in zip(mid_list, dictionary_list):
+            chunk.append((mid,dictionary)):
+            if len(chunk) >= 10:
+                for chunk_mid, chunk_dictionary in chunk:
+                    with self.atoms_db as db:
+                            self._update_atoms_db(db, chunk_mid, chunk_dictionary)
+                chunk = []
 
     def add_property(self, mid, property_name):
         nomad_material_id, nomad_calculation_id = mid.split(':')
