@@ -3,28 +3,52 @@ import matplotlib.pyplot as ppl
 from bitarray import bitarray
 import numpy as np
 import logging
+from fingerprint import Fingerprint
 
 from utils import electron_charge
 
 
-class DOSFingerprint():
+class DOSFingerprint(Fingerprint):
 
-    def __init__(self, json_data, cell_volume, grid):
-        self.stepsize = 0.05
-        if json_data != None:
-            energy, dos = self._rescale_dos(json_data, cell_volume)
-            self.energy, self.dos = self._integrate_dos_to_bins(energy, dos)
-            self.indices, self.bins = self._calc_byte_fingerprint(self.energy, self.dos, grid.grid())
-            self.grid_id = grid.id
-        # TODO catch errors of not giving all arguments
+    def __init__(self, db_row = None, stepsize = 0.05, grid_id = None):
+        self.db_row = db_row
+        self.stepsize = stepsize
+        self.grid_id = grid_id if grid_id != None else "dg_cut:-2:7:(-10, 5)"
+        if db_row != None:
+            if not hasattr(db_row, self.name):
+                self.calculate(db_row)
+            else:
+                self.reconstruct(db_row)
+
+    def calculate(self, db_row):
+        if not hasattr(self, 'grid'):
+            self.calculate_grid
+        energy, dos = self._rescale_dos(db_row['dos'], db_row['cell_volume'])
+        raw_energy, raw_dos = self._integrate_dos_to_bins(energy, dos)
+        self.indices, self.bins = self._calc_byte_fingerprint(raw_energy, raw_dos, self.grid.grid())
+        self.grid_id = grid.id
+
+    def reconstruct(self, db_row):
+        data = db_row[self.name]
+        self.bins = bytes.fromhex(data['bins'])
+        self.indices = data['indices']
+        self.grid_id = data['grid_id']
+        if hasattr(db_row, 'mid'):
+            self.mid = db_row.mid
+        elif 'mid' in data.keys():
+            self.mid = data['mid']
 
     def get_data(self):
         data = {}
-        #print(self.bins, self.bins.hex()) #DEBUG
         data['bins'] = self.bins.hex()
         data['indices'] = self.indices
         data['grid_id'] = self.grid_id
+        if hasattr(self, 'mid'):
+            data['mid'] = self.mid
         return data
+
+    def calculate_grid(self):
+        self.grid = Grid.create(id=self.grid_id)
 
     def _rescale_dos(self, dos_object, volume):
         """
@@ -32,7 +56,7 @@ class DOSFingerprint():
         """
         try:
             dos_object['dos_energies']
-        except Exception:
+        except KeyError:
             dos_object = dos_object['dos']
         energies = []
         dos = []
@@ -312,14 +336,10 @@ class Grid():
         dep2 = (fingerprint2.indices[1] - stop_index) * self.num_bins
         fp1 = fp1[dsp1:len(fp1) - 1 - dep1]
         fp2 = fp2[dsp2:len(fp2) - 1 - dep2]
-        # filling fingerprints with 0s to match the length
-        # fp1 = dsp2 * bitarray('0') + fp1 + dep2 * bitarray('0')
-        # fp2 = dsp1 * bitarray('0') + fp2 + dep1 * bitarray('0')
         return fp1, fp2
 
     def tanimoto(self, fp1, fp2):
         bit_array1, bit_array2 = self.match_fingerprints(fp1, fp2)
-        #print(bit_array1, bit_array2) #DEBUG
         a = bit_array1.count()
         b = bit_array2.count()
         c = (bit_array1 & bit_array2).count()
@@ -350,7 +370,6 @@ class Grid():
         score = normalized_mutual_info_score(bit_array1,bit_array2)
         return score
 
-
 def get_binary_fingerprint_distribution(db, fp_name = None, bins_offset = 56, normalize = False):
     fp_name = "DOS" if fp_name == None else fp_name
     n_db_entries = db.get_n_entries()
@@ -369,3 +388,8 @@ def get_binary_fingerprint_distribution(db, fp_name = None, bins_offset = 56, no
     if normalize:
         histogram = histogram / n_db_entries
     return histogram
+
+def DOS_similarity(fingerprint1, fingerprint2):
+    if not hasattr(fingerprint1, grid):
+        fingerprint1.calculate_grid()
+    return fingerprint1.grid.tanimoto(fingerprint1, fingerprint2)

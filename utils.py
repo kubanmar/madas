@@ -9,6 +9,12 @@ electron_charge = 1.602176565e-19
 def _SI_to_Angstom(length):
     return np.power(length,10^10)
 
+def report_error(logger, error_message):
+    if logger != None:
+        logger.error(error_message)
+    else:
+        print(error_message)
+
 def plot_FP_in_grid(byte_fingerprint, grid, show_grid = True, show = True, label = '', axes = None, **kwargs):
     x=[]
     y=[]

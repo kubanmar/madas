@@ -19,7 +19,7 @@ class PROPFingerprint():
     def get_data(self):
         return self.data
 
-def get_PROP_sym(prop_fingerprint1, prop_fingerprint2):
+def PROP_similarity(prop_fingerprint1, prop_fingerprint2):
     log = logging.getLogger('log')
     property_names = [x for x in prop_fingerprint1.data.keys()]
     similarity = 0
