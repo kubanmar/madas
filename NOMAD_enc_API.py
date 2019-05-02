@@ -148,7 +148,7 @@ class API():
                     else:
                         continue
                 if show_progress:
-                    print('Fetching materials list {:.3f} %'.format( (len(to_load)) / max_len * 100), end = '\r')
+                    print('Fetching materials list {:.3f} %'.format( (max_len - len(to_load)) / max_len * 100), end = '\r')
             if show_progress:
                 print('\n')
 
