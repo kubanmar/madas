@@ -11,22 +11,23 @@ from utils import electron_charge
 class DOSFingerprint(Fingerprint):
 
     def __init__(self, db_row = None, stepsize = 0.05, grid_id = None):
-        self.db_row = db_row
+        if not hasattr(self, 'db_row'):
+            self.db_row = db_row
         self.stepsize = stepsize
         self.grid_id = grid_id if grid_id != None else "dg_cut:-2:7:(-10, 5)"
-        if db_row != None:
+        if self.db_row != None:
             if not hasattr(db_row, self.name):
-                self.calculate(db_row)
+                self.calculate(self.db_row)
             else:
-                self.reconstruct(db_row)
+                self.reconstruct(self.db_row)
 
     def calculate(self, db_row):
         if not hasattr(self, 'grid'):
-            self.calculate_grid
-        energy, dos = self._rescale_dos(db_row['dos'], db_row['cell_volume'])
+            self.calculate_grid()
+        energy, dos = self._rescale_dos(db_row['data']['dos'], db_row['data']['cell_volume'])
         raw_energy, raw_dos = self._integrate_dos_to_bins(energy, dos)
         self.indices, self.bins = self._calc_byte_fingerprint(raw_energy, raw_dos, self.grid.grid())
-        self.grid_id = grid.id
+        self.grid_id = self.grid.id
 
     def reconstruct(self, db_row):
         data = db_row[self.name]
@@ -390,6 +391,6 @@ def get_binary_fingerprint_distribution(db, fp_name = None, bins_offset = 56, no
     return histogram
 
 def DOS_similarity(fingerprint1, fingerprint2):
-    if not hasattr(fingerprint1, grid):
+    if not hasattr(fingerprint1, 'grid'):
         fingerprint1.calculate_grid()
     return fingerprint1.grid.tanimoto(fingerprint1, fingerprint2)

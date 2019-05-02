@@ -7,7 +7,7 @@ import logging
 import numpy as np
 from ase.db import connect
 
-from fingerprints import Fingerprint
+from fingerprint import Fingerprint
 from similarity import SimilarityMatrix
 from utils import electron_charge, get_lattice_description
 from NOMAD_enc_API import API
@@ -135,15 +135,36 @@ class MaterialsDatabase():
         """
         self.log.info('Filling database with calculations matching the following query: ' + json.dumps(json_query) )
         materials = self.api.get_calculations_by_search(json_query)
+        self._write_materials_chunks(materials)
+        """
         with self.atoms_db as db:
             for material in materials:
                 mid = material['mid']
+                self.log.debug("Writing material with mid "+mid)
                 try:
                     self.atoms_db.get(mid=mid)
                     print('already in db: %s' %(mid))
                 except KeyError:
                     atoms = self._make_atoms(material)
                     db.write(atoms, data = material, mid = mid)
+        """
+
+    def _write_materials_chunks(self, materials, chunk_size = 10):
+        chunk = []
+        for material in materials:
+            chunk.append(material)
+            if len(chunk) >= chunk_size:
+                with self.atoms_db as db:
+                    for mat in chunk:
+                        mid = mat['mid']
+                        self.log.debug("Writing material with mid "+mid)
+                        try:
+                            self.atoms_db.get(mid=mid)
+                            print('already in db: %s' %(mid))
+                        except KeyError:
+                            atoms = self._make_atoms(material)
+                            db.write(atoms, data = mat, mid = mid)
+                chunk = []
 
     def get_random(self, return_id = True):
         """

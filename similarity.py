@@ -7,7 +7,7 @@ import copy
 import math
 import matplotlib.pyplot as plt
 
-from fingerprints import Fingerprint
+from fingerprint import Fingerprint
 
 def returnfunction(*args): #Why do I have this?
     return [*args]

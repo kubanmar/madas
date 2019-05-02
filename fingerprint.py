@@ -4,7 +4,7 @@ import json
 
 from utils import report_error
 
-def import_fingerprint_module(self, fp_type, file_suffix = '_fingerprint', class_suffix = 'Fingerprint', similarity_measure_suffix = '_similarity'):
+def import_fingerprint_module(fp_type, file_suffix = '_fingerprint', class_suffix = 'Fingerprint', similarity_measure_suffix = '_similarity'):
     """
     Function to import specific fingerprint classes and similarity measures from different files.
     """
@@ -26,29 +26,37 @@ class Fingerprint():
     importfunction: function, used to import different fingerprint types individually
     """
 
-    def __init__(self, fp_type = None, name = None, importfunction = import_fingerprint_module, **kwargs):
+    def __init__(self, fp_type = None, name = None, db_row = None, importfunction = import_fingerprint_module, **kwargs):
         self.log = None
-        self.importfunction = importfunction
+        self.set_import_function(importfunction)
         self.__dict__.update(kwargs) # Initialize all kwargs as attributes. Thus there is maximal flexibility.
+        self.db_row = db_row
         if hasattr(self, 'db_row'):
             if hasattr(self.db_row,'mid'):
                 self.mid = self.db_row.mid
         self.fp_type = fp_type
         self.name = name if name != None else fp_type
         self.data = None if not 'data' in kwargs.keys() else kwargs['data']
+        if self.fp_type != None:
+            fingerprint_class, similarity_function = self.importfunction(fp_type)
+            self.specify(fingerprint_class)
+            self.set_similarity_function(similarity_function)
 
     def get_similarity(self, fingerprint):
         try:
             similarity = self.similarity_function(self, fingerprint)
-        except:
-            mid1 = 'unknown' if not hasattr(self, mid) else self.mid
-            mid2 = 'unknown' if not hasattr(fingerprint, mid) else fingerprint.mid
-            error_message = 'Could not calculate similarity for materials: ' + mid1 + ' and ' + mid2
+            return similarity
+        except Exception as err:
+            mid1 = 'unknown' if not hasattr(self, 'mid') else self.mid
+            mid2 = 'unknown' if not hasattr(fingerprint, 'mid') else fingerprint.mid
+            error_message = 'Could not calculate similarity for materials: ' + mid1 + ' and ' + mid2 + ' because of error: {0}'.format(err)
             report_error(self.log, error_message)
-        return similarity
 
     def set_similarity_function(self, similarity_function):
         self.similarity_function = similarity_function
+
+    def set_import_function(self, import_function):
+        self.importfunction = import_function
 
     def specify(self, fingerprint_class, **kwargs):
         """
