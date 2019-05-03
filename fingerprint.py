@@ -26,23 +26,23 @@ class Fingerprint():
     importfunction: function, used to import different fingerprint types individually
     """
 
-    def __init__(self, fp_type = None, name = None, db_row = None, importfunction = import_fingerprint_module, **kwargs):
-        self.log = None
+    def __init__(self, fp_type = None, name = None, db_row = None, logger = None, importfunction = import_fingerprint_module, **kwargs):
+        self.log = logger
         self.set_import_function(importfunction)
-        self.__dict__.update(kwargs) # Initialize all kwargs as attributes. Thus there is maximal flexibility.
         self.db_row = db_row
         if hasattr(self, 'db_row'):
             if hasattr(self.db_row,'mid'):
                 self.mid = self.db_row.mid
         self.fp_type = fp_type
         self.name = name if name != None else fp_type
-        self.data = None if not 'data' in kwargs.keys() else kwargs['data']
         if self.fp_type != None:
             fingerprint_class, similarity_function = self.importfunction(fp_type)
-            self.specify(fingerprint_class)
+            self.specify(fingerprint_class, **kwargs)
             self.set_similarity_function(similarity_function)
 
     def get_similarity(self, fingerprint):
+        if not self.fp_type == fingerprint.fp_type:
+            report_error(self.log, 'Can not calculate similarity for fingerprints of different types. (%s and %s)' %(self.fp_type, fingerprint.fp_type))
         try:
             similarity = self.similarity_function(self, fingerprint)
             return similarity
@@ -76,6 +76,32 @@ class Fingerprint():
         To be defined in child class. Reconstruct fingerprint using the data from AtomsRow object.
         """
         pass
+
+    def get_data(self):
+        """
+        To be defined in child class. Return data to be written to database.
+        """
+        pass
+
+    def _init_from_db_row(self, db_row):
+        if not hasattr(self, 'db_row'):
+            self.db_row = db_row
+        if self.db_row != None:
+            if not hasattr(db_row, self.name):
+                self.calculate(self.db_row)
+            else:
+                self.reconstruct(self.db_row)
+
+    def _data_from_db_row(self, db_row):
+        try:
+            data = db_row[self.name]
+        except KeyError:
+            report_error(self.log, "Error in reconstructing Fingerprint: AtomsRow does not have attribute of name: " + self.name)
+        if hasattr(db_row, 'mid'):
+            self.mid = db_row.mid
+        elif 'mid' in data.keys():
+            self.mid = data['mid']
+        return data
 
 class DBRowWrapper(dict):
     """

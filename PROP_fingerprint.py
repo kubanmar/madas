@@ -1,26 +1,34 @@
-import logging
-from utils import get_lattice_parameters_from_string
+from fingerprint import Fingerprint
+from utils import get_lattice_parameters_from_string, report_error
 
-class PROPFingerprint():
+class PROPFingerprint(Fingerprint):
 
-    def __init__(self, properties, db_data = None, properties_names = ['atomic_density', 'mass_density']): # 'cell_volume', 'lattice_parameters',
-        if db_data != None:
-            self.data = db_data
-            return
-        data = properties
+    #def __init__(self, properties, db_data = None, properties_names = ['atomic_density', 'mass_density']): # 'cell_volume', 'lattice_parameters',
+    def __init__(self, db_row = None, properties_names = ['atomic_density', 'mass_density']): # 'cell_volume', 'lattice_parameters',
+        self.properties_names = properties_names
+        self._init_from_db_row(db_row)
+
+    def calculate(self, db_row):
+        properties = db_row['data']
         fingerprint_data = {}
-        for prop in properties_names:
+        for prop in self.properties_names:
             try:
-                fingerprint_data[prop] = data[prop]
+                fingerprint_data[prop] = properties[prop]
             except KeyError:
-                pass
+                if not hasattr(self, 'log'):
+                    self.log = None
+                mid = 'unknown' if not hasattr(self, 'mid') else self.mid
+                report_error(self.log, 'No property of type %s for material %s' %(prop, mid))
         self.data = fingerprint_data
+
+    def reconstruct(self, db_data):
+        data = self._data_from_db_row(db_row)
+        self.data = data
 
     def get_data(self):
         return self.data
 
 def PROP_similarity(prop_fingerprint1, prop_fingerprint2):
-    log = logging.getLogger('log')
     property_names = [x for x in prop_fingerprint1.data.keys()]
     similarity = 0
     n_properties = 0
@@ -30,7 +38,7 @@ def PROP_similarity(prop_fingerprint1, prop_fingerprint2):
             fp2_prop = prop_fingerprint2.data[prop_name]
             n_properties += 1
         except KeyError:
-            log.error('Can not calculate similarity of property %s for materials %s and %s. Not available for %s.' %(prop_name, prop_fingerprint1.mid, prop_fingerprint2.mid, prop_fingerprint2.mid))
+            report_error(None, 'Can not calculate similarity of property %s for materials %s and %s. Not available for %s.' %(prop_name, prop_fingerprint1.mid, prop_fingerprint2.mid, prop_fingerprint2.mid))
         if prop_name == 'lattice_parameters':
             overlap = 0
             lcs1 = get_lattice_parameters_from_string(fp1_prop)

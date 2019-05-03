@@ -11,15 +11,9 @@ from utils import electron_charge
 class DOSFingerprint(Fingerprint):
 
     def __init__(self, db_row = None, stepsize = 0.05, grid_id = None):
-        if not hasattr(self, 'db_row'):
-            self.db_row = db_row
         self.stepsize = stepsize
         self.grid_id = grid_id if grid_id != None else "dg_cut:-2:7:(-10, 5)"
-        if self.db_row != None:
-            if not hasattr(db_row, self.name):
-                self.calculate(self.db_row)
-            else:
-                self.reconstruct(self.db_row)
+        self._init_from_db_row(db_row)
 
     def calculate(self, db_row):
         if not hasattr(self, 'grid'):
@@ -30,14 +24,10 @@ class DOSFingerprint(Fingerprint):
         self.grid_id = self.grid.id
 
     def reconstruct(self, db_row):
-        data = db_row[self.name]
+        data = self._data_from_db_row(db_row)
         self.bins = bytes.fromhex(data['bins'])
         self.indices = data['indices']
         self.grid_id = data['grid_id']
-        if hasattr(db_row, 'mid'):
-            self.mid = db_row.mid
-        elif 'mid' in data.keys():
-            self.mid = data['mid']
 
     def get_data(self):
         data = {}
