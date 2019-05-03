@@ -1,4 +1,4 @@
-import os, json, requests
+import os, json, requests, sys
 
 API_base_url ='https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
 API_base_url_dev = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
@@ -74,10 +74,14 @@ class API():
             calculations = self._api_call(url, failure_message = failure_message)
             calc_list = calculations.json()["results"]
             calc_list = self._filter_calculation_list(calc_list, list_filter)
+            if calc_list == []:
+                error_message = 'No calculations with matching criteria for material ' + str(item['id'])
+                self._report_error(error_message)
+                continue
             calc_id = self._select_calc(calc_list)
             materials.append(self.get_calculation(nomad_material_id = item['id'], nomad_calculation_id = calc_id))
             if show_progress:
-                print('Downloaded materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
+                print('Fetching materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
         if show_progress:
             print('\n')
         return materials
@@ -117,7 +121,7 @@ class API():
         for key in self._api_call(url).json().keys():
             print(key)
 
-    def _get_materials_list(self, search_query, per_page = 1000):
+    def _get_materials_list(self, search_query, per_page = 1000, show_progress = True):
         try:
             search_query['search_by']['per_page'] = per_page
             post = requests.post(self.base_url, auth = self.auth, json = search_query)
@@ -132,6 +136,7 @@ class API():
             for result in post.json()['results']:
                 results.append(result)
             to_load = [x for x in range(2,pages['pages']+1)]
+            max_len = len(to_load)
             while len(to_load) > 0:
                 for page in to_load:
                     search_query['search_by']['page'] = page
@@ -142,6 +147,11 @@ class API():
                         to_load.remove(page)
                     else:
                         continue
+                if show_progress:
+                    print('Fetching materials list {:.3f} %'.format( (max_len - len(to_load)) / max_len * 100), end = '\r')
+            if show_progress:
+                print('\n')
+
         return results
 
     def _api_call(self, url, failure_message = 'Undefined error'):
