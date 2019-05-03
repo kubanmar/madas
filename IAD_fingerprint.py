@@ -1,26 +1,21 @@
 import math
 import numpy as np
 from bitarray import bitarray
+from fingerprint import Fingerprint
 
-class IADFingerprint():
+class IADFingerprint(Fingerprint):
 
-    def __init__(self, atoms, data = None):
-        if atoms != None:
-            self.cell = atoms.get_cell()
-            self.positions = atoms.get_positions()
-            self.fingerprint = self.calculate()
-        elif data != None:
-            self.fingerprint = data
-        else:
-            raise ValueError('Can not initialize fingerprint without data!')
+    def __init__(self, db_row = None):
+        self._init_from_db_row(db_row)
 
-    def calculate(self, scale_to_unit_cell = True, nbytes_per_bin = 10):
+    def calculate(self, db_row, scale_to_unit_cell = True, nbytes_per_bin = 10):
+        atoms = db_row.toatoms()
+        cell = atoms.get_cell()
+        positions = atoms.get_positions()
         distances = []
-        natoms = len(self.positions)
-        positions = self.positions
-        cell = self.cell
+        natoms = len(positions)
         if scale_to_unit_cell:
-            longest_edge = sum(self.cell)
+            longest_edge = sum(cell)
             scaling = np.linalg.norm(longest_edge)
             positions /= scaling
             cell /= scaling
@@ -28,7 +23,7 @@ class IADFingerprint():
             for index2 in range(index+1,natoms):
                 distances.append(self._min_distance(positions[index],positions[index2],cell))
         distances = np.array(distances)
-        print(distances) #DEBUG
+        #print(distances) #DEBUG
         histogram = self._make_hist(distances, normalization = len(distances))
         fingerprint = ''
         for entry in histogram:
@@ -40,10 +35,15 @@ class IADFingerprint():
                     new_row[index] = 1
             row = bitarray(new_row.tolist())
             fingerprint +=row.tobytes().hex()
-        return fingerprint
+        self.fingerprint = fingerprint
 
     def get_data(self):
-        return self.fingerprint
+        data = {'fingerprint' : self.fingerprint}
+        return data
+
+    def reconstruct(self, db_row):
+        data = self._data_from_db_row(db_row)
+        self.fingerprint = data['fingerprint']
 
     @staticmethod
     def _make_hist(value_array, xlimits = [0,1], normalization = 1, bins = 50):
@@ -53,7 +53,7 @@ class IADFingerprint():
         for value in value_array:
             position = int(value / bin_size)
             histogram[position-1] += 1
-        print(normalization) #DEBUG
+        #print(normalization) #DEBUG
         histogram /= normalization
         return histogram
 
@@ -84,11 +84,11 @@ class IADFingerprint():
                         indices_minimal=indices
         return md
 
-def get_IAD_sim(bytes1, bytes2):
+def IAD_similarity(fingerprint1, fingerprint2):
     fp1 = bitarray()
     fp2 = bitarray()
-    fp1.frombytes(bytes.fromhex(bytes1))
-    fp2.frombytes(bytes.fromhex(bytes2))
+    fp1.frombytes(bytes.fromhex(fingerprint1.fingerprint))
+    fp2.frombytes(bytes.fromhex(fingerprint2.fingerprint))
     a = fp1.count()
     b = fp2.count()
     c = (fp1 & fp2).count()

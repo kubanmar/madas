@@ -2,12 +2,12 @@ import os, sys
 import json, requests
 import time, datetime
 import random
-import logging
+import logging, multiprocessing
 
 import numpy as np
 from ase.db import connect
 
-from fingerprints import Fingerprint
+from fingerprint import Fingerprint
 from similarity import SimilarityMatrix
 from utils import electron_charge, get_lattice_description
 from NOMAD_enc_API import API
@@ -41,7 +41,7 @@ class MaterialsDatabase():
         else:
             return None
 
-    def get_fingerprint(self, fp_type, mid = None, fp_name = None, db_id = None, log = True):
+    def get_fingerprint(self, fp_type, mid = None, name = None, db_id = None, log = True):
         try:
             if db_id != None:
                 row = self.atoms_db.get(db_id)
@@ -54,7 +54,14 @@ class MaterialsDatabase():
         if row[fp_type] == None:
             self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
             return None
-        return Fingerprint(fp_type, mid = mid, db_row = row, log = log, fp_name = fp_name)
+        logger = self.log if log else None
+        return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name)
+
+    def get_fingerprints(self, fp_type, name = None, log = True):
+        fingerprints = []
+        for db_id in range(1, self.get_n_entries()+1):
+            fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log))
+        return fingerprints
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
         simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
@@ -75,45 +82,31 @@ class MaterialsDatabase():
             self.log.error("not in db: %s" %(mid))
             return None
 
-    def add_fingerprint(self, fp_type, start_from = None, fp_name = None, **kwargs):
+    def add_fingerprint(self, fp_type, name = None, **kwargs):
         """
         i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
         """
-        fp_name = fp_type if fp_name == None else fp_name
-        fingerprints = []
-        ids = []
-        self.log.info('Number of entries in db: ' + str(self.atoms_db.count()))
         self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
-        if start_from == None:
-            start_from = 1
-        with self.atoms_db as db:
-            for row_id in range(start_from,db.count()+1):
-                row = db.get(row_id)
-                try:
-                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data.properties, atoms = row.toatoms(), **kwargs)
-                except AttributeError:
-                    fingerprint = Fingerprint(fp_type, mid = row.mid, properties = row.data, atoms = row.toatoms(), **kwargs)
-                except:
-                    self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
-                    continue
-                fingerprints.append([row.id, fingerprint.get_data_json()])
-            self.log.info('Writing %s fingerprints to database.' %(fp_type))
-        for data in fingerprints:
-            self.atoms_db.update(data[0], **{fp_name:data[1]})
-            self.log.debug('db update for id '+str(data[0])+' with fingerprint '+str(fp_type))
+        fingerprints = self.gen_fingerprints_list(fp_type, name = name, **kwargs)
+        self.log.info('Writing %s fingerprints to database.' %(fp_type))
+        mid_list = [fingerprint.mid for fingerprint in fingerprints]
+        dictionary_list = [{fingerprint.name:fingerprint.get_data_json()} for fingerprint in fingerprints]
+        self.update_entries(mid_list, dictionary_list)
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})
 
-    def put_data_to_none(self, data_key):
-        ids = []
-        from utils import list_chunks
+    def gen_fingerprints_list(self, fp_type, name = None, **kwargs):
+        fingerprints = []
         with self.atoms_db as db:
             for row_id in range(1,db.count()+1):
                 row = db.get(row_id)
-                ids.append(row.id)
-        self.log.info('Changing value of key %s to "none"' %(data_key))
-        for index, idx in enumerate(ids):
-            self.atoms_db.update(idx, **{data_key:json.dumps(None)})
+                try:
+                    fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = row, logger = self.log, **kwargs)
+                except:
+                    self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
+                    continue
+                fingerprints.append(fingerprint)
+        return fingerprints
 
     def add_material(self, nomad_material_id, nomad_calculation_id):
         """
@@ -149,23 +142,6 @@ class MaterialsDatabase():
                     db.write(atoms, data = material, mid = mid)
         """
 
-    def _write_materials_chunks(self, materials, chunk_size = 10):
-        chunk = []
-        for material in materials:
-            chunk.append(material)
-            if len(chunk) >= chunk_size:
-                with self.atoms_db as db:
-                    for mat in chunk:
-                        mid = mat['mid']
-                        self.log.debug("Writing material with mid "+mid)
-                        try:
-                            self.atoms_db.get(mid=mid)
-                            print('already in db: %s' %(mid))
-                        except KeyError:
-                            atoms = self._make_atoms(material)
-                            db.write(atoms, data = mat, mid = mid)
-                chunk = []
-
     def get_random(self, return_id = True):
         """
         Returns a random entry from the database.
@@ -195,6 +171,23 @@ class MaterialsDatabase():
         property = self.api.get_property(nomad_material_id = nomad_material_id, nomad_calculation_id = nomad_calculation_id, property_name = property_name)
         if property != None:
             self.update_entry(mid, {property_name : property})
+
+    def _write_materials_chunks(self, materials, chunk_size = 10):
+        chunk = []
+        for material in materials:
+            chunk.append(material)
+            if len(chunk) >= chunk_size:
+                with self.atoms_db as db:
+                    for mat in chunk:
+                        mid = mat['mid']
+                        self.log.debug("Writing material with mid "+mid)
+                        try:
+                            self.atoms_db.get(mid=mid)
+                            print('already in db: %s' %(mid))
+                        except KeyError:
+                            atoms = self._make_atoms(material)
+                            db.write(atoms, data = mat, mid = mid)
+                chunk = []
 
     def _update_metadata(self, update_dict):
         metadata = self.atoms_db.metadata

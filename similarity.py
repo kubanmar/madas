@@ -7,7 +7,7 @@ import copy
 import math
 import matplotlib.pyplot as plt
 
-from fingerprints import Fingerprint
+from fingerprint import Fingerprint
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
@@ -34,7 +34,7 @@ class SimilarityMatrix():
         self.filename = filename
         self.print_to_screen = print_to_screen
 
-    def calculate(self, fp_type, db, fp_name = None, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
+    def calculate(self, fp_type, db, name = None, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
         """
         Calculates the SimilarityMatrix.
             If SimilarityMatrix.large == True: The matrix is written to file during calculation.
@@ -44,17 +44,8 @@ class SimilarityMatrix():
             outfile = open(full_path, 'w')
             csvwriter = csv.writer(outfile)
         self.fp_type = fp_type
-        fingerprints = []
-        for id in range(1, db.count()+1):
-            row = db.get(id)
-            if hasattr(row, fp_type):
-                try:
-                    fingerprints.append(Fingerprint(fp_type, fp_name = fp_name, mid = row.mid, db_row = row, log = False))
-                    self.mids.append(row.mid)
-                except (TypeError, json.decoder.JSONDecodeError):
-                    self.log.error('"None" for fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
-            else:
-                self.log.error('No fingerprint of type '+fp_type+'. Skipping material '+row.mid+ ' for similarity matrix.')
+        fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
+        self.mids = [fingerprint.mid for fingerprint in fingerprints]
         self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
             csvwriter.writerow(self.mids)
@@ -352,35 +343,26 @@ def get_orphans(neighbors_dict, group_member_list):
             orphans[mid] = neighbors_dict[mid]
     return orphans
 
-def similarity_search(db, mid, fp_type, k = 10, **kwargs):
+def similarity_search(db, mid, fp_type, name = None, k = 10, **kwargs):
     """
     brute-force searches an MaterialsDatabase for k most similar materials and returns them as a list
     """
     neighbors = []
-    reference = db.get_fingerprint(mid, fp_type)
-    for index in range(1, db.atoms_db.count()+1):
-        row = db.atoms_db.get(index)
-        try:
-            fingerprint = Fingerprint(fp_type, mid = row.mid, db_row = row)
-        except AttributeError:
-            db.log.error('No Fingerprint of type %s for db entry %s.' %(fp_type, row.mid))
-            continue
-        similarity = reference.get_similarity(fingerprint, **kwargs)
+    reference = db.get_fingerprint(fp_type, mid = mid)
+    fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
+    for index, fingerprint in enumerate(fingerprints):
+        similarity = reference.get_similarity(fingerprint)
         if index <= k:
-            neighbors.append([similarity, row.mid])
+            neighbors.append([similarity, fingerprint.mid])
         else:
             if similarity > neighbors[-1][0]:
-                neighbors.append([similarity, row.mid])
+                neighbors.append([similarity, fingerprint.mid])
                 neighbors.sort(reverse = True)
                 neighbors = neighbors[0:k]
     return neighbors
 
-def parallel_similarity_search(db, fp_type, k = 10, debug = False, **kwargs):
-    fingerprints = []
-    for id in range(1, db.count()+1):
-        row = db.get(id)
-        if hasattr(row, fp_type):
-            fingerprints.append(Fingerprint(fp_type, mid = row.mid, db_row = row, log = False))
+def parallel_similarity_search(db, fp_type, name = None, k = 10, debug = False, **kwargs):
+    fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
     if debug:
         print('loaded fingerprints')
     with multiprocessing.Pool() as p:
