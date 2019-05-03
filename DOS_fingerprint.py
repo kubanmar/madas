@@ -182,7 +182,6 @@ class Grid():
     def create(id=None, mu=-2, sigma=7, grid_type='dg_cut', num_bins=56, cutoff=(-10, 5)):
         self = Grid()
         self.num_bins = num_bins
-        self.log = logging.getLogger('log')
         if id is None:
             id = "%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
             self.id = id

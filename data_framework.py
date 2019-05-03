@@ -54,7 +54,14 @@ class MaterialsDatabase():
         if row[fp_type] == None:
             self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
             return None
-        return Fingerprint(fp_type = fp_type, db_row = row, logger = log, name = name)
+        logger = self.log if log else None
+        return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name)
+
+    def get_fingerprints(self, fp_type, name = None, log = True):
+        fingerprints = []
+        for db_id in range(1, self.get_n_entries()+1):
+            fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log))
+        return fingerprints
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
         simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
