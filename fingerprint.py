@@ -83,6 +83,10 @@ class Fingerprint():
         """
         pass
 
+    def get_data_json(self):
+        json_data = json.dumps(self.get_data())
+        return json_data
+
     def _init_from_db_row(self, db_row):
         if not hasattr(self, 'db_row'):
             self.db_row = db_row
