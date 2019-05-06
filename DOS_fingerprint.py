@@ -183,7 +183,7 @@ class Grid():
         self = Grid()
         self.num_bins = num_bins
         if id is None:
-            id = "%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
+            id = Grid().make_grid_id(grid_type, mu, sigma, cutoff)#"%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
             self.id = id
             self.grid_type = grid_type
             self.mu = mu
@@ -198,6 +198,11 @@ class Grid():
             self.cutoff = tuple([float(x) for x in values[3][1:-1].split(',')])
 
         return self
+
+    @staticmethod
+    def make_grid_id(grid_type, mu, sigma, cutoff):
+        id = "%s:%s:%s:%s" % (grid_type, str(mu), str(sigma), str(cutoff))
+        return id
 
     def grid(self):
         if self.grid_type == 'dg' or self.grid_type == 'double_gauss':

@@ -1,7 +1,7 @@
 import os, sys
 import json, requests
 import time, datetime
-import random
+import random, time
 import logging, multiprocessing
 
 import numpy as np
@@ -14,7 +14,7 @@ from NOMAD_enc_API import API
 
 class MaterialsDatabase():
 
-    def __init__(self, filename = 'materials_database.db', db_path = 'data', api = None, path_to_api_key = '.', silent_logging = False, connect_db = True):
+    def __init__(self, filename = 'materials_database.db', db_path = 'data', api = None, path_to_api_key = '.', silent_logging = False, connect_db = True, lock_db = True):
         self.atoms_db_name = filename
         self.atoms_db_path = os.path.join(db_path, self.atoms_db_name)
         self.db_path = db_path
@@ -27,7 +27,7 @@ class MaterialsDatabase():
             self.api = api
             self.api.set_logger(self.api_logger)
         if connect_db:
-            self._connect_db()
+            self._connect_db(lock_db = lock_db)
 
     def get_n_entries(self):
         return self.atoms_db.count()
@@ -35,13 +35,13 @@ class MaterialsDatabase():
     def get_property(self, mid, property_name):
         row = self._get_row_by_mid(mid)
         if property_name in ['dos_values', 'dos_energies']:
-            return row.data.properties['dos'][property_name]
-        elif property_name in row.data.properties.keys():
-            return row.data.properties[property_name]
+            return row.data['dos'][property_name]
+        elif property_name in row.data.keys():
+            return row.data[property_name]
         else:
             return None
 
-    def get_fingerprint(self, fp_type, mid = None, name = None, db_id = None, log = True):
+    def get_fingerprint(self, fp_type, mid = None, name = None, db_id = None, log = True, **kwargs):
         try:
             if db_id != None:
                 row = self.atoms_db.get(db_id)
@@ -55,12 +55,12 @@ class MaterialsDatabase():
             self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
             return None
         logger = self.log if log else None
-        return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name)
+        return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name, **kwargs)
 
-    def get_fingerprints(self, fp_type, name = None, log = True):
+    def get_fingerprints(self, fp_type, name = None, log = True, **kwargs):
         fingerprints = []
         for db_id in range(1, self.get_n_entries()+1):
-            fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log))
+            fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log, **kwargs))
         return fingerprints
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
@@ -96,13 +96,14 @@ class MaterialsDatabase():
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})
 
-    def gen_fingerprints_list(self, fp_type, name = None, **kwargs):
+    def gen_fingerprints_list(self, fp_type, name = None, log = True, **kwargs):
         fingerprints = []
+        logger = self.log if log else None
         with self.atoms_db as db:
             for row_id in range(1,db.count()+1):
                 row = db.get(row_id)
                 try:
-                    fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = row, logger = self.log, **kwargs)
+                    fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = row, logger = logger, **kwargs)
                 except:
                     self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
                     continue
@@ -134,7 +135,10 @@ class MaterialsDatabase():
         """
         self.log.info('Filling database with calculations matching the following query: ' + json.dumps(json_query) )
         materials = self.api.get_calculations_by_search(json_query)
-        self._write_materials_chunks(materials)
+        ids = []
+        for material in materials:
+            ids.append(self.atoms_db.reserve(mid = material['mid']))
+        self._write_materials(materials, ids = ids)
         """
         with self.atoms_db as db:
             for material in materials:
@@ -165,12 +169,8 @@ class MaterialsDatabase():
     def update_entries(self, mid_list, dictionary_list):
         chunk = []
         for mid, dictionary in zip(mid_list, dictionary_list):
-            chunk.append((mid,dictionary))
-            if len(chunk) >= 10:
-                for chunk_mid, chunk_dictionary in chunk:
-                    with self.atoms_db as db:
-                            self._update_atoms_db(db, chunk_mid, chunk_dictionary)
-                chunk = []
+            with self.atoms_db as db:
+                self._update_atoms_db(db, mid, dictionary)
 
     def add_property(self, mid, property_name):
         nomad_material_id, nomad_calculation_id = mid.split(':')
@@ -178,22 +178,17 @@ class MaterialsDatabase():
         if property != None:
             self.update_entry(mid, {property_name : property})
 
-    def _write_materials_chunks(self, materials, chunk_size = 10):
-        chunk = []
-        for material in materials:
-            chunk.append(material)
-            if len(chunk) >= chunk_size:
-                with self.atoms_db as db:
-                    for mat in chunk:
-                        mid = mat['mid']
-                        self.log.debug("Writing material with mid "+mid)
-                        try:
-                            self.atoms_db.get(mid=mid)
-                            print('already in db: %s' %(mid))
-                        except KeyError:
-                            atoms = self._make_atoms(material)
-                            db.write(atoms, data = mat, mid = mid)
-                chunk = []
+    def _write_materials(self, materials, ids=None):
+        lock_path = self.atoms_db_path + '.lock'
+        for id, material in zip(ids, materials):
+            with self.atoms_db as db:
+                mid = material['mid']
+                self.log.debug("Writing material with mid "+mid)
+                atoms = self._make_atoms(material)
+                if id != None:
+                    db.update(id, atoms = atoms, data = material, mid = mid)
+                else:
+                    self.log.info('Material with mid ' + mid + ' already in db.')
 
     def _update_metadata(self, update_dict):
         metadata = self.atoms_db.metadata
@@ -210,8 +205,8 @@ class MaterialsDatabase():
                 metadata.update({key:update_dict[key]})
         self.atoms_db.metadata = metadata
 
-    def _connect_db(self):
-        self.atoms_db = connect(self.atoms_db_path)
+    def _connect_db(self, lock_db):
+        self.atoms_db = connect(self.atoms_db_path, use_lock_file = lock_db)
 
     def _init_loggers(self, path, db_filename, silent_logging):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
