@@ -34,8 +34,6 @@ class DOSFingerprint(Fingerprint):
         data['bins'] = self.bins.hex()
         data['indices'] = self.indices
         data['grid_id'] = self.grid_id
-        if hasattr(self, 'mid'):
-            data['mid'] = self.mid
         return data
 
     def calculate_grid(self):
