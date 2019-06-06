@@ -49,10 +49,14 @@ class MaterialsDatabase():
             else:
                 row = self.atoms_db.get(mid = mid)
         except KeyError:
-            self.log.error('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
+            self.log.error('No materials with mid %s.' %(mid))
             return None
-        if row[fp_type] == None:
-            self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
+        try:
+            if row[fp_type] == None:
+                self.log.error('Error in get_fingerprint. Got "None" for material %s' %(mid))
+                return None
+        except AttributeError:
+            self.log.error('Fingerprint %s is not calculated for material %s.' %(fp_type, mid))
             return None
         logger = self.log if log else None
         return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name, **kwargs)

@@ -91,14 +91,14 @@ class Fingerprint():
         if not hasattr(self, 'db_row'):
             self.db_row = db_row
         if self.db_row != None:
-            if not hasattr(db_row, self.name):
+            if not hasattr(self.db_row, self.name):
                 self.calculate(self.db_row)
             else:
                 self.reconstruct(self.db_row)
 
     def _data_from_db_row(self, db_row):
         try:
-            data = db_row[self.name]
+            data = json.loads(db_row[self.name])
         except KeyError:
             report_error(self.log, "Error in reconstructing Fingerprint: AtomsRow does not have attribute of name: " + self.name)
         if hasattr(db_row, 'mid'):
