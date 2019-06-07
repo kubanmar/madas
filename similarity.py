@@ -6,6 +6,7 @@ import json
 import copy
 import math
 import matplotlib.pyplot as plt
+from functools import partial
 
 from fingerprint import Fingerprint
 
@@ -24,11 +25,11 @@ class SimilarityMatrix():
     A matrix, that stores all (symmetric) similarites between materials in a database.
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True):
+    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True, log = True):
         self.matrix = [] if matrix == None else matrix
         self.mids = [] if mids == None else mids
         self.fp_type = None
-        self.log = logging.getLogger('log')
+        self.log = logging.getLogger('log') if log else None
         self.data_path = os.path.join(root, data_path)
         self.large = large
         self.filename = filename
@@ -74,13 +75,19 @@ class SimilarityMatrix():
                 raise RuntimeError('Similarity matrix could not be generated.')
             print('\nFinished SimilarityMatrix generation.\n')
 
-    def calculate2(self, fingerprints, mids = None, similarity_function = None):
+    def calculate2(self, fingerprints, mids = None, similarity_function = None, multiprocess = False):
         self.matrix = []
         self.mids = mids
         n_matrix_rows = len(fingerprints)
         for idx, fp in enumerate(fingerprints):
-            with multiprocessing.Pool() as p:
-                self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            if multiprocess:
+                with multiprocessing.Pool() as p:
+                    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            else:
+                matrix_row = []
+                for fp2 in fingerprints[idx:]:
+                    matrix_row.append(fp.get_similarity(fp2))
+                self.matrix.append(np.array(matrix_row))
             if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
                 print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
         self.matrix = np.array(self.matrix)
@@ -89,6 +96,8 @@ class SimilarityMatrix():
             raise RuntimeError('Similarity matrix could not be generated.')
         print('\nFinished SimilarityMatrix generation.\n')
 
+    def lookup_similarity(self, fp1, fp2):
+        return self.get_entry(fp1.mid, fp2.mid)
 
     def get_complement(self, maximum = 1, get_matrix_object = False):
         complement = []
@@ -358,6 +367,24 @@ class DBSCANClusterer():
         threshold = float(input('Enter threshold:'))
         self.set_threshold(threshold)
 
+class SimilarityFunctionScaling():
+    """
+    Scales a given similarity function using a given scaling function and kwargs.
+    **args**:
+        * scaling_function: function that maps (0,1) to (0,1)
+        * similarity_function: function that returns the similiarty s in (0,1) for two fingerprints
+    **kwargs**:
+        * passed to scaling_function
+    """
+    def __init__(self, scaling_function, similarity_function, **kwargs):
+        self._scaling_function = partial(scaling_function, **kwargs)
+        self._similarity_function = similarity_function
+
+    def similarity(self,fingerprint1, fingerprint2):
+        return self._scaling_function(self._similarity_function(fingerprint1, fingerprint2))
+
+def mean_shifted_scaling(x, mean = 0.5):
+    return 1- np.tanh((1-x)/mean/2) / np.tanh(1/mean/2)
 
 def get_orphans(neighbors_dict, group_member_list):
     orphans = {}

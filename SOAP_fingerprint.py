@@ -30,7 +30,7 @@ class SOAPFingerprint(Fingerprint):
         self.matrix = soap.create(atoms)
 
     def reconstruct(self, db_row):
-        self._data_from_db_row(db_row)
+        data = self._data_from_db_row(db_row)
         data = json.loads(data)
         self.matrix = coo_matrix((data[1], (data[2], data[3])), shape = data[0])
 
@@ -43,4 +43,4 @@ def SOAP_similarity(fingerprint1, fingerprint2):
     arr2 = fingerprint2.matrix.toarray()
     dist_mat = np.vstack([arr1, arr2])
     distance = squareform(pdist(dist_mat))
-    return (2.0 - distance[0][1])/2.0 #we need similarity, thus max(distance) - distance; assuming max(distance) = 2 here.
+    return (np.sqrt(2.0) - distance[0][1])/np.sqrt(2.0) #we need similarity, thus max(distance) - distance; assuming max(distance) = sqrt(2) here.
