@@ -21,7 +21,7 @@ class PROPFingerprint(Fingerprint):
                 report_error(self.log, 'No property of type %s for material %s' %(prop, mid))
         self.data = fingerprint_data
 
-    def reconstruct(self, db_data):
+    def reconstruct(self, db_row):
         data = self._data_from_db_row(db_row)
         self.data = data
 

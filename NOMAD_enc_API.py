@@ -1,4 +1,4 @@
-import os, json, requests, sys
+import os, json, requests, sys, time
 
 API_base_url ='https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
 API_base_url_dev = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
@@ -167,7 +167,9 @@ class API():
                 if int(answer.status_code) != 200:
                     assert False
                 success = True
-            except AssertionError:
+            except (AssertionError, ConnectionError) as error:
+                error_message = 'Failed connection to server because of ' + str(error) + '\nThis was attempt number ' + str(trials) + '.'
+                self._report_error(error_message)
                 trials += 1
         if not success:
             error_message = 'Could not connect to NOMAD API:' + failure_message

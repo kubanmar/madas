@@ -30,9 +30,21 @@ class MaterialsDatabase():
             self._connect_db(lock_db = lock_db)
 
     def get_n_entries(self):
-        return self.atoms_db.count()
+        """
+        Returns the number of entries in the database. No arguments.
+        """
+        return len(self)
 
     def get_property(self, mid, property_name):
+        """
+        Get a property of a material by name.
+        Args:
+            * mid: string; material id of the requested material
+            * property_name: string; name of the requested property as used in the database
+        Returns:
+            * property: if it exists in the database
+            * None: else
+        """
         row = self._get_row_by_mid(mid)
         if property_name in ['dos_values', 'dos_energies']:
             return row.data['dos'][property_name]
@@ -42,6 +54,20 @@ class MaterialsDatabase():
             return None
 
     def get_fingerprint(self, fp_type, mid = None, name = None, db_id = None, log = True, **kwargs):
+        """
+        Get a given type of fingerprint object of a given material.
+        Args:
+            * fp_type: string; type of fingerprint X, must correspond to a XFingerprint() object
+        Kwargs:
+            * mid: string; material id of the requested material
+            * name: string; name of the fingerprint as used in the database, if name != fp_type
+            * db_id: int; id of the material in the ASE AtomsDatabase()
+            * log: bool; defines if the returned Fingerprint() object should contain a log (which makes it unsuitable for multiprocessing)
+        Returns:
+            * Fingerprint() object: if it exists in the database
+            * None: else
+        Additional kwargs are passed to Fingerprint().__init__() .
+        """
         try:
             if db_id != None:
                 row = self.atoms_db.get(db_id)
@@ -49,7 +75,7 @@ class MaterialsDatabase():
             else:
                 row = self.atoms_db.get(mid = mid)
         except KeyError:
-            self.log.error('No materials with mid %s.' %(mid))
+            self.log.error('No material with mid %s.' %(mid))
             return None
         try:
             if row[fp_type] == None:
@@ -62,34 +88,74 @@ class MaterialsDatabase():
         return Fingerprint(fp_type = fp_type, db_row = row, logger = logger, name = name, **kwargs)
 
     def get_fingerprints(self, fp_type, name = None, log = True, **kwargs):
+        """
+        Return a list of fingerprints for a given fingerprint type.
+        Identical to calling MaterialsDatabase().get_fingerprint() for all materials in the database.
+        """
         fingerprints = []
         for db_id in range(1, self.get_n_entries()+1):
             fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log, **kwargs))
         return fingerprints
 
     def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
+        """
+        Calculate a SimilarityMatrix() object.
+        Args:
+            * fp_type: string; type of fingerprint X, must correspond to a XFingerprint() object
+        Kwargs:
+            * root: string; path of the SimilarityMatrix()
+            * data_path: string; relative location of the folder, where the SimilarityMatrix() shall be created
+            * large: bool; option to create a large SimilarityMatrix() object
+        Returns:
+            * SimilarityMatrix() object
+        Additional kwargs are passed to SimilarityMatrix().calculate().
+        """
         simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
-        simat.calculate(fp_type, self.atoms_db, **kwargs)
+        simat.calculate(fp_type, self, **kwargs)
         return simat
 
     def get_formula(self, mid):
+        """
+        Return formula of material with given materia id.
+        Args:
+            * mid: string; material id of the requested material
+        Returns:
+            * formula: string; formula of the materials according to ASE AtomsDatabase()
+        """
         row = self._get_row_by_mid(mid)
         return row.formula
 
     def get_material(self,mid):
+        """
+        Return the AtomsRow() object for a material with given material id.
+        Args:
+            * mid: string; material id of the requested material
+        Returns:
+            * ASE AtomsRow() object
+        """
         return self._get_row_by_mid(mid)
 
     def get_atoms(self, mid):
-        try:
-            return self.atoms_db.get_atoms(mid = mid)
-        except KeyError:
-            self.log.error("not in db: %s" %(mid))
-            return None
+        """
+        Return the ASE Atoms object for a material with given material id.
+        Args:
+            * mid: string; material id of the requested material
+        Returns:
+            * ASE Atoms() object
+        """
+        row = self._get_row_by_mid(mid)
+        return row.toatoms()
 
     def add_fingerprint(self, fp_type, name = None, **kwargs):
         """
-        i.e. use fp_function to calculate fingerprint based on properties and store in db using fp_name
-        REFACTOR: Split up in two functions to 1.: Generate the fingerprint, 2: write to db
+        Calculate fingerprints of all materials in the database and store them.
+        Args:
+            * fp_type: string; type of fingerprint X, must correspond to a XFingerprint() object
+        Kwargs:
+            * name: string, None; name of the fingerprint as used in the database, if name != fp_type, else None
+        Returns:
+            * None
+        Additional kwargs are passed to Fingerprint().__init__().
         """
         self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
         fingerprints = self.gen_fingerprints_list(fp_type, name = name, **kwargs)
@@ -143,22 +209,15 @@ class MaterialsDatabase():
         for material in materials:
             ids.append(self.atoms_db.reserve(mid = material['mid']))
         self._write_materials(materials, ids = ids)
-        """
-        with self.atoms_db as db:
-            for material in materials:
-                mid = material['mid']
-                self.log.debug("Writing material with mid "+mid)
-                try:
-                    self.atoms_db.get(mid=mid)
-                    print('already in db: %s' %(mid))
-                except KeyError:
-                    atoms = self._make_atoms(material)
-                    db.write(atoms, data = material, mid = mid)
-        """
 
     def get_random(self, return_id = True):
         """
         Returns a random entry from the database.
+        Kwargs:
+            * return_id: bool; True by default, return id of material instead of ASE AtomsRow() object
+        Returns:
+            * material id (string) of a random entry of the database: if return_id == True
+            * ASE AtomsRow() object of a random entry of the database: else
         """
         n_rows = self.atoms_db.count()
         row = self.atoms_db.get(random.randint(0, n_rows))
@@ -270,6 +329,9 @@ class MaterialsDatabase():
             lattice_parameters = new_material['properties']['lattice_parameters']
         atoms = get_lattice_description(new_material['elements'], lattice_parameters)
         return atoms
+
+    def __len__(self):
+        return self.atoms_db.count()
 
     @staticmethod
     def _update_atoms_db(atoms_db, mid, dictionary):

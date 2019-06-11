@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from functools import partial
 
 from fingerprint import Fingerprint
+from utils import report_error
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
@@ -46,6 +47,10 @@ class SimilarityMatrix():
             csvwriter = csv.writer(outfile)
         self.fp_type = fp_type
         fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
+        if len(fingerprints) == 0:
+            error_message = 'No fingerprints for type ' + fp_type + '.'
+            report_error(self.log, error_message)
+        fingerprints = [fp for fp in fingerprints if fp != None]
         self.mids = [fingerprint.mid for fingerprint in fingerprints]
         self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
@@ -96,8 +101,32 @@ class SimilarityMatrix():
             raise RuntimeError('Similarity matrix could not be generated.')
         print('\nFinished SimilarityMatrix generation.\n')
 
+    def get_sorted_square_matrix(self, new_mid_list):
+        sorted_matrix = []
+        for mid1 in new_mid_list:
+            new_row = []
+            for mid2 in new_mid_list:
+                new_row.append(self.get_entry(mid1,mid2))
+            sorted_matrix.append(new_row)
+        return sorted_matrix
+
     def lookup_similarity(self, fp1, fp2):
         return self.get_entry(fp1.mid, fp2.mid)
+
+    def align(self, second_matrix):
+        """
+        Align the materials in this matrix and a second matrix.
+        Args:
+            * second_matrix: SimilarityMatrix(); matrix object to align with
+        Returns:
+            * None
+        Warning! Entries in both matrices will be altered, i.e. unique entries in each matrix will be dropped.
+        """
+        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
+        self.matrix = matching_self
+        self.mids = matching_mids
+        second_matrix.matrix = matching_matrix
+        second_matrix.mids = matching_mids
 
     def get_complement(self, maximum = 1, get_matrix_object = False):
         complement = []
@@ -123,6 +152,13 @@ class SimilarityMatrix():
         for idx in range(len(self.matrix)):
             square_matrix.append(self.get_row(idx, use_matrix_index = True))
         return np.array(square_matrix)
+
+    @staticmethod
+    def triangular_from_square_matrix(matrix):
+        triangular_matrix = []
+        for index, row in enumerate(matrix):
+            triangular_matrix.append(row[index:])
+        return triangular_matrix
 
     def get_row(self, mid, use_matrix_index = False):
         row = []
@@ -167,7 +203,7 @@ class SimilarityMatrix():
                 k_new += 1
             else:
                 break
-        n_nearest = neighbors_zipped[:k_new] #last n entries without last (because is self-similiarty = 1)
+        n_nearest = neighbors_zipped[:k_new]
         neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
         return neighbors_list
 
@@ -222,7 +258,7 @@ class SimilarityMatrix():
         matching_self, matching_mids = self.get_cleared_matrix(not_in_second_matrix)
         matching_matrix, matching_mids2 = second_matrix.get_cleared_matrix(not_in_self)
         if matching_mids != matching_mids2:
-            print('OOOPS!', matching_mids, matching_mids2)
+            print('OOOPS!', matching_mids, matching_mids2) #TODO fix that, it should report properly
         return matching_self, matching_matrix, matching_mids
 
     def get_correlation(self, second_matrix):
@@ -363,6 +399,8 @@ class DBSCANClusterer():
         xs = [x[0] for x in liste]
         ys = [x[1] for x in liste]
         plt.plot(xs,ys)
+        plt.xlabel('Distance (1-similarity) threshold')
+        plt.ylabel('Number of clusters')
         plt.show()
         threshold = float(input('Enter threshold:'))
         self.set_threshold(threshold)
@@ -428,12 +466,10 @@ def get_nearest_neighbors_from_fingerprint_list(ref_fp_fp_list_k_neighbors):
     """
     input:
         (<referencefingerprint>, <fingerprint list>, <nr of neighbors>)
-    output:
+    prints:
         mid: [mid1: similarity1, ...]
     """
-    reference = ref_fp_fp_list_k_neighbors[0]
-    fp_list = ref_fp_fp_list_k_neighbors[1]
-    k = ref_fp_fp_list_k_neighbors[2]
+    reference, fp_list, k = ref_fp_fp_list_k_neighbors
     similarity_list = []
     count = 0
     for index, item in enumerate(fp_list):
