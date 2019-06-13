@@ -24,6 +24,15 @@ def _calc_sim_multiprocess(fp1__fp2):
 class SimilarityMatrix():
     """
     A matrix, that stores all (symmetric) similarites between materials in a database.
+    Kwargs:
+        * root: string; default: '.'; root directory for saving matrix
+        * data_path: string; default: 'data'; path of to directory for saving matrix
+        * large: bool; default: False; Create large matrix, i.e. matrix too large for the RAM. Thus similarities are directly written to file.
+        * matrix: np.ndarray; default: None; Initialize matrix with precomputed similarities.
+        * mids: list; default: None; Values for material ids for precomputed similarities.
+        * filename: string; default: 'similarity_matrix.csv'; name of file for saving similarity matrix
+        * print_to_screen: bool; default: True; Print progress of calculating similarity matrix to screen.
+        * log: bool; default: True; Initialize with logging.Logger().
     """
 
     def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True, log = True):
@@ -104,10 +113,12 @@ class SimilarityMatrix():
     def get_sorted_square_matrix(self, new_mid_list):
         sorted_matrix = []
         for mid1 in new_mid_list:
-            new_row = []
-            for mid2 in new_mid_list:
-                new_row.append(self.get_entry(mid1,mid2))
-            sorted_matrix.append(new_row)
+            if mid1 in self.mids:
+                new_row = []
+                for mid2 in new_mid_list:
+                    if mid2 in self.mids:
+                        new_row.append(self.get_entry(mid1,mid2))
+                sorted_matrix.append(new_row)
         return sorted_matrix
 
     def lookup_similarity(self, fp1, fp2):
