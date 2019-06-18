@@ -50,6 +50,8 @@ class MaterialsDatabase():
             return row.data['dos'][property_name]
         elif property_name in row.data.keys():
             return row.data[property_name]
+        elif property_name in row.keys():
+            return row[property_name]
         else:
             return None
 

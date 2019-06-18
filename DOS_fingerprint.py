@@ -28,12 +28,19 @@ class DOSFingerprint(Fingerprint):
         self.bins = bytes.fromhex(data['bins'])
         self.indices = data['indices']
         self.grid_id = data['grid_id']
+        if 'filling_factor' in data.keys():
+            self.filling_factor = data['filling_factor']
+        else:
+            count_array = bitarray()
+            count_array.frombytes(self.bins)
+            self.filling_factor = count_array.count() / len(count_array)
 
     def get_data(self):
         data = {}
         data['bins'] = self.bins.hex()
         data['indices'] = self.indices
         data['grid_id'] = self.grid_id
+        data['filling_factor'] = self.filling_factor
         return data
 
     def calculate_grid(self):
@@ -170,6 +177,7 @@ class DOSFingerprint(Fingerprint):
                 fp_index += 1
             bin_fp += self._binary_bin(current_dos, grid[grid_index][1])
             grid_index += 1
+        self.filling_factor = bin_fp.count('1') / len(bin_fp)
         byte_fp = bitarray(bin_fp).tobytes()
         return [grid_start, grid_index], byte_fp
 
