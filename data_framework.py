@@ -55,6 +55,36 @@ class MaterialsDatabase():
         else:
             return None
 
+    def get_properties(self, property_name, output_mids = False):
+        properties = []
+        mids = []
+        for db_id in range(1, self.get_n_entries()+1):
+            row = self.atoms_db.get(db_id)
+            mid = row.mid
+            try:
+                properties.append(row.data[property_name])
+                mids.append(mid)
+            except KeyError:
+                self.log.error('No property "' + property_name + '" for material ' + mid)
+        if output_mids:
+            return properties, mids
+        return properties
+
+    def get_row_properties(self, property_name, output_mids = False):
+        properties = []
+        mids = []
+        for db_id in range(1, self.get_n_entries()+1):
+            row = self.atoms_db.get(db_id)
+            mid = row.mid
+            try:
+                properties.append(row[property_name])
+                mids.append(mid)
+            except KeyError:
+                self.log.error('No property "' + property_name + '" for material ' + mid)
+        if output_mids:
+            return properties, mids
+        return properties
+
     def get_fingerprint(self, fp_type, mid = None, name = None, db_id = None, log = True, **kwargs):
         """
         Get a given type of fingerprint object of a given material.
@@ -148,7 +178,7 @@ class MaterialsDatabase():
         row = self._get_row_by_mid(mid)
         return row.toatoms()
 
-    def add_fingerprint(self, fp_type, name = None, **kwargs):
+    def add_fingerprint(self, fp_type, name = None, show_progress = False, **kwargs):
         """
         Calculate fingerprints of all materials in the database and store them.
         Args:
@@ -164,7 +194,7 @@ class MaterialsDatabase():
         self.log.info('Writing %s fingerprints to database.' %(fp_type))
         mid_list = [fingerprint.mid for fingerprint in fingerprints]
         dictionary_list = [{fingerprint.name:fingerprint.get_data_json()} for fingerprint in fingerprints]
-        self.update_entries(mid_list, dictionary_list)
+        self.update_entries(mid_list, dictionary_list, show_progress = show_progress)
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})
 
@@ -201,12 +231,12 @@ class MaterialsDatabase():
             atoms = self._make_atoms(new_material)
             self.atoms_db.write(atoms, data = new_material, mid = mid)
 
-    def fill_database(self, json_query):
+    def fill_database(self, json_query, **kwargs):
         """
         Fills the database with one calculation per material for a given NOMAD search query.
         """
         self.log.info('Filling database with calculations matching the following query: ' + json.dumps(json_query) )
-        materials = self.api.get_calculations_by_search(json_query)
+        materials = self.api.get_calculations_by_search(json_query, **kwargs)
         ids = []
         for material in materials:
             ids.append(self.atoms_db.reserve(mid = material['mid']))
@@ -231,11 +261,15 @@ class MaterialsDatabase():
     def update_entry(self, mid, dictionary):
         self._update_atoms_db(self.atoms_db, mid, dictionary)
 
-    def update_entries(self, mid_list, dictionary_list):
-        chunk = []
+    def update_entries(self, mid_list, dictionary_list, show_progress = False):
+        max_len = len(mid_list)
+        current_entry = 0
         for mid, dictionary in zip(mid_list, dictionary_list):
+            if show_progress:
+                print('progress', current_entry / max_len * 100, end = '\r')
             with self.atoms_db as db:
                 self._update_atoms_db(db, mid, dictionary)
+            current_entry += 1
 
     def add_property(self, mid, property_name):
         nomad_material_id, nomad_calculation_id = mid.split(':')

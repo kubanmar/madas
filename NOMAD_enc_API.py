@@ -13,7 +13,7 @@ class API():
         self.auth = (self._read_api_key(key_path), '') if access_token == None else (access_token, '')
         self.set_logger(logger)
 
-    def get_calculation(self, nomad_material_id = 1, nomad_calculation_id = 1):
+    def get_calculation(self, nomad_material_id = 1, nomad_calculation_id = 1, calculation_data = None):
         """
         Returns the properties of a calculation of a material as a json dictionary:
         {
@@ -26,9 +26,14 @@ class API():
         mid = str(nomad_material_id) + ":" + str(nomad_calculation_id)
         calculation = {'mid':mid}
         #calculation properties
-        url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id)
-        failure_message = 'calculation ' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
-        answer = self._api_call(url, failure_message = failure_message).json()
+        if calculation_data == None:
+            url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id)
+            failure_message = 'calculation ' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
+            answer = self._api_call(url, failure_message = failure_message)
+            answer = answer.json()
+        else:
+            answer = calculation_data
+        get_dos = True if answer['has_dos'] in [True, 'Yes'] else False
         for keyword in calculation_properties_keyword_list:
             calculation[keyword] = answer[keyword]
         totengy = None
@@ -38,16 +43,22 @@ class API():
                 break
         calculation['energy'] = [answer['code_name'], totengy]
         #material properties
+        #if calculation_data == None:
         url = self._construct_url(self.base_url, material_id = nomad_material_id)
         failure_message = 'material ' + str(nomad_material_id)
         answer = self._api_call(url, failure_message = failure_message).json()
         for keyword in material_properties_keyword_list:
             calculation[keyword] = answer[keyword]
         #DOS
-        url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id, property = 'dos')
-        failure_message = 'dos ' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
-        answer = self._api_call(url, failure_message = failure_message).json()
-        calculation['dos'] = answer['dos']
+        if get_dos:
+            url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'calculations', calculation_id = nomad_calculation_id, property = 'dos')
+            failure_message = 'dos ' + str(nomad_material_id) + ':' + str(nomad_calculation_id)
+            answer = self._api_call(url, failure_message = failure_message).json()
+            try:
+                calculation['dos'] = answer['dos']
+            except KeyError:
+                error_message = 'No property DOS for material ' + mid + '. \n Tried with url: ' + url
+                self._report_error(error_message)
         #atomic positions
         url = self._construct_url(self.base_url, material_id = nomad_material_id, api_endpoint = 'elements', property = 'dos')
         url = self._no_pagination(url)
@@ -60,7 +71,7 @@ class API():
         calculation['elements'] = atom_list
         return calculation
 
-    def get_calculations_by_search(self, search_query, show_progress = True):
+    def get_calculations_by_search(self, search_query, show_progress = True, force_dos = False):
         materials_list = self._get_materials_list(search_query)
         list_filter = {key : value for key,value in search_query.items() if key != 'search_by'}
         if len(materials_list) == 0:
@@ -73,13 +84,19 @@ class API():
             failure_message = 'Could not obtain list of calculations for material ' + str(item['id'])
             calculations = self._api_call(url, failure_message = failure_message)
             calc_list = calculations.json()["results"]
+            for calc in calc_list:
+                for key, value in item.items():
+                    if key == 'id':
+                        calc.update({'mat_id':value})
+                    else:
+                        calc.update({key:value})
             calc_list = self._filter_calculation_list(calc_list, list_filter)
             if calc_list == []:
                 error_message = 'No calculations with matching criteria for material ' + str(item['id'])
                 self._report_error(error_message)
                 continue
-            calc_id = self._select_calc(calc_list)
-            materials.append(self.get_calculation(nomad_material_id = item['id'], nomad_calculation_id = calc_id))
+            calc = self._select_calc(calc_list, force_dos = force_dos, return_calc = True)
+            materials.append(self.get_calculation(nomad_material_id = item['id'], nomad_calculation_id = calc['id'], calculation_data = calc))
             if show_progress:
                 print('Fetching materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
         if show_progress:
@@ -182,8 +199,17 @@ class API():
         for calc in calculation_list:
             for key, value in filter_json.items():
                 if key in calc.keys():
-                    if (calc[key] == value) or (value == 'Yes' and calc[key] == True):
-                        filtered_list.append(calc)
+                    calc_value = calc[key]
+                    if isinstance(value, list):
+                        if isinstance(value[0], str):
+                            calc_value = str(calc_value)
+                        if (calc_value in value) or (value == 'Yes' and calc_value == 'True'):
+                            filtered_list.append(calc)
+                    else:
+                        if isinstance(value, str):
+                            calc_value = str(calc_value)
+                        if (calc_value == value) or (value == 'Yes' and calc_value == 'True'):
+                            filtered_list.append(calc)
         return filtered_list
 
     def _evaluate_calc(self, calc):
@@ -196,10 +222,14 @@ class API():
         elif code_name == 'Quantum Espresso': value += 1
         return value
 
-    def _select_calc(self, calc_list):
-        calc_list = self._filter_calculation_list(calc_list, filter_json={'has_dos':True})
-        scored_list = [(self._evaluate_calc(calc), calc['id']) for calc in calc_list]
-        scored_list.sort(reverse = True)
+    def _select_calc(self, calc_list, force_dos = True, return_calc = True):
+        if force_dos:
+            calc_list = self._filter_calculation_list(calc_list, filter_json={'has_dos':True})
+        if return_calc:
+            scored_list = [(self._evaluate_calc(calc), calc) for calc in calc_list]
+        else:
+            scored_list = [(self._evaluate_calc(calc), calc['id']) for calc in calc_list]
+        scored_list.sort(reverse = True, key= lambda x: x[0])
         website_sorted = [x for x in scored_list if x[0] == scored_list[0][0]]
         return website_sorted[-1][1]
         #return scored_list[0][1]
