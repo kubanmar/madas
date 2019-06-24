@@ -87,14 +87,19 @@ class Fingerprint():
         json_data = json.dumps(self.get_data())
         return json_data
 
-    def _init_from_db_row(self, db_row):
+    def _init_from_db_row(self, db_row, **kwargs):
         if not hasattr(self, 'db_row'):
             self.db_row = db_row
         if self.db_row != None:
             if not hasattr(self.db_row, self.name):
-                self.calculate(self.db_row)
+                self.calculate(self.db_row, **kwargs)
             else:
-                self.reconstruct(self.db_row)
+                try:
+                    self.reconstruct(self.db_row)
+                except TypeError:
+                    error_message = 'Failed to reconstruct fingerprint for material ' + db_row.mid + '. Calculating fingerprint instead.'
+                    report_error(self.log, error_message)
+                    self.calculate(self.db_row, **kwargs)
 
     def _data_from_db_row(self, db_row):
         try:

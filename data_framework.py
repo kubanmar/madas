@@ -178,7 +178,7 @@ class MaterialsDatabase():
         row = self._get_row_by_mid(mid)
         return row.toatoms()
 
-    def add_fingerprint(self, fp_type, name = None, show_progress = False, **kwargs):
+    def add_fingerprint(self, fp_type, name = None, show_progress = False, overwrite_entries = False, **kwargs):
         """
         Calculate fingerprints of all materials in the database and store them.
         Args:
@@ -190,7 +190,7 @@ class MaterialsDatabase():
         Additional kwargs are passed to Fingerprint().__init__().
         """
         self.log.info('Starting fingerprint generation for fp_type: ' + str(fp_type))
-        fingerprints = self.gen_fingerprints_list(fp_type, name = name, **kwargs)
+        fingerprints = self.gen_fingerprints_list(fp_type, name = name, overwrite_entries = overwrite_entries, **kwargs)
         self.log.info('Writing %s fingerprints to database.' %(fp_type))
         mid_list = [fingerprint.mid for fingerprint in fingerprints]
         dictionary_list = [{fingerprint.name:fingerprint.get_data_json()} for fingerprint in fingerprints]
@@ -198,14 +198,19 @@ class MaterialsDatabase():
         self.log.info('Finished for fp_type: ' + str(fp_type))
         self._update_metadata({'fingerprints' : [fp_type]})
 
-    def gen_fingerprints_list(self, fp_type, name = None, log = True, **kwargs):
+    def gen_fingerprints_list(self, fp_type, name = None, log = True, overwrite_entries = False, **kwargs):
         fingerprints = []
         logger = self.log if log else None
         with self.atoms_db as db:
             for row_id in range(1,db.count()+1):
                 row = db.get(row_id)
                 try:
-                    fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = row, logger = logger, **kwargs)
+                    if overwrite_entries:
+                        fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = None, logger = logger, **kwargs)
+                        fingerprint.mid = row.mid
+                        fingerprint.calculate(row, **kwargs)
+                    else:
+                        fingerprint = Fingerprint(fp_type = fp_type, name = name, db_row = row, logger = logger, **kwargs)
                 except:
                     self.log.error('Fingerprint is not generated for material '+str(row.mid)+', because of: '+ str(sys.exc_info()[0].__name__)+': '+str(sys.exc_info()[1]))
                     continue
@@ -213,9 +218,9 @@ class MaterialsDatabase():
         return fingerprints
 
     def delete_keys(self, data_key):
-        with self.atoms_db as db:
-            for row_id in range(1,db.count()+1):
-                self.atoms_db.update(row_id, delete_keys = [data_key])
+        for row_id in range(1,self.atoms_db.count()+1):
+            with self.atoms_db as db:
+                db.update(row_id, delete_keys = [data_key])
 
     def add_material(self, nomad_material_id, nomad_calculation_id):
         """
