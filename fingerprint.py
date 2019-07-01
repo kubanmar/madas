@@ -21,9 +21,9 @@ class Fingerprint():
     Base class for all fingerprints.
     kwargs:
     db_row: AtomsRow object of ASE Database
-    log: multiprocessing.logger object
-    fp_type: string; Type of fingerprint, as defined in FingerprintParser
-    importfunction: function, used to import different fingerprint types individually
+    log: logging.Logger object
+    fp_type: string; Type of fingerprint, as given by Python module
+    importfunction: function; used to import different fingerprint types individually
     """
 
     def __init__(self, fp_type = None, name = None, db_row = None, logger = None, importfunction = import_fingerprint_module, **kwargs):
@@ -51,6 +51,10 @@ class Fingerprint():
             mid2 = 'unknown' if not hasattr(fingerprint, 'mid') else fingerprint.mid
             error_message = 'Could not calculate similarity for materials: ' + mid1 + ' and ' + mid2 + ' because of error: {0}'.format(err)
             report_error(self.log, error_message)
+
+    def get_similarities(self, fingerprint_list):
+        similarities = [self.get_similarity(fp) for fp in fingerprint_list]
+        return similarities
 
     def set_similarity_function(self, similarity_function):
         self.similarity_function = similarity_function
@@ -87,18 +91,23 @@ class Fingerprint():
         json_data = json.dumps(self.get_data())
         return json_data
 
-    def _init_from_db_row(self, db_row):
+    def _init_from_db_row(self, db_row, **kwargs):
         if not hasattr(self, 'db_row'):
             self.db_row = db_row
         if self.db_row != None:
-            if not hasattr(db_row, self.name):
-                self.calculate(self.db_row)
+            if not hasattr(self.db_row, self.name):
+                self.calculate(self.db_row, **kwargs)
             else:
-                self.reconstruct(self.db_row)
+                try:
+                    self.reconstruct(self.db_row)
+                except TypeError:
+                    error_message = 'Failed to reconstruct fingerprint for material ' + db_row.mid + '. Calculating fingerprint instead.'
+                    report_error(self.log, error_message)
+                    self.calculate(self.db_row, **kwargs)
 
     def _data_from_db_row(self, db_row):
         try:
-            data = db_row[self.name]
+            data = json.loads(db_row[self.name])
         except KeyError:
             report_error(self.log, "Error in reconstructing Fingerprint: AtomsRow does not have attribute of name: " + self.name)
         if hasattr(db_row, 'mid'):

@@ -6,8 +6,10 @@ import json
 import copy
 import math
 import matplotlib.pyplot as plt
+from functools import partial
 
 from fingerprint import Fingerprint
+from utils import report_error
 
 def returnfunction(*args): #Why do I have this?
     return [*args]
@@ -22,13 +24,22 @@ def _calc_sim_multiprocess(fp1__fp2):
 class SimilarityMatrix():
     """
     A matrix, that stores all (symmetric) similarites between materials in a database.
+    Kwargs:
+        * root: string; default: '.'; root directory for saving matrix
+        * data_path: string; default: 'data'; path of to directory for saving matrix
+        * large: bool; default: False; Create large matrix, i.e. matrix too large for the RAM. Thus similarities are directly written to file.
+        * matrix: np.ndarray; default: None; Initialize matrix with precomputed similarities.
+        * mids: list; default: None; Values for material ids for precomputed similarities.
+        * filename: string; default: 'similarity_matrix.csv'; name of file for saving similarity matrix
+        * print_to_screen: bool; default: True; Print progress of calculating similarity matrix to screen.
+        * log: bool; default: True; Initialize with logging.Logger().
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True):
+    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True, log = True):
         self.matrix = [] if matrix == None else matrix
         self.mids = [] if mids == None else mids
         self.fp_type = None
-        self.log = logging.getLogger('log')
+        self.log = logging.getLogger('log') if log else None
         self.data_path = os.path.join(root, data_path)
         self.large = large
         self.filename = filename
@@ -45,6 +56,10 @@ class SimilarityMatrix():
             csvwriter = csv.writer(outfile)
         self.fp_type = fp_type
         fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
+        if len(fingerprints) == 0:
+            error_message = 'No fingerprints for type ' + fp_type + '.'
+            report_error(self.log, error_message)
+        fingerprints = [fp for fp in fingerprints if fp != None]
         self.mids = [fingerprint.mid for fingerprint in fingerprints]
         self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
@@ -74,13 +89,19 @@ class SimilarityMatrix():
                 raise RuntimeError('Similarity matrix could not be generated.')
             print('\nFinished SimilarityMatrix generation.\n')
 
-    def calculate2(self, fingerprints, mids = None, similarity_function = None):
+    def calculate2(self, fingerprints, mids = None, similarity_function = None, multiprocess = False):
         self.matrix = []
         self.mids = mids
         n_matrix_rows = len(fingerprints)
         for idx, fp in enumerate(fingerprints):
-            with multiprocessing.Pool() as p:
-                self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            if multiprocess:
+                with multiprocessing.Pool() as p:
+                    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+            else:
+                matrix_row = []
+                for fp2 in fingerprints[idx:]:
+                    matrix_row.append(fp.get_similarity(fp2))
+                self.matrix.append(np.array(matrix_row))
             if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
                 print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
         self.matrix = np.array(self.matrix)
@@ -89,6 +110,34 @@ class SimilarityMatrix():
             raise RuntimeError('Similarity matrix could not be generated.')
         print('\nFinished SimilarityMatrix generation.\n')
 
+    def get_sorted_square_matrix(self, new_mid_list):
+        sorted_matrix = []
+        for mid1 in new_mid_list:
+            if mid1 in self.mids:
+                new_row = []
+                for mid2 in new_mid_list:
+                    if mid2 in self.mids:
+                        new_row.append(self.get_entry(mid1,mid2))
+                sorted_matrix.append(new_row)
+        return sorted_matrix
+
+    def lookup_similarity(self, fp1, fp2):
+        return self.get_entry(fp1.mid, fp2.mid)
+
+    def align(self, second_matrix):
+        """
+        Align the materials in this matrix and a second matrix.
+        Args:
+            * second_matrix: SimilarityMatrix(); matrix object to align with
+        Returns:
+            * None
+        Warning! Entries in both matrices will be altered, i.e. unique entries in each matrix will be dropped.
+        """
+        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
+        self.matrix = matching_self
+        self.mids = matching_mids
+        second_matrix.matrix = matching_matrix
+        second_matrix.mids = matching_mids
 
     def get_complement(self, maximum = 1, get_matrix_object = False):
         complement = []
@@ -114,6 +163,13 @@ class SimilarityMatrix():
         for idx in range(len(self.matrix)):
             square_matrix.append(self.get_row(idx, use_matrix_index = True))
         return np.array(square_matrix)
+
+    @staticmethod
+    def triangular_from_square_matrix(matrix):
+        triangular_matrix = []
+        for index, row in enumerate(matrix):
+            triangular_matrix.append(row[index:])
+        return triangular_matrix
 
     def get_row(self, mid, use_matrix_index = False):
         row = []
@@ -158,7 +214,7 @@ class SimilarityMatrix():
                 k_new += 1
             else:
                 break
-        n_nearest = neighbors_zipped[:k_new] #last n entries without last (because is self-similiarty = 1)
+        n_nearest = neighbors_zipped[:k_new]
         neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
         return neighbors_list
 
@@ -213,7 +269,7 @@ class SimilarityMatrix():
         matching_self, matching_mids = self.get_cleared_matrix(not_in_second_matrix)
         matching_matrix, matching_mids2 = second_matrix.get_cleared_matrix(not_in_self)
         if matching_mids != matching_mids2:
-            print('OOOPS!', matching_mids, matching_mids2)
+            print('OOOPS!', matching_mids, matching_mids2) #TODO fix that, it should report properly
         return matching_self, matching_matrix, matching_mids
 
     def get_correlation(self, second_matrix):
@@ -354,10 +410,30 @@ class DBSCANClusterer():
         xs = [x[0] for x in liste]
         ys = [x[1] for x in liste]
         plt.plot(xs,ys)
+        plt.xlabel('Distance (1-similarity) threshold')
+        plt.ylabel('Number of clusters')
         plt.show()
         threshold = float(input('Enter threshold:'))
         self.set_threshold(threshold)
 
+class SimilarityFunctionScaling():
+    """
+    Scales a given similarity function using a given scaling function and kwargs.
+    **args**:
+        * scaling_function: function that maps (0,1) to (0,1)
+        * similarity_function: function that returns the similiarty s in (0,1) for two fingerprints
+    **kwargs**:
+        * passed to scaling_function
+    """
+    def __init__(self, scaling_function, similarity_function, **kwargs):
+        self._scaling_function = partial(scaling_function, **kwargs)
+        self._similarity_function = similarity_function
+
+    def similarity(self,fingerprint1, fingerprint2):
+        return self._scaling_function(self._similarity_function(fingerprint1, fingerprint2))
+
+def mean_shifted_scaling(x, mean = 0.5):
+    return 1- np.tanh((1-x)/mean/2) / np.tanh(1/mean/2)
 
 def get_orphans(neighbors_dict, group_member_list):
     orphans = {}
@@ -401,12 +477,10 @@ def get_nearest_neighbors_from_fingerprint_list(ref_fp_fp_list_k_neighbors):
     """
     input:
         (<referencefingerprint>, <fingerprint list>, <nr of neighbors>)
-    output:
+    prints:
         mid: [mid1: similarity1, ...]
     """
-    reference = ref_fp_fp_list_k_neighbors[0]
-    fp_list = ref_fp_fp_list_k_neighbors[1]
-    k = ref_fp_fp_list_k_neighbors[2]
+    reference, fp_list, k = ref_fp_fp_list_k_neighbors
     similarity_list = []
     count = 0
     for index, item in enumerate(fp_list):

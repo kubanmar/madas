@@ -107,7 +107,7 @@ def plot_similar_dos(reference_mid, sim_dict, database, show = True, nmax = 10, 
     if show:
         plt.show()
 
-def plot_dos_material_list(material_list, db, show = False):
+def plot_dos_material_list(material_list, db, show = False, figsize = (10,10)):
     plt.figure()
     for index, material in enumerate(material_list):
         name, energy, dos = get_plotting_data(material, db)

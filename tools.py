@@ -3,6 +3,7 @@ from bitarray import bitarray
 import multiprocessing
 import numpy as np
 import types, sys
+from functools import partial
 
 from fingerprint import Fingerprint
 from DOS_fingerprint import DOSFingerprint, Grid
@@ -24,7 +25,6 @@ class BandGapFinder():
             self.log = logger
 
     def get_dos_gaps(self):
-        #self.fingerprints = self._get_fingerprints() ## Generate fingerprints from db, get grid_id fro self,masks_grid
         self.fingerprints = self.db.gen_fingerprints_list("DOS", log = False, grid_id = self.masks_grid.id)
         similarities = []
         for index, mask in enumerate(self.masks):
@@ -93,3 +93,23 @@ class BandGapFinder():
             print("NOOOOO!")
             self.log.error('ZeroDivisionError for '+str(self.mid)+' and '+str(fingerprint.mid))
         return s
+
+
+class SimilarityFunctionScaling():
+    """
+    Scales a given similarity function using a given scaling function and kwargs.
+    **args**:
+        * scaling_function: function that maps (0,1) to (0,1)
+        * similarity_function: function that returns the similiarty s in (0,1) for two fingerprints
+    **kwargs**:
+        * passed to scaling_function
+    """
+    def __init__(self, scaling_function, similarity_function, **kwargs):
+        self._scaling_function = partial(scaling_function, **kwargs)
+        self._similarity_function = similarity_function
+
+    def similarity(self,fingerprint1, fingerprint2):
+        return self._scaling_function(self._similarity_function(fingerprint1, fingerprint2))
+
+def mean_shifted_scaling(x, mean = 0.5):
+    return 1- np.tanh((1-x)/mean/2) / np.tanh(1/mean/2)

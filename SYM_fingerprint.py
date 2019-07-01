@@ -10,7 +10,7 @@ class SYMFingerprint(Fingerprint):
 
     def calculate(self, db_row):
         atoms = db_row.toatoms()
-        self.sg = get_spacegroup(atoms, method = 'spglib')
+        self.sg = get_spacegroup(atoms)
         symop = self.sg.get_symop()
         self.symop = []
         for item in symop:
