@@ -28,6 +28,7 @@ class MaterialsDatabase():
             self.api.set_logger(self.api_logger)
         if connect_db:
             self._connect_db(lock_db = lock_db)
+        self._iter_index = 0
 
     def get_n_entries(self):
         """
@@ -303,7 +304,8 @@ class MaterialsDatabase():
                     if not isinstance(metadata[key], list):
                         metadata[key] = [metadata[key]]
                     for item in update_dict[key]:
-                        metadata[key].append(item)
+                        if not item in metadata[key]:
+                            metadata[key].append(item)
                 else: metadata[key] = update_dict[key]
             except KeyError:
                 metadata.update({key:update_dict[key]})
@@ -352,7 +354,7 @@ class MaterialsDatabase():
             row = self.atoms_db.get(mid = mid)
             return row
         except KeyError:
-            self.log("not in db: %s" %(mid))
+            self.log.error("not in db: %s" %(mid))
 
     def _get_row_by_db_id(self, db_id): #TODO catch an error, maybe?
         return self.atoms_db.get(db_id)
@@ -373,6 +375,33 @@ class MaterialsDatabase():
 
     def __len__(self):
         return self.atoms_db.count()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._iter_index + 1 > len(self):
+            raise StopIteration
+        else:
+            self._iter_index += 1
+            return self._get_row_by_db_id(self._iter_index)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            try:
+                return self._get_row_by_mid(key)
+            except KeyError:
+                try:
+                    return self._get_row_by_db_id(int(key) + 1)
+                except:
+                    raise KeyError('Key can not be interpreted as database key.')
+        elif isinstance(key, int):
+            try:
+                return self._get_row_by_db_id(key + 1)
+            except KeyError:
+                raise KeyError('No entry with id = ' + str(key) + '.')
+        else:
+            raise KeyError('Key can not be interpreted as database key.')
 
     @staticmethod
     def _update_atoms_db(atoms_db, mid, dictionary):

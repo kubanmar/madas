@@ -6,6 +6,8 @@ import numpy as np
 import json
 
 from fingerprint import Fingerprint
+from dscribe.kernels import AverageKernel
+
 
 atomic_numbers = [x for x in range(1,119)]
 rcut = 6.0
@@ -20,6 +22,8 @@ soap = SOAP(
     lmax=lmax,
     sparse = True
 )
+
+kernel = AverageKernel(metric="linear")
 
 class SOAPFingerprint(Fingerprint):
     def __init__(self, db_row = None):
@@ -38,9 +42,17 @@ class SOAPFingerprint(Fingerprint):
         data = json.dumps([self.matrix.shape, self.matrix.data.tolist(), self.matrix.row.tolist(), self.matrix.col.tolist()])
         return data
 
+    @staticmethod
+    def _calculate_similarity_matrix(soap_fingerprints):
+        from similarity import SimilarityMatrix
+        soap_sim_mat = kernel.create([fp.matrix.toarray() for fp in soap_fingerprints])
+        soap_simat = SimilarityMatrix()
+        soap_simat.matrix = soap_simat.triangular_from_square_matrix(soap_sim_mat)
+        soap_simat.mids = [fp.mid for fp in soap_fingerprints]
+        return soap_simat
+
 def SOAP_similarity(fingerprint1, fingerprint2):
     arr1 = fingerprint1.matrix.toarray()
     arr2 = fingerprint2.matrix.toarray()
-    dist_mat = np.vstack([arr1, arr2])
-    distance = squareform(pdist(dist_mat))
-    return (np.sqrt(2.0) - distance[0][1])/np.sqrt(2.0) #we need similarity, thus max(distance) - distance; assuming max(distance) = sqrt(2) here.
+    sims = kernel.create([arr1, arr2])
+    return round(sims[0][1],15)#(np.sqrt(2.0) - distance[0][1])/np.sqrt(2.0) #we need similarity, thus max(distance) - distance; assuming max(distance) = sqrt(2) here.

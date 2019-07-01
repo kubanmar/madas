@@ -33,7 +33,10 @@ class API():
             answer = answer.json()
         else:
             answer = calculation_data
-        get_dos = True if answer['has_dos'] in [True, 'Yes'] else False
+        try:
+            get_dos = True if answer['has_dos'] in [True, 'Yes'] else False
+        except KeyError:
+            get_dos = True if 'dos_energies' in answer['diagram_data'][0]['data_content'] else False
         for keyword in calculation_properties_keyword_list:
             calculation[keyword] = answer[keyword]
         totengy = None

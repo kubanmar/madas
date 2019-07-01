@@ -21,9 +21,9 @@ class Fingerprint():
     Base class for all fingerprints.
     kwargs:
     db_row: AtomsRow object of ASE Database
-    log: multiprocessing.logger object
-    fp_type: string; Type of fingerprint, as defined in FingerprintParser
-    importfunction: function, used to import different fingerprint types individually
+    log: logging.Logger object
+    fp_type: string; Type of fingerprint, as given by Python module
+    importfunction: function; used to import different fingerprint types individually
     """
 
     def __init__(self, fp_type = None, name = None, db_row = None, logger = None, importfunction = import_fingerprint_module, **kwargs):
@@ -51,6 +51,10 @@ class Fingerprint():
             mid2 = 'unknown' if not hasattr(fingerprint, 'mid') else fingerprint.mid
             error_message = 'Could not calculate similarity for materials: ' + mid1 + ' and ' + mid2 + ' because of error: {0}'.format(err)
             report_error(self.log, error_message)
+
+    def get_similarities(self, fingerprint_list):
+        similarities = [self.get_similarity(fp) for fp in fingerprint_list]
+        return similarities
 
     def set_similarity_function(self, similarity_function):
         self.similarity_function = similarity_function
