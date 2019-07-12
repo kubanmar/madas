@@ -237,8 +237,8 @@ class SimilarityMatrix():
                 csvwriter.writerow(row)
 
     @staticmethod
-    def load(filename = 'similarity_matrix.csv', data_path = 'data', root='.'):
-        self = SimilarityMatrix(data_path = data_path, root = root)
+    def load(filename = 'similarity_matrix.csv', data_path = 'data', root='.', **kwargs):
+        self = SimilarityMatrix(data_path = data_path, root = root, **kwargs)
         self.filename = filename
         if self.large:
             self.log.error('Warning: Loading not implemented for large matrices.')
@@ -329,7 +329,7 @@ class SimilarityMatrix():
         array_copy = np.delete(array_copy,to_delete_index)
         return array_copy
 
-class SimilarityCrawler():
+class SimilarityDictCrawler():
 
     def __init__(self, first_members, threshold = 0.9):
         self.members = {}
