@@ -1,6 +1,7 @@
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 from functools import partial
 
 import numpy as np
@@ -19,16 +20,14 @@ def averaged_distances(fingerprint_pairs):
     for pair in fingerprint_pairs:
         count += 1
         sim = pair[0].get_similarity(pair[1])
-        print('sim',sim, pair[0].mid, pair[1].mid)
         aver_dist += 1 - sim
     aver_dist /= count
-    print('dist',aver_dist)
     return aver_dist
 
 def lin_comb_distances(fingerprint_pairs, weights = None):
     distance = 0
     if weights == None:
-        weights = np.ones(len(fingerprint_pairs[0][0]))/len(fingerprint_pairs[0][0])
+        weights = np.ones(len(fingerprint_pairs[0][0]))
     for idx, pair in enumerate(fingerprint_pairs):
         distance += weights[idx] * (1 - pair[0].get_similarity(pair[1]))
     distance /= sum(weights)
@@ -43,6 +42,8 @@ class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
         self.multiprocess = multiprocess
         self.kernel_function = kernel_function
         self.use_y_kernel = use_y_kernel
+        self._intercept = 0
+        self.cv_data = None
 
     def set_kernel(self, x_kernel, y_kernel):
         self.x_kernel = x_kernel
@@ -69,19 +70,22 @@ class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
         self.gammas = regressor.coef_
 
     def fitCV(self, x_train, y_train, alphas = None, multiprocess = False, cv_multiprocess = False):
+        cv_data = []
         if self.x_kernel == None or self.y_kernel == None:
             self.set_kernel(x_train, y_train)
         if not len(x_train) == len(y_train):
             raise ValueError("Wrong shape of training data: len(x) != len(y)")
         best = None
         for idx, alpha in enumerate(alphas):
-            r2 = self._cv_fit(x_train, y_train, alpha = alpha, multiprocess = cv_multiprocess)
-            print(alpha, r2, best)
+            rmse = self._cv_fit(x_train, y_train, alpha = alpha, multiprocess = cv_multiprocess)
+            cv_data.append([alpha, rmse])
+            print(alpha, rmse, best)
             if best == None:
-                best = [r2, idx]
+                best = [rmse, idx]
                 continue
-            if r2 > best[0]:
-                best = [r2, idx]
+            if rmse < best[0]:
+                best = [rmse, idx]
+        self.cv_data = cv_data
         self.alpha = alphas[best[1]]
         self.fit(x_train, y_train)
 
@@ -99,10 +103,10 @@ class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
                 applied_kernel_matrix = self._get_applied_kernel_matrix(train_x, multiprocess = self.multiprocess)
                 regressor.fit(applied_kernel_matrix, train_y)
                 test_matrix = self._get_applied_kernel_matrix(test_x, multiprocess = self.multiprocess)
-                score = regressor.score(test_matrix, test_y)
+                score = mean_squared_error(test_y, regressor.predict(test_matrix))#regressor.score(test_matrix, test_y)
                 results.append(score)
-        averaged_r2 = sum(results) / len(results)
-        return averaged_r2
+        averaged_rmse = sum(results) / len(results)
+        return averaged_rmse
 
     def _multi_cv_fit(self, train_test_alpha):
         data, alpha = train_test_alpha
@@ -111,7 +115,7 @@ class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
         applied_kernel_matrix = self._get_applied_kernel_matrix(train_x, multiprocess = self.multiprocess)
         regressor.fit(applied_kernel_matrix, train_y)
         test_matrix = self._get_applied_kernel_matrix(test_x, multiprocess = self.multiprocess)
-        return regressor.score(test_matrix, test_y)
+        return mean_squared_error(test_y, regressor.predict(test_matrix))#regressor.score(test_matrix, test_y)
 
     def _get_applied_kernel_matrix(self, x_train, multiprocess = False):
         if multiprocess:
@@ -171,12 +175,14 @@ class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
 class MultiKernelRegression(BaseEstimator, RegressorMixin):
     """
     Learn a target property from different fingerprints, i.e. as linear combination.
+
     """
 
-    def __init__(self, regressor = linear_model.Ridge, regressor_parameters = {'fit_intercept':False, 'normalize':False}, mixing_kernel = averaged_distances, kernel_parameters = {}, use_y_kernel = True):
+    def __init__(self, regressor = linear_model.Ridge, regressor_parameters = {'alpha': 0, 'fit_intercept':False, 'normalize':False}, mixing_kernel = averaged_distances, kernel_parameters = {}, use_y_kernel = False):
         self.x_kernel = []
         self.y_kernel = []
         self.gammas = []
+        self._intercept = 0
         self.use_y_kernel = use_y_kernel
         try:
             self.regressor = regressor(**regressor_parameters)
@@ -199,6 +205,7 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
         applied_kernel_matrix = self._get_applied_kernel_matrix(fingerprints, multiprocess = multiprocess)
         self.regressor.fit(applied_kernel_matrix, target)
         self.gammas = self.regressor.coef_
+        self._intercept = self.regressor.intercept_
 
     def _get_applied_kernel_matrix(self, x_train, multiprocess = True):
         if multiprocess:
@@ -217,7 +224,6 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
             material = []
             for x_kernel, y_kernel in zip(self.x_kernel, self.y_kernel):
                 if self.use_y_kernel:
-                    print(x[0].mid, x[1].mid, x_kernel[0].mid, x_kernel[1].mid) #DEBUG
                     material.append(self.mixing_kernel(zip(x,x_kernel)) * y_kernel)
                 else:
                     material.append(self.mixing_kernel(zip(x,x_kernel)))
@@ -244,9 +250,9 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
         for xi in x:
             if self.use_y_kernel:
                 similarity = np.array([self.mixing_kernel(zip(xi, kernel_x)) * gamma for gamma, kernel_x in zip(self.gammas,self.x_kernel)])
-                pred = np.dot(similarity, self.y_kernel)
+                pred = self._intercept + np.dot(similarity, self.y_kernel)
             else:
                 similarity = np.array([self.mixing_kernel(zip(xi, kernel_x)) for kernel_x in self.x_kernel])
-                pred = np.dot(similarity, self.gammas)
+                pred = self._intercept + np.dot(similarity, self.gammas)
             predictions.append(pred)
         return predictions
