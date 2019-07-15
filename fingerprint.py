@@ -20,10 +20,10 @@ class Fingerprint():
     """
     Base class for all fingerprints.
     kwargs:
-    db_row: AtomsRow object of ASE Database
-    log: logging.Logger object
-    fp_type: string; Type of fingerprint, as given by Python module
-    importfunction: function; used to import different fingerprint types individually
+        * db_row: AtomsRow object of ASE Database
+        * log: logging.Logger object
+        * fp_type: string; Type of fingerprint, as given by Python module
+        * importfunction: function; used to import different fingerprint types individually
     """
 
     def __init__(self, fp_type = None, name = None, db_row = None, logger = None, importfunction = import_fingerprint_module, **kwargs):
@@ -41,8 +41,14 @@ class Fingerprint():
             self.set_similarity_function(similarity_function)
 
     def get_similarity(self, fingerprint):
+        """
+        Calculate similarity to another fingerprint. Will raise TypeError if different fingerpint types are used.
+        Args:
+            * fingerpint: Fingerpint() object; fingerprint to calculate similarity
+        """
         if not self.fp_type == fingerprint.fp_type:
             report_error(self.log, 'Can not calculate similarity for fingerprints of different types. (%s and %s)' %(self.fp_type, fingerprint.fp_type))
+            raise TypeError("Similarty of differing types of fingerprints can not be calculated.")
         try:
             similarity = self.similarity_function(self, fingerprint)
             return similarity
@@ -53,18 +59,36 @@ class Fingerprint():
             report_error(self.log, error_message)
 
     def get_similarities(self, fingerprint_list):
+        """
+        Calculate similarities to a list of fingerprints. Will raise TypeError if different fingerpint types are used.
+        Args:
+            * fingerpint_list: list of Fingerpint() objects; fingerprints to calculate similarity
+        """
         similarities = [self.get_similarity(fp) for fp in fingerprint_list]
         return similarities
 
     def set_similarity_function(self, similarity_function):
+        """
+        Set the function for calculating similarity.
+        Args:
+            * similarity_function: Python function; a function that takes two fingerprint objects as input and calculates the similarity between them.
+        """
         self.similarity_function = similarity_function
 
     def set_import_function(self, import_function):
+        """
+        Set the function used to import specialized fingerprint objects.
+        Args:
+            * import_function: Python function; a function that returns a specialized Fingerprint() class and a similarity function.
+        """
         self.importfunction = import_function
 
     def specify(self, fingerprint_class, **kwargs):
         """
         Change self to class given by ``fingerprint_class``.
+        Args:
+            * fingerprint_class: Python class; specialized Fingerprint() class
+        Keyword arguments are passed to the __init__ function of the specialized fingerprint.
         """
         self.__class__ = fingerprint_class
         self.__init__(**kwargs)
@@ -88,6 +112,9 @@ class Fingerprint():
         pass
 
     def get_data_json(self):
+        """
+        Return fingerprint data in as a json-coded string.
+        """
         json_data = json.dumps(self.get_data())
         return json_data
 

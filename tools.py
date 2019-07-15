@@ -12,9 +12,11 @@ from utils import report_error
 def overlap_coeff(matched_fp1,fp2):
     bit_array1, bit_array2 = self.match_fingerprints(fp1, fp2)
 
+
 class BandGapFinder():
 
     def __init__(self, database, logger = None):
+        raise Exception('Current implentation is faulty. DO NOT RELY ON ANY RESULTS OBTAINED WITH THIS CODE!')
         self.db = database
         self.fingerprints = []
         self.masks_grid = Grid.create(mu = 2, sigma = 10, cutoff = (0,10))

@@ -200,12 +200,20 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
         Args:
             * fingerprints: list; list of fingerprints to describe each material
             * target: list; target values to fit
+        Kwargs:
+            * multiprocess: bool; default: True; try fitting in parallel
         """
         self.set_kernel(fingerprints, target) #for now, the training set is always the kernel set
         applied_kernel_matrix = self._get_applied_kernel_matrix(fingerprints, multiprocess = multiprocess)
         self.regressor.fit(applied_kernel_matrix, target)
         self.gammas = self.regressor.coef_
         self._intercept = self.regressor.intercept_
+
+    def grid_CV_fit(self, fingerprints, target, regressor_parameters = {}, mixing_parameters = {}):
+        """
+        Calculate prediction errors for a set of regressor and mixing parameters.
+        """
+        raise NotImplementedError('Function not implemented (yet).')
 
     def _get_applied_kernel_matrix(self, x_train, multiprocess = True):
         if multiprocess:
