@@ -1,4 +1,8 @@
 import os, json, requests, sys, time
+from ase import Atoms
+from api_core import APIClass, Material
+from utils import species_list
+import numpy as np
 
 API_base_url ='https://encyclopedia.nomad-coe.eu/api/v1.0/materials'
 API_base_url_dev = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
@@ -6,24 +10,23 @@ API_base_url_dev = 'http://enc-staging-nomad.esc.rzg.mpg.de/v1.0/materials'
 calculation_properties_keyword_list = ['atomic_density', 'cell_volume', 'lattice_parameters', 'mass_density', 'mainfile_uri', 'code_name']
 material_properties_keyword_list = ['formula', 'point_group', 'space_group_number']
 
-class API():
+class API(APIClass):
 
     def __init__(self, base_url = API_base_url, access_token = None, key_path = '.', logger = None):
         self.set_url(base_url)
         self.auth = (self._read_api_key(key_path), '') if access_token == None else (access_token, '')
         self.set_logger(logger)
 
-    def get_calculation(self, nomad_material_id = 1, nomad_calculation_id = 1, calculation_data = None):
+    def get_calculation(self, nomad_material_id, nomad_calculation_id, calculation_data = None):
         """
-        Returns the properties of a calculation of a material as a json dictionary:
-        {
-        **{<calculation_properties_keyword_list> : properties},
-        **{<material_properties_keyword_list> : properties},
-        "dos" : {"dos_energies" : [...], "dos_values" : [...]},
-        "elements" : [[atomic_number, internal coordinates, wyckoff_letter], ...]
-        }
+        Get a calculation from the NOMAD Encyclopedia.
+        Args:
+            * nomad_material_id: int,string; NOMAD material id
+            * nomad_calculation_id: int,string; NOMAD calculation id
+        Kwargs:
+            * calculation_data: dict; default: None; dictionary of already downloaded materials properties
         """
-        mid = str(nomad_material_id) + ":" + str(nomad_calculation_id)
+        mid = self.gen_mid(nomad_material_id, nomad_calculation_id)
         calculation = {'mid':mid}
         #calculation properties
         if calculation_data == None:
@@ -72,9 +75,18 @@ class API():
             position = [float(x) for x in atom['position'][1:-1].split(',')]
             atom_list.append([atom['label'], position, atom['wyckoff']])
         calculation['elements'] = atom_list
-        return calculation
+        atoms = self._make_atoms(calculation)
+        return Material(mid, atoms, calculation)
 
     def get_calculations_by_search(self, search_query, show_progress = True, force_dos = False):
+        """
+        Get a set of calculations from the NOMAD Encyclopedia.
+        Args:
+            * search_query: json dictionary; search query as used by the Encyclopedia web API
+        Kwargs:
+            * show_progress: bool; default = True; print progress of downloading data to screen
+            * force_dos: bool; default = False; force to use materials with DOS data
+        """
         materials_list = self._get_materials_list(search_query)
         list_filter = {key : value for key,value in search_query.items() if key != 'search_by'}
         if len(materials_list) == 0:
@@ -99,7 +111,7 @@ class API():
                 self._report_error(error_message)
                 continue
             calc = self._select_calc(calc_list, force_dos = force_dos, return_calc = True)
-            materials.append(self.get_calculation(nomad_material_id = item['id'], nomad_calculation_id = calc['id'], calculation_data = calc))
+            materials.append(self.get_calculation(item['id'], calc['id'], calculation_data = calc))
             if show_progress:
                 print('Fetching materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
         if show_progress:
@@ -133,6 +145,9 @@ class API():
     def set_auth(self, api_key):
         self.auth = (api_key, '')
 
+    def gen_mid(self, *args):
+        return ':'.join([str(arg) for arg in args])
+
     def print_api_keys(self):
         url = self._construct_url(self.base_url, 1, 'calculations', 1)
         for key in self._api_call(url).json().keys():
@@ -140,6 +155,17 @@ class API():
         url = self._construct_url(self.base_url, 1)
         for key in self._api_call(url).json().keys():
             print(key)
+
+    def _make_atoms(self, new_material):
+        """
+        creates the atoms object and links to the file and index where this thing is stored in the ase db
+        """
+        try:
+            lattice_parameters = new_material['lattice_parameters']
+        except KeyError:
+            lattice_parameters = new_material['properties']['lattice_parameters']
+        atoms = self._get_lattice_description(new_material['elements'], lattice_parameters)
+        return atoms
 
     def _get_materials_list(self, search_query, per_page = 1000, show_progress = True):
         try:
@@ -271,6 +297,26 @@ class API():
             url += '?property='
             url += property
         return url
+
+    def _get_lattice_parameters_from_string(self, string):
+        lcs=string.split(',')
+        lcs[0]=lcs[0][1:]
+        lcs[-1]=lcs[-1][:-1]
+        lcs_float=[]
+        for index,item in enumerate(lcs):
+            if index<3:
+                lcs_float.append(float(item)*10**(10))
+            else:
+                lcs_float.append(float(item)/np.pi*180)
+        return lcs_float
+
+    def _get_lattice_description(self, elements, lattice_parameters):
+        labels=[species_list[x[0]] for x in elements]
+        positions = [x[1] for x in elements]
+        cell=self._get_lattice_parameters_from_string(lattice_parameters)
+        scaled_positions=[[x[0] * cell[0], x[1] * cell[1], x[2] * cell[2]] for x in positions]
+        structure=Atoms(symbols=labels,positions=scaled_positions,cell=cell, pbc = True)
+        return structure
 
     @staticmethod
     def _read_api_key(path_to_api_key):
