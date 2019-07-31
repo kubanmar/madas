@@ -23,7 +23,7 @@ def _calc_sim_multiprocess(fp1__fp2):
 
 class SimilarityMatrix():
     """
-    A matrix, that stores all (symmetric) similarites between materials in a database.
+    A matrix, that stores all (symmetric) similarites between materials.
     Kwargs:
         * root: string; default: '.'; root directory for saving matrix
         * data_path: string; default: 'data'; path of to directory for saving matrix
@@ -61,7 +61,7 @@ class SimilarityMatrix():
             report_error(self.log, error_message)
         fingerprints = [fp for fp in fingerprints if fp != None]
         self.mids = [fingerprint.mid for fingerprint in fingerprints]
-        self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
+        #self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
         if self.large:
             csvwriter.writerow(self.mids)
         n_matrix_rows = len(fingerprints)
@@ -75,17 +75,21 @@ class SimilarityMatrix():
                 else:
                     csvwriter.writerow(matrix_row)
             else:
-                with multiprocessing.Pool() as p:
-                    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+                pass
+                #with multiprocessing.Pool() as p:
+                #    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
             if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
                 print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
+        if multiprocess:
+            with multiprocessing.Pool() as p:
+                self.matrix = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
         if self.large:
             outfile.close()
             self.matrix = None
         else:
             self.matrix = np.array(self.matrix)
             if self.matrix.shape[0] == 0:
-                self.log.error('Empty similarity matrix.')
+                #self.log.error('Empty similarity matrix.')
                 raise RuntimeError('Similarity matrix could not be generated.')
             print('\nFinished SimilarityMatrix generation.\n')
 
@@ -111,6 +115,14 @@ class SimilarityMatrix():
         print('\nFinished SimilarityMatrix generation.\n')
 
     def get_sorted_square_matrix(self, new_mid_list):
+        """
+        Return an array of similarities, which is sorted by the list of mids that was given as input.
+        Especially useful to visualize the results of clustering.
+        Args:
+            * new_mid_list: list of strings; the list of mids that is used to create a new square matrix
+        Returns:
+            * sorted_matrix: np.ndarray; square matrix of materials similarities
+        """
         sorted_matrix = []
         for mid1 in new_mid_list:
             if mid1 in self.mids:
@@ -119,7 +131,7 @@ class SimilarityMatrix():
                     if mid2 in self.mids:
                         new_row.append(self.get_entry(mid1,mid2))
                 sorted_matrix.append(new_row)
-        return sorted_matrix
+        return np.array(sorted_matrix)
 
     def lookup_similarity(self, fp1, fp2):
         return self.get_entry(fp1.mid, fp2.mid)
@@ -140,6 +152,14 @@ class SimilarityMatrix():
         second_matrix.mids = matching_mids
 
     def get_complement(self, maximum = 1, get_matrix_object = False):
+        """
+        Calculate complement of the similarity matrix.
+        Kwargs:
+            * maximum; float; default: 1; reference maximum, i.e. complement = maximum - similarity
+            * get_matrix_object; bool; default: False; Return SimilarityMatrix() instead of np.ndarray
+        Returns:
+            * np.ndarray __or__ SimilarityMatrix() object
+        """
         complement = []
         for row in self.matrix:
             complement.append(maximum-row)
@@ -151,6 +171,14 @@ class SimilarityMatrix():
         return np.array(complement)
 
     def get_entry(self, mid1, mid2):
+        """
+        Get any entry of the matrix.
+        Args:
+            * mid1: string; material id of the first material
+            * mid2: string; material id of the second material
+        Returns:
+            * similarity; float; similarity between both materials
+        """
         idx1 = self.mids.index(mid1)
         idx2 = self.mids.index(mid2)
         if idx1 < idx2:
@@ -159,6 +187,11 @@ class SimilarityMatrix():
             return self.matrix[idx2][idx1-idx2]
 
     def get_square_matrix(self):
+        """
+        Get square matrix form. Transfers the internally stored triangular matrix to a (symmetric) square matrix.
+        Returns:
+            * square_matrix; np.ndarray; matrix of similarities
+        """
         square_matrix = []
         for idx in range(len(self.matrix)):
             square_matrix.append(self.get_row(idx, use_matrix_index = True))
@@ -166,6 +199,13 @@ class SimilarityMatrix():
 
     @staticmethod
     def triangular_from_square_matrix(matrix):
+        """
+        Get the upper triangular part of a square matrix.
+        Args:
+            * matrix: list of lists, np.ndarray; symmetric square matrix
+        Returns:
+            * triangular_matrix: np.ndarray; triangular form of input matrix
+        """
         triangular_matrix = []
         for index, row in enumerate(matrix):
             triangular_matrix.append(row[index:])
@@ -295,6 +335,11 @@ class SimilarityMatrix():
         plt.scatter(xs, polyfunction(xs), s=1)
         if show:
             plt.show()
+
+    def _get_similarities_list_index(self, idx__list):
+        idx, fp_list = idx__list
+        sims = fp_list[idx].get_similarities(fp_list[idx:])
+        return sims
 
     def _load_mids(self):
         with open(self.filename) as f:

@@ -8,6 +8,8 @@ import numpy as np
 
 import multiprocessing, copy
 
+from similarity import SimilarityMatrix
+
 def identity_function(x):
     return x
 
@@ -32,6 +34,16 @@ def lin_comb_distances(fingerprint_pairs, weights = None):
         distance += weights[idx] * (1 - pair[0].get_similarity(pair[1]))
     distance /= sum(weights)
     return distance
+
+def linear_comb_dist_mat(matrices, weights = None):
+    if weights == None:
+        weights = np.ones(len(matrices)) / len(matrices)
+    mat = sum([weight * (1- simat.matrix) for weight, simat in zip(weights, matrices)])
+    simat = SimilarityMatrix(log=False)
+    simat.matrix=mat
+    simat.mids = matrices[0].mids
+    return simat
+
 
 class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
 
@@ -264,3 +276,50 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
                 pred = self._intercept + np.dot(similarity, self.gammas)
             predictions.append(pred)
         return predictions
+
+class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
+
+    def __init__(self, kernel_function = linear_comb_dist_mat, kernel_parameters = {}, kernel_matrices = [], prediction_matrices = [], regressor = linear_model.Ridge, regressor_params = {'alpha':0,'fit_intercept':False, 'normalize':False}):
+        self.set_kernel_matrices(kernel_matrices)
+        self.set_prediction_matrices(prediction_matrices)
+        self.kernel_function = partial(kernel_function, **kernel_parameters)
+        self.regressor = regressor(**regressor_params)
+        self.gammas = []
+
+    def set_kernel_matrices(self, kernel_matrices):
+        self.kernel_matrices = kernel_matrices
+        for matrix_index in range(len(self.kernel_matrices)-1):
+            self.kernel_matrices[matrix_index].align(self.kernel_matrices[matrix_index+1])
+
+    def set_prediction_matrices(self, prediction_matrices):
+        self.prediction_matrices = prediction_matrices
+
+    def fit(self, y):
+        kernel = self.kernel_function(self.kernel_matrices)
+        self.regressor.fit(kernel.get_square_matrix(), y)
+        self.gammas =  self.regressor.coef_
+
+    def predict_fit(self):
+        return np.dot(self.kernel_function(self.kernel_matrices).get_square_matrix(), np.transpose(self.gammas))
+
+    def predict(self):
+        kernel = self.kernel_function(self.prediction_matrices)
+        return np.dot(kernel.matrix, np.transpose(self.gammas))
+
+    @staticmethod
+    def calculate_prediction_matrix(kernel_fingerprints, target_fingerprints):
+        try:
+            with multiprocessing.Pool() as p:
+                matrix = p.map(_calc_sims_multi, [(target_fingerprints, kernel_fingerprints, idx) for idx in range(len(target_fingerprints))])
+        except TypeError: #Fingerprints are not parallelizable
+            matrix = []
+            for fingerprint in target_fingerprints:
+                matrix.append(fingerprint.get_similarities(kernel_fingerprints))
+        returnmatrix = SimilarityMatrix(log=False)
+        returnmatrix.matrix = np.array([np.array(row) for row in matrix])
+        return returnmatrix
+
+def _calc_sims_multi(tfp__kfp__idx):
+    target_fingerprints, kernel_fingerprints, idx = tfp__kfp__idx
+    fps = target_fingerprints[idx].get_similarities(kernel_fingerprints)
+    return fps

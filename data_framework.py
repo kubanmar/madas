@@ -59,6 +59,16 @@ class MaterialsDatabase():
             return None
 
     def get_properties(self, property_name, output_mids = False):
+        """
+        Get a list of properties for all materials of the database.
+        Args:
+            * property_name: string; name of the property
+        Kwargs:
+            * output_mids: bool; detault: False; output the list of corresponding material ids with the properties
+        Returns:
+            * properties: list; properties of materials
+            * [mids]: list; list of material ids
+        """
         properties = []
         mids = []
         for db_id in range(1, self.get_n_entries()+1):
@@ -145,7 +155,7 @@ class MaterialsDatabase():
             * SimilarityMatrix() object
         Additional kwargs are passed to SimilarityMatrix().calculate().
         """
-        simat = SimilarityMatrix(root = root, data_path = data_path, large = large)
+        simat = SimilarityMatrix(root = root, data_path = data_path, large = large, log = False)
         simat.calculate(fp_type, self, **kwargs)
         return simat
 
@@ -235,6 +245,16 @@ class MaterialsDatabase():
 
 
     def gen_fingerprints_list(self, fp_type, name = None, log = True, overwrite_entries = False, **kwargs):
+        """
+        Generate a list of fingerprints.
+        Args:
+            * fp_type: string; type of fingerprint X, must correspond to a XFingerprint() object
+        Kwargs:
+            * name: string; default: None; name of the fingerprint as used in the database, if name != fp_type, else None
+            * log: bool; default: True; generate fingerprints with a logger
+            * overwrite_entries: bool; default: False; always generate new fingerprints
+        Additional keyword arguments are passed to Fingerprint().__init__().
+        """
         fingerprints = []
         logger = self.log if log else None
         with self.atoms_db as db:
@@ -263,7 +283,7 @@ class MaterialsDatabase():
         Add a specified material to the database.
         Keyword arguments are passed to the api. The default is the NOMAD Encyclopedia API.
         Corresponding keywords are `nomad_material_id` and `nomad_calculation_id`.
-        If those keywords are present, they will be used to construct the database nid.
+        If those keywords are present, they will be used to construct the database mid.
         """
         mid = self.api.gen_mid(*args)
         try: #This is a not-so-nice hack. There must be a better solution.
@@ -301,9 +321,23 @@ class MaterialsDatabase():
             return row
 
     def update_entry(self, mid, dictionary):
+        """
+        Update a entry of the database from a given dictionary.
+        Args:
+             * mid: string; mid of the corresponding db entry
+             * dictionary: dict; dictionary with the key-value pairs to be updated in the database
+        """
         self._update_atoms_db(self.atoms_db, mid, dictionary)
 
     def update_entries(self, mid_list, dictionary_list, show_progress = False):
+        """
+        Update a list of entries in the database.
+        Args:
+            * mid_list: list of strings; list of mids of materials in the database
+            * dictionary_list: list of dicts; list of dictionaries with key-value pairs to be updated
+        Kwargs:
+            * show_progress: bool; default = False; display percentage of progress to screen
+        """
         max_len = len(mid_list)
         current_entry = 0
         for mid, dictionary in zip(mid_list, dictionary_list):
@@ -314,6 +348,12 @@ class MaterialsDatabase():
             current_entry += 1
 
     def add_property(self, mid, property_name):
+        """
+        Add a property to a spacific material of the database through the API.
+        Args:
+            * mid: string; mid of the material to update
+            * property_name: string; name of property to be downloaded from recource
+        """
         nomad_material_id, nomad_calculation_id = mid.split(':')
         property = self.api.get_property(nomad_material_id = nomad_material_id, nomad_calculation_id = nomad_calculation_id, property_name = property_name)
         if property != None:

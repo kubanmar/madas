@@ -1,4 +1,3 @@
-import soaplite
 from dscribe.descriptors import SOAP
 from scipy.spatial.distance import pdist, squareform
 from scipy.sparse import coo_matrix
