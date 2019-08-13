@@ -440,10 +440,12 @@ class MaterialsDatabase():
         return self.atoms_db.count()
 
     def __iter__(self):
+        self._iter_index = 0
         return self
 
     def __next__(self):
         if self._iter_index + 1 > len(self):
+            self._iter_index = 0
             raise StopIteration
         else:
             self._iter_index += 1

@@ -97,17 +97,21 @@ class SimilarityMatrix():
         self.matrix = []
         self.mids = mids
         n_matrix_rows = len(fingerprints)
-        for idx, fp in enumerate(fingerprints):
-            if multiprocess:
-                with multiprocessing.Pool() as p:
-                    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
-            else:
-                matrix_row = []
-                for fp2 in fingerprints[idx:]:
-                    matrix_row.append(fp.get_similarity(fp2))
-                self.matrix.append(np.array(matrix_row))
-            if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
-                print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
+        if multiprocess:
+            with multiprocessing.Pool() as p:
+                self.matrix = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
+        else:
+            for idx, fp in enumerate(fingerprints):
+                if multiprocess:
+                    with multiprocessing.Pool() as p:
+                        self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
+                else:
+                    matrix_row = []
+                    for fp2 in fingerprints[idx:]:
+                        matrix_row.append(fp.get_similarity(fp2))
+                    self.matrix.append(np.array(matrix_row))
+                if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
+                    print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
         self.matrix = np.array(self.matrix)
         if self.matrix.shape[0] == 0:
             self.log.error('Empty similarity matrix.')
@@ -132,6 +136,16 @@ class SimilarityMatrix():
                         new_row.append(self.get_entry(mid1,mid2))
                 sorted_matrix.append(new_row)
         return np.array(sorted_matrix)
+
+    def sort_by_mid_list(self, mid_list):
+        """
+        Sort matrix by a given list of mids.
+        Args:
+            * mid_list: list of strings; sorted list of material ids
+        Returns:
+            * None
+        """
+        raise NotImplementedError("Not implemented (yet).")
 
     def lookup_similarity(self, fp1, fp2):
         return self.get_entry(fp1.mid, fp2.mid)
