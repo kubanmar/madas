@@ -40,7 +40,7 @@ class SimilarityMatrix():
         self.mids = mids
         self._iter_index = 0
 
-    def calculate(self, fingerprints, mids = [], similarity_function = None, multiprocess = True, print_to_screen = True):
+    def calculate(self, fingerprints, mids = [], multiprocess = True, print_to_screen = True):
         self.matrix = []
         self.mids = mids
         n_matrix_rows = len(fingerprints)
@@ -59,6 +59,21 @@ class SimilarityMatrix():
         if self.matrix.shape[0] == 0:
             raise RuntimeError('Similarity matrix could not be generated.')
         print('\nFinished SimilarityMatrix generation.\n')
+
+    def calculate_memmap(self, fingerprints, mids = [], multiprocess = True, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc'):
+        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),), dtype=object)
+        self.mids = mids
+        if multiprocess:
+            with multiprocessing.Pool() as p:
+                self.matrix[:] = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
+        else:
+            for idx, fp in enumerate(fingerprints):
+                matrix_row = []
+                for fp2 in fingerprints[idx:]:
+                    matrix_row.append(fp.get_similarity(fp2))
+                self.matrix[idx] = np.array(matrix_row)
+        np.save(mids_filename, self.mids)
+        self.matrix.flush()
 
     def get_sorted_square_matrix(self, new_mid_list):
         """
@@ -181,8 +196,11 @@ class SimilarityMatrix():
         if not use_matrix_index:
             mid_idx = self.mids.index(mid)
         else:
-            mid_idx = mid
-        for idx in range(len(self.matrix)):
+            if mid >= 0:
+                mid_idx = mid
+            else:
+                mid_idx = len(self) + mid
+        for idx in range(len(self)):
             if idx < mid_idx:
                 row.append(self.matrix[idx][mid_idx-idx])
             elif idx > mid_idx:
@@ -272,7 +290,7 @@ class SimilarityMatrix():
     def _get_similarities_list_index(self, idx__list):
         idx, fp_list = idx__list
         sims = fp_list[idx].get_similarities(fp_list[idx:])
-        return sims
+        return np.array(sims)
 
     def _load_mids(self):
         with open(self.filename) as f:
