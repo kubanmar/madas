@@ -11,6 +11,6 @@ setuptools.setup(
     description="A framework for working with materials similarity.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",
+    url="https://git.physik.hu-berlin.de/kuban/similarity-data-framework",
     packages=setuptools.find_packages()
 )
