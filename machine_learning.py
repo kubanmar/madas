@@ -39,7 +39,7 @@ def linear_comb_dist_mat(matrices, weights = None):
     if weights == None:
         weights = np.ones(len(matrices)) / len(matrices)
     mat = sum([weight * (1- simat.matrix) for weight, simat in zip(weights, matrices)])
-    simat = SimilarityMatrix(log=False)
+    simat = SimilarityMatrix()
     simat.matrix=mat
     simat.mids = matrices[0].mids
     return simat
@@ -323,3 +323,82 @@ def _calc_sims_multi(tfp__kfp__idx):
     target_fingerprints, kernel_fingerprints, idx = tfp__kfp__idx
     fps = target_fingerprints[idx].get_similarities(kernel_fingerprints)
     return fps
+
+from sklearn.cluster import KMeans
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.linear_model import Ridge
+
+class MatrixClusterLearning(BaseEstimator, RegressorMixin):
+
+    def __init__(self, kernel_function = linear_comb_dist_mat,
+                 kernel_parameters = {},
+                 kernel_matrices = [],
+                 target_values = [],
+                 prediction_matrices = [],
+                 regressor = Ridge,
+                 regressor_params = {'alpha' : 1e-12, 'fit_intercept' : True, 'normalize' : False},
+                 clusterer = KMeans,
+                 clusterer_params = {'max_iter':500, 'n_clusters':10}):
+        self.set_kernel_matrices(kernel_matrices)
+        self.set_prediction_matrices(prediction_matrices)
+        self.set_target_values(target_values)
+        self.kernel_function = partial(kernel_function, **kernel_parameters)
+        self.models = []
+        self.regressor = regressor,
+        self.regressor_params = regressor_params
+        self.clusterer = clusterer(**clusterer_params)
+        self.cluster_labels = None
+
+    def set_kernel_matrices(self, kernel_matrices):
+        self.kernel_matrices = kernel_matrices
+        for matrix_index in range(len(self.kernel_matrices)-1):
+            self.kernel_matrices[matrix_index].align(self.kernel_matrices[matrix_index+1])
+
+    def set_target_values(self, target_values):
+        self.target_values = target_values
+
+    def set_prediction_matrices(self, prediction_matrices):
+        self.prediction_matrices = prediction_matrices
+
+    def fit(self):
+        kernel = self.kernel_function(self.kernel_matrices).get_square_matrix()
+        self.cluster_labels = self.clusterer.fit_predict(kernel)
+        for label in np.unique(self.cluster_labels):
+            material_indices_in_cluster = [idx for idx, cluster_label in enumerate(self.cluster_labels) if cluster_label == label]
+            new_model = self.regressor[0](**self.regressor_params)
+            cluster_matrix = self._get_sub_matrix(kernel, material_indices_in_cluster)
+            new_model.fit(cluster_matrix, [self.target_values[idx] for idx in material_indices_in_cluster])
+            self.models.append(new_model)
+
+    def _get_sub_matrix(self, matrix, index_list):
+        sub_matrix = [[matrix[idx][jdx] for jdx in index_list] for idx in index_list]
+        return sub_matrix
+
+
+    def predict(self):
+        kernel = self.kernel_function(self.prediction_matrices).matrix
+        clusters = self.clusterer.predict(kernel)
+        predictions = []
+        for row, label in zip(kernel, clusters):
+            material_indices_in_cluster = [idx for idx, cluster_label in enumerate(self.cluster_labels) if cluster_label == label]
+            if -1 in self.cluster_labels:
+                predictions.append(self.models[label+1].predict(np.array([row[idx] for idx in material_indices_in_cluster]).reshape(1,-1))) #[row[idx] for idx in material_indices_in_cluster]
+            else:
+                predictions.append(self.models[label].predict(np.array([row[idx] for idx in material_indices_in_cluster]).reshape(1,-1))) #[row[idx] for idx in material_indices_in_cluster]
+        return predictions
+
+    def predict_fit(self):
+        kernel = self.kernel_function(self.kernel_matrices).get_square_matrix()
+        predictions = []
+        for label in np.unique(self.cluster_labels):
+            material_indices_in_cluster = [idx for idx, cluster_label in enumerate(self.cluster_labels) if cluster_label == label]
+            cluster_matrix = self._get_sub_matrix(kernel, material_indices_in_cluster)
+            if -1 in self.cluster_labels:
+                predicted_per_cluster = self.models[label+1].predict(cluster_matrix)
+            else:
+                predicted_per_cluster = self.models[label].predict(cluster_matrix)
+            for pred in zip(material_indices_in_cluster, predicted_per_cluster):
+                predictions.append(pred)
+        predictions.sort(key = lambda x: x[0])
+        predictions = [x[1] for x in predictions]
+        return predictions

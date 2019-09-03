@@ -53,10 +53,15 @@ class MaterialsDatabase():
             return row.data['dos'][property_name]
         elif property_name in row.data.keys():
             return row.data[property_name]
-        elif property_name in row.keys():
-            return row[property_name]
+        #elif property_name in row.keys():
         else:
-            return None
+            if 'properties' in row.data.keys():
+                if property_name in row.data.properties.keys():
+                    return row.data.properties[property_name]
+            try:
+                return row[property_name]
+            except AttributeError:
+                return None
 
     def get_properties(self, property_name, output_mids = False):
         """
@@ -142,7 +147,7 @@ class MaterialsDatabase():
             fingerprints.append(self.get_fingerprint(fp_type, name = name, db_id = db_id, log = log, **kwargs))
         return fingerprints
 
-    def get_similarity_matrix(self, fp_type, root = '.', data_path = 'data', large = False, **kwargs):
+    def get_similarity_matrix(self, fp_type, **kwargs):
         """
         Calculate a SimilarityMatrix() object.
         Args:
@@ -155,8 +160,10 @@ class MaterialsDatabase():
             * SimilarityMatrix() object
         Additional kwargs are passed to SimilarityMatrix().calculate().
         """
-        simat = SimilarityMatrix(root = root, data_path = data_path, large = large, log = False)
-        simat.calculate(fp_type, self, **kwargs)
+        fps = self.get_fingerprints(fp_type)
+        mids = [fp.mid for fp in fps]
+        simat = SimilarityMatrix()
+        simat.calculate(fps, mids = mids, **kwargs)
         return simat
 
     def get_formula(self, mid):

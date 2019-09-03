@@ -35,65 +35,12 @@ class SimilarityMatrix():
         * log: bool; default: True; Initialize with logging.Logger().
     """
 
-    def __init__(self, root = '.', data_path = 'data', large = False, matrix = None, mids = None, filename = 'similarity_matrix.csv', print_to_screen = True, log = True):
-        self.matrix = [] if matrix == None else matrix
-        self.mids = [] if mids == None else mids
-        self.fp_type = None
-        self.log = logging.getLogger('log') if log else None
-        self.data_path = os.path.join(root, data_path)
-        self.large = large
-        self.filename = filename
-        self.print_to_screen = print_to_screen
+    def __init__(self, matrix = [], mids = []):
+        self.matrix = matrix
+        self.mids = mids
+        self._iter_index = 0
 
-    def calculate(self, fp_type, db, name = None, filename = 'similarity_matrix.csv', multiprocess = True, **kwargs):
-        """
-        Calculates the SimilarityMatrix.
-            If SimilarityMatrix.large == True: The matrix is written to file during calculation.
-        """
-        if self.large: #For large databases, the matrix will not fit the RAM, thus calculation gets killed.
-            full_path = os.path.join(self.data_path, filename)
-            outfile = open(full_path, 'w')
-            csvwriter = csv.writer(outfile)
-        self.fp_type = fp_type
-        fingerprints = db.get_fingerprints(fp_type, name = name, log = False)
-        if len(fingerprints) == 0:
-            error_message = 'No fingerprints for type ' + fp_type + '.'
-            report_error(self.log, error_message)
-        fingerprints = [fp for fp in fingerprints if fp != None]
-        self.mids = [fingerprint.mid for fingerprint in fingerprints]
-        #self.log.debug('SimilaritMatrix: All %s fingerprints loaded.' %(fp_type))
-        if self.large:
-            csvwriter.writerow(self.mids)
-        n_matrix_rows = len(fingerprints)
-        for idx, fp in enumerate(fingerprints):
-            if not multiprocess:
-                matrix_row = []
-                for jdx, fp2 in enumerate(fingerprints[idx:]):
-                    matrix_row.append(fp.get_similarity(fp2, **kwargs))
-                if not self.large:
-                    self.matrix.append(np.array(matrix_row))
-                else:
-                    csvwriter.writerow(matrix_row)
-            else:
-                pass
-                #with multiprocessing.Pool() as p:
-                #    self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
-            if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
-                print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
-        if multiprocess:
-            with multiprocessing.Pool() as p:
-                self.matrix = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
-        if self.large:
-            outfile.close()
-            self.matrix = None
-        else:
-            self.matrix = np.array(self.matrix)
-            if self.matrix.shape[0] == 0:
-                #self.log.error('Empty similarity matrix.')
-                raise RuntimeError('Similarity matrix could not be generated.')
-            print('\nFinished SimilarityMatrix generation.\n')
-
-    def calculate2(self, fingerprints, mids = None, similarity_function = None, multiprocess = False):
+    def calculate(self, fingerprints, mids = [], similarity_function = None, multiprocess = True, print_to_screen = True):
         self.matrix = []
         self.mids = mids
         n_matrix_rows = len(fingerprints)
@@ -102,19 +49,14 @@ class SimilarityMatrix():
                 self.matrix = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
         else:
             for idx, fp in enumerate(fingerprints):
-                if multiprocess:
-                    with multiprocessing.Pool() as p:
-                        self.matrix.append(np.array(p.map(_calc_sim_multiprocess,[[fp, fp2] for fp2 in fingerprints[idx:]])))
-                else:
-                    matrix_row = []
-                    for fp2 in fingerprints[idx:]:
-                        matrix_row.append(fp.get_similarity(fp2))
-                    self.matrix.append(np.array(matrix_row))
-                if self.print_to_screen:#self.fp_type == "SOAP":#math.ceil(idx/n_matrix_rows*100)%10 == 0:
+                matrix_row = []
+                for fp2 in fingerprints[idx:]:
+                    matrix_row.append(fp.get_similarity(fp2))
+                self.matrix.append(np.array(matrix_row))
+                if print_to_screen:
                     print('SimilarityMatrix generated: {:6.3f} %'.format(idx/n_matrix_rows*100), end = '\r')
         self.matrix = np.array(self.matrix)
         if self.matrix.shape[0] == 0:
-            self.log.error('Empty similarity matrix.')
             raise RuntimeError('Similarity matrix could not be generated.')
         print('\nFinished SimilarityMatrix generation.\n')
 
@@ -226,64 +168,49 @@ class SimilarityMatrix():
         return triangular_matrix
 
     def get_row(self, mid, use_matrix_index = False):
+        """
+        Get a full row of the matrix.
+        Args:
+            * mid: string or int; Material Id oder matrix index of requested matrix row.
+        Kwargs:
+            * use_matrix_index: bool; default: False; use index of matrix row instead of Material Id
+        Returns:
+            * row; list; Similarities of material with given mid to all other materials in the matrix.
+        """
         row = []
         if not use_matrix_index:
-            if self.mids == []: # TODO Remove, too data centric
-                self._load_mids()
             mid_idx = self.mids.index(mid)
         else:
             mid_idx = mid
-        if self.large:
-            full_path = os.path.join(self.data_path, self.filename)
-            with open(full_path, 'r', newline='') as f:
-                csvreader = csv.reader(f)
-                for row in csvreader:
-                    pass #CONTINUE HERE LATER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    # if index(row) < index(mid), choose entry
-                    # else add row
-        else:
-            for idx in range(len(self.matrix)):
-                if idx < mid_idx:
-                    row.append(self.matrix[idx][mid_idx-idx])
-                elif idx > mid_idx:
-                    row.append(self.matrix[mid_idx][idx-mid_idx])
-                else:
-                    row.append(self.matrix[idx][0])
+        for idx in range(len(self.matrix)):
+            if idx < mid_idx:
+                row.append(self.matrix[idx][mid_idx-idx])
+            elif idx > mid_idx:
+                row.append(self.matrix[mid_idx][idx-mid_idx])
+            else:
+                row.append(self.matrix[idx][0])
         return row
 
     def get_entries(self):
+        """
+        Return all enries of the matrix.
+        Returns:
+            * entries: np.ndarray; 1-d array of all entries of the matrix
+        """
         entries = []
         for row in self.matrix:
             for element in row:
                 entries.append(element)
         return np.array(entries)
 
-    def get_k_nearest(self, mid, k = 10):
-        neighbors = self.get_row(mid)
-        neighbors_zipped = [(sim, idx) for idx, sim in enumerate(neighbors)]
-        neighbors_zipped.sort(reverse = True)
-        k_new = k
-        for item in neighbors_zipped:
-            if item[0] >= 1.0:
-                k_new += 1
-            else:
-                break
-        n_nearest = neighbors_zipped[:k_new]
-        neighbors_list = [[self.mids[x[1]], x[0]] for x in n_nearest]
-        return neighbors_list
-
-    def gen_neighbors_dict(self, k = 10):
-        neighbors_dict = {}
-        for mid in self.mids:
-            neighbors_dict[mid] = self.get_k_nearest(mid, k = k)
-        return neighbors_dict
-
-    def save(self, filename = 'similarity_matrix.csv'):
-        self.filename = filename
-        if self.large:
-            self.log.error('Warning: Writing not implemented for large matrices. File is written during generation process.')
-            return
-        full_path = os.path.join(self.data_path, filename)
+    def save(self, filename = 'similarity_matrix.csv', data_path = '.'):
+        """
+        Save SimilarityMatrix to csv file.
+        Kwargs:
+            * filename: string; default: 'similarity_matrix.csv'; name of the created file
+            * data_path: string; default: '.'; relative path to the created file
+        """
+        full_path = os.path.join(data_path, filename)
         with open(full_path, 'w', newline='') as f:
             csvwriter = csv.writer(f)
             csvwriter.writerow(self.mids)
@@ -292,12 +219,18 @@ class SimilarityMatrix():
 
     @staticmethod
     def load(filename = 'similarity_matrix.csv', data_path = 'data', root='.', **kwargs):
-        self = SimilarityMatrix(data_path = data_path, root = root, **kwargs)
-        self.filename = filename
-        if self.large:
-            self.log.error('Warning: Loading not implemented for large matrices.')
-            return None
-        full_path = os.path.join(self.data_path, filename)
+        """
+        Load SimilarityMatrix from file. Static method.
+        Kwargs:
+            * filename: string; default: 'similarity_matrix.csv'; name of the file
+            * data_path: string; default: '.'; relative path of the file
+            * root: string; default: '.'; root path, of which the relative data_path is chosen
+        Addition kwargs are passed to SimilarityMatrix().__inti__().
+        Returns:
+            * SimilarityMatrix() object
+        """
+        self = SimilarityMatrix(**kwargs)
+        full_path = os.path.join(data_path, filename)
         self.matrix = []
         with open(full_path, 'r', newline='') as f:
             csvreader = csv.reader(f)
@@ -312,6 +245,16 @@ class SimilarityMatrix():
         return self
 
     def get_matching_matrices(self, second_matrix):
+        """
+        Match matrices such, that they contain the same materials.
+        Mostly inteded for the case that some materials do not support some kinds of fingerprints.
+        Args:
+            * second_matrix; SimilarityMatrix() object; Matrix to match materials
+        Returns:
+            * matching_self: np.ndarray; `self.matrix` with matched materials
+            * matching_matrix: np.ndarray; `second_matrix.matrix` with matched materials
+            * matching_mids: list of strings; list of mids of materials that occure in both matrices
+        """
         not_in_second_matrix = []
         for mid in self.mids:
             if not (mid in second_matrix.mids):
@@ -325,30 +268,6 @@ class SimilarityMatrix():
         if matching_mids != matching_mids2:
             print('OOOPS!', matching_mids, matching_mids2) #TODO fix that, it should report properly
         return matching_self, matching_matrix, matching_mids
-
-    def get_correlation(self, second_matrix):
-        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
-        m_diff = matching_self - matching_matrix
-        summe = 0
-        for row in m_diff:
-            summe += np.dot(row,row)
-        return np.sqrt(summe)
-
-    def plot_correlation(self, second_matrix, show = True):
-        matching_self, matching_matrix, matching_mids = self.get_matching_matrices(second_matrix)
-        pairs = []
-        for idx in range(len(matching_self)):
-            for jdx in range(len(matching_self[idx])):
-                pairs.append([matching_self[idx][jdx],matching_matrix[idx][jdx]])
-        xs = np.array([x[0] for x in pairs])
-        ys = np.array([x[1] for x in pairs])
-        fit = np.polyfit(xs, ys, 1, full = True)
-        import matplotlib.pyplot as plt
-        polyfunction = np.poly1d(fit[0])
-        plt.scatter(xs,ys, s=1, alpha=0.1)
-        plt.scatter(xs, polyfunction(xs), s=1)
-        if show:
-            plt.show()
 
     def _get_similarities_list_index(self, idx__list):
         idx, fp_list = idx__list
@@ -365,16 +284,57 @@ class SimilarityMatrix():
         row_index = self.mids.index(mid1)
         column_index = len(self.mids)
 
-    def get_cleared_matrix(self, leave_out_mids):
-        if self.large:
-            raise NotImplementedError("Cleared matrix is not implemented for large matrices.")
+    def get_cleared_matrix(self, leave_out_mids, return_matrix_object = False):
+        """
+        Return a matrix where all materials with mids specified in `leave_out_mids` are excluded from the matrix.
+        Args:
+            * leave_out_mids: list of strings; mids of materials to leave out of the matrix
+        Kwargs:
+            * return_matrix_object: bool; default: False; return SimilarityMatrix() object
+        Returns:
+            * matrix_copy: np.ndarray; self.matrix after removing specified materials
+            * mids_copy; list of strings; self.mids after removing specified materials
+            or:
+            * SimilarityMatrix(matrix = matrix_copy, mids = mids_copy) if return_matrix_object is True
+        """
         matrix_copy = copy.deepcopy(self.matrix)
         mids_copy = copy.deepcopy(self.mids)
         for mid in leave_out_mids:
             mid_index = mids_copy.index(mid)
             mids_copy.remove(mid)
             matrix_copy = self._remove_index_from_matrix(matrix_copy, mid_index)
+        if return_matrix_object:
+            return SimilarityMatrix(matrix = matrix_copy, mids = mids_copy)
         return matrix_copy, mids_copy
+
+    def __len__(self):
+        return len(self.matrix)
+
+    def __iter__(self):
+        self._iter_index = 0
+        return self
+
+    def __next__(self):
+        if self._iter_index + 1 > len(self):
+            self._iter_index = 0
+            raise StopIteration
+        else:
+            self._iter_index += 1
+            return self.get_row(self._iter_index, use_matrix_index = True)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            try:
+                return self.get_row(key)
+            except KeyError:
+                raise KeyError("No entry with mid = " + key + '.')
+        elif isinstance(key, int):
+            try:
+                return self.get_row(key, use_matrix_index = True)
+            except KeyError:
+                raise KeyError('No entry with id = ' + str(key) + '.')
+        else:
+            raise KeyError('Key can not be interpreted as database key.')
 
     @staticmethod
     def _remove_index_from_matrix(array, index):

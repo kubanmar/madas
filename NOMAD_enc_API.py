@@ -87,7 +87,7 @@ class API(APIClass):
             * show_progress: bool; default = True; print progress of downloading data to screen
             * force_dos: bool; default = False; force to use materials with DOS data
         """
-        materials_list = self._get_materials_list(search_query)
+        materials_list = self._get_materials_list(search_query) #DEBUG
         list_filter = {key : value for key,value in search_query.items() if key != 'search_by'}
         if len(materials_list) == 0:
             self._report_error('Empty materials list returned. Try different search query.')
@@ -167,7 +167,7 @@ class API(APIClass):
         atoms = self._get_lattice_description(new_material['elements'], lattice_parameters)
         return atoms
 
-    def _get_materials_list(self, search_query, per_page = 1000, show_progress = True):
+    def _get_materials_list(self, search_query, per_page = 1000, show_progress = False):
         try:
             search_query['search_by']['per_page'] = per_page
             post = requests.post(self.base_url, auth = self.auth, json = search_query)
@@ -183,16 +183,25 @@ class API(APIClass):
                 results.append(result)
             to_load = [x for x in range(2,pages['pages']+1)]
             max_len = len(to_load)
+            counter = 0 #DEBUG
             while len(to_load) > 0:
                 for page in to_load:
+                    counter += 1 #DEBUG
                     search_query['search_by']['page'] = page
-                    post = requests.post(self.base_url, auth = self.auth, json = search_query)
+                    try:
+                        post = requests.post(self.base_url, auth = self.auth, json = search_query)
+                    except ConnectionError:
+                        print('ConnectionError for', search_query, end = '\n')
+                        continue
                     if post.status_code == 200:
+                        print('success!', counter, page) #DEBUG
                         for result in post.json()['results']:
                             results.append(result)
                         to_load.remove(page)
                     else:
-                        continue
+                        print(counter, page) #DEBUG
+                        #time.sleep(0.5)
+                        break
                 if show_progress:
                     print('Fetching materials list {:.3f} %'.format( (max_len - len(to_load)) / max_len * 100), end = '\r')
             if show_progress:

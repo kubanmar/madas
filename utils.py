@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 species_list = 'Vac,H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn,Fr,Ra,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr,Rf,Db,Sg,Bh,Hs,Mt,Ds,Rg,Cn,Nh,Fl,Mc,Lv,Ts,Og'.split(',')
 electron_charge = 1.602176565e-19
 
+def rmsle(y_true, y_pred):
+    if not isinstance(y_true, (list, np.ndarray)):
+        y_true = [y_true]
+    if not isinstance(y_pred, (list, np.ndarray)):
+        y_pred = [y_pred]
+    errors = [np.log((np.array(y_p) + 1)/(np.array(y_t) + 1))**2 for y_t, y_p in zip(y_true, y_pred)]
+    msle = sum(errors) / len(errors)
+    return np.sqrt(msle)
+
 def _SI_to_Angstom(length):
     return np.power(length,10^10)
 
