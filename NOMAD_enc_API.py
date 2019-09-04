@@ -176,12 +176,12 @@ class API(APIClass):
             search_query['search_by']['pagination'] = 'scroll'
             post = requests.post(self.base_url, auth = self.auth, json = search_query)
             for result in post.json()['results']:
-                results.append(result['id'])
+                results.append(result)
             n_materials = post.json()['total_results']
             scroll_id = post.json()['scroll_id']
             counter_max = int(np.ceil(n_materials / per_page))
             counter = 0
-            while len(np.unique([x['id'] for x in results])) < n_materials and counter < counter_max:
+            while len(np.unique([x.data['id'] for x in results])) < n_materials and counter < counter_max:
                 search_query['search_by']['scroll_id'] = str(scroll_id)
                 post = requests.post(self.base_url, auth = self.auth, json = search_query)
                 if str(post.status_code) != "200":
