@@ -25,14 +25,8 @@ class SimilarityMatrix():
     """
     A matrix, that stores all (symmetric) similarites between materials.
     Kwargs:
-        * root: string; default: '.'; root directory for saving matrix
-        * data_path: string; default: 'data'; path of to directory for saving matrix
-        * large: bool; default: False; Create large matrix, i.e. matrix too large for the RAM. Thus similarities are directly written to file.
         * matrix: np.ndarray; default: None; Initialize matrix with precomputed similarities.
         * mids: list; default: None; Values for material ids for precomputed similarities.
-        * filename: string; default: 'similarity_matrix.csv'; name of file for saving similarity matrix
-        * print_to_screen: bool; default: True; Print progress of calculating similarity matrix to screen.
-        * log: bool; default: True; Initialize with logging.Logger().
     """
 
     def __init__(self, matrix = [], mids = []):
@@ -61,11 +55,11 @@ class SimilarityMatrix():
         print('\nFinished SimilarityMatrix generation.\n')
 
     def calculate_memmap(self, fingerprints, mids = [], multiprocess = True, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc'):
-        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),), dtype=object)
+        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
         self.mids = mids
         if multiprocess:
             with multiprocessing.Pool() as p:
-                self.matrix[:] = p.map(self._get_similarities_list_index, [(idx, fingerprints) for idx in range(len(fingerprints))])
+                self.matrix[:] = p.map(partial(self._get_similarities_list_index, square_matrix = True), [(idx, fingerprints) for idx in range(len(fingerprints))])
         else:
             for idx, fp in enumerate(fingerprints):
                 matrix_row = []
@@ -200,6 +194,11 @@ class SimilarityMatrix():
                 mid_idx = mid
             else:
                 mid_idx = len(self) + mid
+        if len(self.matrix.shape) == 2:
+            if self.matrix.shape[0] == self.matrix.shape[1]:
+                return self.matrix[mid_idx]
+            else:
+                raise ValueError('Matrix shape inconsistent.')
         for idx in range(len(self)):
             if idx < mid_idx:
                 row.append(self.matrix[idx][mid_idx-idx])
@@ -221,7 +220,32 @@ class SimilarityMatrix():
                 entries.append(element)
         return np.array(entries)
 
-    def save(self, filename = 'similarity_matrix.csv', data_path = '.'):
+    def save(self, matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.'):
+        """
+        Save SimilarityMatrix to numpy binary file(s).
+        Kwargs:
+            * matrix_filename: string; default: 'similarity_matrix.npy'; name of the matrix file
+            * mids_filename: string; default: 'similarity_matrix_mids.npy'; name of the mids file
+            * data_path: string; default: '.'; relative path to created files
+        """
+        matrix_path = os.path.join(data_path, matrix_filename)
+        mids_path = os.path.join(data_path, mids_filename)
+        np.save(matrix_path, self.matrix)
+        np.save(mids_path, self.mids)
+
+    @staticmethod
+    def load(matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.', memory_mapped = False, **kwargs):
+        self = SimilarityMatrix(**kwargs)
+        matrix_path = os.path.join(data_path, matrix_filename)
+        mids_path = os.path.join(data_path, mids_filename)
+        self.mids = np.load(mids_path)
+        if memory_mapped:
+            self.matrix = np.memmap(matrix_path, mode = 'r', shape = (len(self.mids),len(self.mids)), dtype=np.float32)
+        else:
+            self.matrix = np.load(matrix_path)
+        return self
+
+    def save_csv(self, filename = 'similarity_matrix.csv', data_path = '.'):
         """
         Save SimilarityMatrix to csv file.
         Kwargs:
@@ -236,7 +260,7 @@ class SimilarityMatrix():
                 csvwriter.writerow(row)
 
     @staticmethod
-    def load(filename = 'similarity_matrix.csv', data_path = 'data', root='.', **kwargs):
+    def load_csv(filename = 'similarity_matrix.csv', data_path = 'data', root='.', **kwargs):
         """
         Load SimilarityMatrix from file. Static method.
         Kwargs:
@@ -287,9 +311,12 @@ class SimilarityMatrix():
             print('OOOPS!', matching_mids, matching_mids2) #TODO fix that, it should report properly
         return matching_self, matching_matrix, matching_mids
 
-    def _get_similarities_list_index(self, idx__list):
+    def _get_similarities_list_index(self, idx__list, square_matrix = False):
         idx, fp_list = idx__list
-        sims = fp_list[idx].get_similarities(fp_list[idx:])
+        if square_matrix:
+            sims = fp_list[idx].get_similarities(fp_list)
+        else:
+            sims = fp_list[idx].get_similarities(fp_list[idx:])
         return np.array(sims)
 
     def _load_mids(self):
