@@ -114,6 +114,9 @@ class API(APIClass):
                 self._report_error(error_message)
                 continue
             calc = self._select_calc(calc_list, force_dos = force_dos, return_calc = True)
+            if calc == None:
+                print('\nFailed for material ' + str(item['id']) + '\n')
+                continue
             materials.append(self.get_calculation(item['id'], calc['id'], calculation_data = calc))
             if show_progress:
                 print('Fetching materials {:.3f} %'.format( (index + 1) / len(materials_list) * 100), end = '\r')
@@ -174,6 +177,7 @@ class API(APIClass):
         if scroll: # Quick patch for scrolling elasticsearch database
             results = []
             search_query['search_by']['pagination'] = 'scroll'
+            search_query['search_by']['per_page'] = per_page
             post = requests.post(self.base_url, auth = self.auth, json = search_query)
             for result in post.json()['results']:
                 results.append(result)
@@ -288,7 +292,11 @@ class API(APIClass):
             scored_list = [(self._evaluate_calc(calc), calc['id']) for calc in calc_list]
         scored_list.sort(reverse = True, key= lambda x: x[0])
         website_sorted = [x for x in scored_list if x[0] == scored_list[0][0]]
-        return website_sorted[-1][1]
+        try:
+            result = website_sorted[-1][1]
+        except IndexError:
+            result = None
+        return result
         #return scored_list[0][1]
 
     def _report_error(self, error_message):
