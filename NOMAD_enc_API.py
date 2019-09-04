@@ -180,7 +180,7 @@ class API(APIClass):
             counter = 0
             while len(np.unique(results)) < n_materials and counter < counter_max:
                 search_query['search_by']['scroll_id'] = str(scroll_id)
-                post = requests.post(url, auth = (key, ''), json = search_query)
+                post = requests.post(self.base_url, auth = (key, ''), json = search_query)
                 if str(post.status_code) != "200":
                     counter += 1
                     continue
