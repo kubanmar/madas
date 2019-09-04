@@ -188,7 +188,7 @@ class API(APIClass):
                     counter += 1
                     continue
                 for result in post.json()['results']:
-                    results.append(result['id'])
+                    results.append(result)
                 scroll_id = post.json()['scroll_id']
                 counter += 1
             return results
