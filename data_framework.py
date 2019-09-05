@@ -10,7 +10,7 @@ from ase.db import connect
 from fingerprint import Fingerprint
 from similarity import SimilarityMatrix
 from utils import electron_charge, get_lattice_description
-from NOMAD_enc_API import API
+from apis.NOMAD_enc_API import API
 
 class MaterialsDatabase():
 

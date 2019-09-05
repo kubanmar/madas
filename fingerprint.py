@@ -8,7 +8,7 @@ def import_fingerprint_module(fp_type, file_suffix = '_fingerprint', class_suffi
     """
     Function to import specific fingerprint classes and similarity measures from different files.
     """
-    module_name = fp_type + file_suffix
+    module_name = 'fingerprints.' + fp_type + file_suffix
     module = importlib.import_module(module_name)
     class_name = fp_type + class_suffix
     similarity_measure_name = fp_type + similarity_measure_suffix
