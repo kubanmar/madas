@@ -352,6 +352,12 @@ class SimilarityMatrix():
             return SimilarityMatrix(matrix = matrix_copy, mids = mids_copy)
         return matrix_copy, mids_copy
 
+    def _get_shape(self):
+        shape_vector = []
+        for row in self.matrix:
+            shape_vector.append(len(row))
+        return shape_vector
+
     def __len__(self):
         return len(self.matrix)
 
@@ -380,6 +386,68 @@ class SimilarityMatrix():
                 raise KeyError('No entry with id = ' + str(key) + '.')
         else:
             raise KeyError('Key can not be interpreted as database key.')
+
+    def __add__(self, simat):
+        new_matrix = []
+        if isinstance(simat, SimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Can not add.")
+                return None
+            for row1, row2 in zip(self.matrix, simat.matrix):
+                new_matrix.append(np.array(row1) + np.array(row2))
+        elif np.isreal(simat) and np.isscalar(simat):
+            for row in self.matrix:
+                new_matrix.append(np.array(row) + simat)
+        else:
+            raise NotImplementedError("Addition is not supported for chosen data type.")
+        new_matrix = np.array(new_matrix)
+        return SimilarityMatrix(matrix = new_matrix, mids = self.mids)
+
+    def __sub__(self, simat):
+        new_matrix = []
+        if isinstance(simat, SimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Can not subtract.")
+                return None
+            for row1, row2 in zip(self.matrix, simat.matrix):
+                new_matrix.append(np.array(row1) - np.array(row2))
+        elif np.isreal(simat) and np.isscalar(simat):
+            for row in self.matrix:
+                new_matrix.append(np.array(row) - simat)
+        else:
+            raise NotImplementedError("Subtraction is not supported for chosen data type.")
+        new_matrix = np.array(new_matrix)
+        return SimilarityMatrix(matrix = new_matrix, mids = self.mids)
+
+    def __mul__(self, simat):
+        new_matrix = []
+        if isinstance(simat, SimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Can not multiply.")
+                return None
+            for row1, row2 in zip(self.matrix, simat.matrix):
+                new_matrix.append(np.array(row1) * np.array(row2))
+        elif np.isreal(simat) and np.isscalar(simat):
+            for row in self.matrix:
+                new_matrix.append(np.array(row) * simat)
+        else:
+            raise NotImplementedError("Multiplication is not supported for chosen data type.")
+        new_matrix = np.array(new_matrix)
+        return SimilarityMatrix(matrix = new_matrix, mids = self.mids)
+
+    def _check_matrix_alignment(self, simat):
+        if not sorted(self.mids) == sorted(simat.mids):
+            raise ValueError("Mids of matrices do not coincide. Use SimilarityMatrix().align().")
+            return False
+        for mid1, mid2 in zip(self.mids, simat.mids):
+            if not mid1 == mid2:
+                raise IndexError("Mids of matrices are not aligned. Sort one matrix using sort_by_mid_list().")
+                return False
+        shape_allignment = np.array([len(row1) == len(row2) for row1, row2 in zip(self.matrix, simat.matrix)])
+        if not shape_allignment.all() == True:
+            raise IndexError("Shapes of matrices do not coincide. Please convert to same shape.")
+            return False
+        return True
 
     @staticmethod
     def _remove_index_from_matrix(array, index):
