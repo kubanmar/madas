@@ -67,6 +67,7 @@ class SimilarityMatrix():
                     matrix_row.append(fp.get_similarity(fp2))
                 self.matrix[idx] = np.array(matrix_row)
         np.save(mids_filename, self.mids)
+        self._clear_temporary_matrix()
         self.matrix.flush()
 
     def get_sorted_square_matrix(self, new_mid_list):
@@ -151,16 +152,23 @@ class SimilarityMatrix():
         else:
             return self.matrix[idx2][idx1-idx2]
 
-    def get_square_matrix(self):
+    def get_symmertric_matrix(self):
         """
         Get square matrix form. Transfers the internally stored triangular matrix to a (symmetric) square matrix.
         Returns:
             * square_matrix; np.ndarray; matrix of similarities
         """
-        square_matrix = []
+        matrix_shape = self._get_shape()
+        is_already_symmetric = np.array([x == matrix_shape[0] for x in matrix_shape])
+        if is_already_symmetric.all() == True:
+            return self.matrix
+        symmetric_matrix = []
         for idx in range(len(self.matrix)):
-            square_matrix.append(self.get_row(idx, use_matrix_index = True))
-        return np.array(square_matrix)
+            symmetric_matrix.append(self.get_row(idx, use_matrix_index = True))
+        return np.array(symmetric_matrix)
+
+    def get_square_matrix(self): #dowmward compatibility
+        return self.get_symmertric_matrix()
 
     @staticmethod
     def triangular_from_square_matrix(matrix):
@@ -235,6 +243,17 @@ class SimilarityMatrix():
 
     @staticmethod
     def load(matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.', memory_mapped = False, **kwargs):
+        """
+        Load SimilarityMatrix from csv file. Static method.
+        Kwargs:
+            * matrix_filename: string; default: 'similarity_matrix.npy'; name of the matrix file
+            * mids_filename: string; default: 'similarity_matrix_mids.npy'; name of the mids file
+            * data_path: string; default: '.'; relative path to created files
+            * memory_mapped: bool; default: False; toogle if matrix file is a memory mapped matrix generated with ``calculate_memmap()``
+        Addition kwargs are passed to SimilarityMatrix().__init__().
+        Returns:
+            * SimilarityMatrix() object
+        """
         self = SimilarityMatrix(**kwargs)
         matrix_path = os.path.join(data_path, matrix_filename)
         mids_path = os.path.join(data_path, mids_filename)
@@ -262,12 +281,12 @@ class SimilarityMatrix():
     @staticmethod
     def load_csv(filename = 'similarity_matrix.csv', data_path = 'data', root='.', **kwargs):
         """
-        Load SimilarityMatrix from file. Static method.
+        Load SimilarityMatrix from csv file. Static method.
         Kwargs:
             * filename: string; default: 'similarity_matrix.csv'; name of the file
             * data_path: string; default: '.'; relative path of the file
             * root: string; default: '.'; root path, of which the relative data_path is chosen
-        Addition kwargs are passed to SimilarityMatrix().__inti__().
+        Addition kwargs are passed to SimilarityMatrix().__init__().
         Returns:
             * SimilarityMatrix() object
         """
@@ -314,10 +333,17 @@ class SimilarityMatrix():
     def _get_similarities_list_index(self, idx__list, square_matrix = False):
         idx, fp_list = idx__list
         if square_matrix:
-            sims = fp_list[idx].get_similarities(fp_list)
+            sims = np.append([-1 for x in range(idx)], fp_list[idx].get_similarities(fp_list[idx:]))
         else:
             sims = fp_list[idx].get_similarities(fp_list[idx:])
         return np.array(sims)
+
+    def _clear_temporary_matrix(self):
+        for index in range(len(self.matrix)):
+            for idx in range(len(self.matrix)):
+                if idx == index:
+                    break
+                self.matrix[index][idx] = self.matrix[idx][index]
 
     def _load_mids(self):
         with open(self.filename) as f:

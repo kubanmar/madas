@@ -379,8 +379,7 @@ class MaterialsDatabase():
     def _update_metadata(self, update_dict):
         metadata = self.atoms_db.metadata
         for key in update_dict.keys():
-            try:
-                metadata[key]
+            if key in metadata.keys():
                 if isinstance(update_dict[key], list):
                     if not isinstance(metadata[key], list):
                         metadata[key] = [metadata[key]]
@@ -388,7 +387,7 @@ class MaterialsDatabase():
                         if not item in metadata[key]:
                             metadata[key].append(item)
                 else: metadata[key] = update_dict[key]
-            except KeyError:
+            else:
                 metadata.update({key:update_dict[key]})
         self.atoms_db.metadata = metadata
 
