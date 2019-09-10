@@ -315,7 +315,7 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
             matrix = []
             for fingerprint in target_fingerprints:
                 matrix.append(fingerprint.get_similarities(kernel_fingerprints))
-        returnmatrix = SimilarityMatrix(log=False)
+        returnmatrix = SimilarityMatrix()
         returnmatrix.matrix = np.array([np.array(row) for row in matrix])
         return returnmatrix
 

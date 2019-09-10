@@ -57,6 +57,7 @@ class Fingerprint():
             mid2 = 'unknown' if not hasattr(fingerprint, 'mid') else fingerprint.mid
             error_message = 'Could not calculate similarity for materials: ' + mid1 + ' and ' + mid2 + ' because of error: {0}'.format(err)
             report_error(self.log, error_message)
+            return None
 
     def get_similarities(self, fingerprint_list):
         """

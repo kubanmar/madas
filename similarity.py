@@ -89,7 +89,7 @@ class SimilarityMatrix():
                 sorted_matrix.append(new_row)
         return np.array(sorted_matrix)
 
-    def sort_by_mid_list(self, mid_list):
+    def sort_by_mid_list(self, mid_list): #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Implement that. Like, now.
         """
         Sort matrix by a given list of mids.
         Args:
@@ -97,6 +97,7 @@ class SimilarityMatrix():
         Returns:
             * None
         """
+        
         raise NotImplementedError("Not implemented (yet).")
 
     def lookup_similarity(self, fp1, fp2):
@@ -228,6 +229,26 @@ class SimilarityMatrix():
                 entries.append(element)
         return np.array(entries)
 
+    def get_k_nearest_neighbors(self, ref_mid, k = 10, remove_self = True):
+        """
+        Get the k nearest materials and the respective similarities for a material.
+        Args:
+            * ref_mid: string; material id of the requested material
+        Kwargs:
+            * k: int; default: 10; number of next nearest neighbors to return
+            * remove_self: bool; default: True; remove the requested material from the results list (is should have similarity 1)
+        Returns:
+            * dict: {ref_mid: {<1st_nearest_mid>:<similarity>}, {2nd_nearest_mid>:<similiarty>, ...}}
+        """
+        row = [(mid,entry) for mid, entry in zip(self.mids, self.get_row(ref_mid))]
+        row.sort(reverse = True, key = lambda x: x[1])
+        if remove_self:
+            for idx, item in enumerate(row):
+                if item[0] == ref_mid:
+                    row.pop(idx)
+                    break
+        return {ref_mid : {mid: entry for mid, entry in row[:k]}}
+
     def save(self, matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.'):
         """
         Save SimilarityMatrix to numpy binary file(s).
@@ -350,10 +371,6 @@ class SimilarityMatrix():
             mids = f.readline()
         mids = mids.split(',')
         return mids
-
-    def _get_index_in_matrix(self, mid1, mid2): #TODO its not finished!
-        row_index = self.mids.index(mid1)
-        column_index = len(self.mids)
 
     def get_cleared_matrix(self, leave_out_mids, return_matrix_object = False):
         """
