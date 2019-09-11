@@ -11,9 +11,6 @@ from functools import partial
 from fingerprint import Fingerprint
 from utils import report_error
 
-def returnfunction(*args): #Why do I have this?
-    return [*args]
-
 def _calc_sim_multiprocess(fp1__fp2):
     fp1 = fp1__fp2[0]
     fp2 = fp1__fp2[1]
@@ -70,6 +67,49 @@ class SimilarityMatrix():
         self._clear_temporary_matrix()
         self.matrix.flush()
 
+    def calculate_memmap_batch(self, fingerprints, mids, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc', batch_size = 10000):
+        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
+        self.matrix[:] = (-1 * np.ones(self.matrix.shape))[:]
+        self.mids = mids
+        self._calculate_batch(fingerprints, batch_size = batch_size)
+        np.save(mids_filename, self.mids)
+        self._clear_temporary_matrix()
+        self.matrix.flush()
+
+    def _create_batches(self, size, batch_size = 2):
+        batch_list = []
+        len_batched = int(size / batch_size)
+        if len_batched * batch_size < size:
+            len_batched += 1
+        batch_x_list = []
+        batch_index = 0
+        for idx in range(len_batched):
+            if batch_index + batch_size > size:
+                batch_x_list.append([batch_index, size])
+                break
+            else:
+                batch_x_list.append([batch_index, batch_index + batch_size])
+                batch_index += batch_size
+        for idx, batch_x in enumerate(batch_x_list):
+            for batch_y in batch_x_list[idx:]:
+                batch_list.append([batch_x, batch_y])
+        return batch_list
+
+    def _calculate_batch_elements(self, batched_list):
+        result = []
+        batch, list1, list2 = batched_list
+        for item in list1:
+            result.append(item.get_similarities(list2))
+        return batch, np.array(result)
+
+    def _calculate_batch(self, value_list, batch_size = 2):
+        batches = self._create_batches(len(value_list), batch_size = batch_size)
+        with multiprocessing.Pool() as p:
+            for result in p.map(_self.calculate_batch_elements, [(batch, value_list[batch[0][0]:batch[0][1]], value_list[batch[1][0]:batch[1][1]]) for batch in batches]):
+                batch = result[0]
+                for idx, row in zip([x for x in range(batch[0][0], batch[0][1])], result[1]):
+                    self.matrix[idx][batch[1][0]:batch[1][1]] = row[:]
+
     def get_sorted_square_matrix(self, new_mid_list):
         """
         Return an array of similarities, which is sorted by the list of mids that was given as input.
@@ -97,7 +137,7 @@ class SimilarityMatrix():
         Returns:
             * None
         """
-        
+
         raise NotImplementedError("Not implemented (yet).")
 
     def lookup_similarity(self, fp1, fp2):
@@ -197,7 +237,7 @@ class SimilarityMatrix():
         """
         row = []
         if not use_matrix_index:
-            mid_idx = self.mids.index(mid)
+            mid_idx = np.where(np.array(self.mids) == mid)
         else:
             if mid >= 0:
                 mid_idx = mid
