@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from functools import partial
 
 from fingerprint import Fingerprint
-from utils import report_error
+from utils import report_error, BatchIterator
 
 def _calc_sim_multiprocess(fp1__fp2):
     fp1 = fp1__fp2[0]
@@ -69,7 +69,8 @@ class SimilarityMatrix():
 
     def calculate_memmap_batch(self, fingerprints, mids, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc', batch_size = 10000):
         self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
-        self.matrix[:] = (-1 * np.ones(self.matrix.shape))[:]
+        for idx in range(len(self.matrix)):
+            self.matrix[idx][:] = (-1 * np.ones(len(fingerprints)))[:]
         self.mids = mids
         self._calculate_batch(fingerprints, batch_size = batch_size)
         np.save(mids_filename, self.mids)
@@ -104,8 +105,9 @@ class SimilarityMatrix():
 
     def _calculate_batch(self, value_list, batch_size = 2):
         batches = self._create_batches(len(value_list), batch_size = batch_size)
+        batch_iterator = BatchIterator(value_list, batches)
         with multiprocessing.Pool() as p:
-            for result in p.map(_self.calculate_batch_elements, [(batch, value_list[batch[0][0]:batch[0][1]], value_list[batch[1][0]:batch[1][1]]) for batch in batches]):
+            for result in p.imap(self._calculate_batch_elements, batch_iterator):
                 batch = result[0]
                 for idx, row in zip([x for x in range(batch[0][0], batch[0][1])], result[1]):
                     self.matrix[idx][batch[1][0]:batch[1][1]] = row[:]
@@ -237,7 +239,7 @@ class SimilarityMatrix():
         """
         row = []
         if not use_matrix_index:
-            mid_idx = np.where(np.array(self.mids) == mid)
+            mid_idx = np.where(np.array(self.mids) == mid)[0][0]
         else:
             if mid >= 0:
                 mid_idx = mid

@@ -217,3 +217,33 @@ def merge_k_nearest_neighbor_dicts(fp_type_list, dicts):
                     else:
                         merged_dict[material][mid].update({fp_type:sim})
     return merged_dict
+
+class BatchIterator():
+    """
+    A iterator class for unsing large, memory consuming lists.
+    """
+
+    def __init__(self, value_list, batches, return_batch = True):
+        self.batches = batches
+        self.value_list = value_list
+        self._iter_index = 0
+        self.return_batch = return_batch
+
+    def __iter__(self):
+        self._iter_index = 0
+        return self
+
+    def __next__(self):
+        if self._iter_index >= len(self):
+            self._iter_index = 0
+            raise StopIteration
+        else:
+            batch = self.batches[self._iter_index]
+            self._iter_index += 1
+            if self.return_batch:
+                return (batch, self.value_list[batch[0][0]:batch[0][1]], self.value_list[batch[1][0]:batch[1][1]])
+            else:
+                return (self.value_list[batch[0][0]:batch[0][1]], self.value_list[batch[1][0]:batch[1][1]])
+
+    def __len__(self):
+        return len(self.batches)
