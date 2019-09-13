@@ -77,6 +77,26 @@ class SimilarityMatrix():
         self._clear_temporary_matrix()
         self.matrix.flush()
 
+    def _multiprocess_batch_files_similarity(self, fingerprint__fingerprint_list):
+        fp, fp_list = fingerprint__fingerprint_list
+        return fp.get_similarities(fp_list)
+
+    def _make_batch_file_name(self, batch, folder_name = 'all_DOS_simat'):
+        appendix = '_'.join([str(batch[0][0]), str(batch[0][1]),'_',str(batch[1][0]), str(batch[1][1])])
+        name = folder_name + '_' + appendix + '.npy'
+        return name
+
+    def calculate_batch_files(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 1000):
+        if not os.path.exists(folder_name):
+            os.mkdir(folder_name)
+        batches = self._create_batches(len(fingerprints), batch_size = batch_size)
+        batch_iterator = BatchIterator(fingerprints, batches)
+        for batch in batch_iterator:
+            with multiprocessing.Pool() as pool:
+                matrix = pool.map(self._multiprocess_batch_files_similarity, [(fp, batch[2]) for fp in batch[1]])
+            filename = batch_iterator.make_file_name(batch[0], folder_name = folder_name)
+            np.save(os.path.join(folder_name, filename), np.array(matrix, dtype = np.float32))
+
     def _create_batches(self, size, batch_size = 2):
         batch_list = []
         len_batched = int(size / batch_size)

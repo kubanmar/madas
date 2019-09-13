@@ -229,6 +229,11 @@ class BatchIterator():
         self._iter_index = 0
         self.return_batch = return_batch
 
+    def make_file_name(self, batch, folder_name = 'all_DOS_simat'):
+        appendix = '_'.join([str(batch[0][0]), str(batch[0][1]),'_',str(batch[1][0]), str(batch[1][1])])
+        name = folder_name + '_' + appendix + '.npy'
+        return name
+
     def __iter__(self):
         self._iter_index = 0
         return self
