@@ -223,16 +223,11 @@ class BatchIterator():
     A iterator class for unsing large, memory consuming lists.
     """
 
-    def __init__(self, value_list, batches, return_batch = True):
+    def __init__(self, value_list = [], batches = [], return_batch = True):
         self.batches = batches
         self.value_list = value_list
         self._iter_index = 0
         self.return_batch = return_batch
-
-    def make_file_name(self, batch, folder_name = 'all_DOS_simat'):
-        appendix = '_'.join([str(batch[0][0]), str(batch[0][1]),'_',str(batch[1][0]), str(batch[1][1])])
-        name = folder_name + '_' + appendix + '.npy'
-        return name
 
     def __iter__(self):
         self._iter_index = 0
@@ -252,3 +247,29 @@ class BatchIterator():
 
     def __len__(self):
         return len(self.batches)
+
+    @staticmethod
+    def make_file_name(batch, folder_name = 'all_DOS_simat'):
+        appendix = '_'.join([str(batch[0][0]), str(batch[0][1]),'_',str(batch[1][0]), str(batch[1][1])])
+        name = folder_name + '_' + appendix + '.npy'
+        return name
+
+    @staticmethod
+    def create_batches(size, batch_size = 2):
+        batch_list = []
+        len_batched = int(size / batch_size)
+        if len_batched * batch_size < size:
+            len_batched += 1
+        batch_x_list = []
+        batch_index = 0
+        for idx in range(len_batched):
+            if batch_index + batch_size > size:
+                batch_x_list.append([batch_index, size])
+                break
+            else:
+                batch_x_list.append([batch_index, batch_index + batch_size])
+                batch_index += batch_size
+        for idx, batch_x in enumerate(batch_x_list):
+            for batch_y in batch_x_list[idx:]:
+                batch_list.append([batch_x, batch_y])
+        return batch_list

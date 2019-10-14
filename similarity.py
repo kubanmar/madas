@@ -26,9 +26,10 @@ class SimilarityMatrix():
         * mids: list; default: None; Values for material ids for precomputed similarities.
     """
 
-    def __init__(self, matrix = [], mids = []):
+    def __init__(self, matrix = [], mids = [], batched = False):
         self.matrix = matrix
         self.mids = mids
+        self.batched = batched
         self._iter_index = 0
 
     def calculate(self, fingerprints, mids = [], multiprocess = True, print_to_screen = True):
@@ -86,7 +87,8 @@ class SimilarityMatrix():
         name = folder_name + '_' + appendix + '.npy'
         return name
 
-    def calculate_batch_files(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 1000):
+    def calculate_batch_files(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 10000):
+        self.batched = True
         if not os.path.exists(folder_name):
             os.mkdir(folder_name)
         batches = self._create_batches(len(fingerprints), batch_size = batch_size)
@@ -96,8 +98,9 @@ class SimilarityMatrix():
                 matrix = pool.map(self._multiprocess_batch_files_similarity, [(fp, batch[2]) for fp in batch[1]])
             filename = batch_iterator.make_file_name(batch[0], folder_name = folder_name)
             np.save(os.path.join(folder_name, filename), np.array(matrix, dtype = np.float32))
+        np.save(os.path.join(folder_name, folder_name + '_' + 'mid_list' + '.npy'), [fp.mid for fp in fingerprints])
 
-    def _create_batches(self, size, batch_size = 2):
+    def _create_batches(self, size, batch_size = 2): #TODO moved to utils.BatchIterator()
         batch_list = []
         len_batched = int(size / batch_size)
         if len_batched * batch_size < size:
@@ -265,6 +268,9 @@ class SimilarityMatrix():
                 mid_idx = mid
             else:
                 mid_idx = len(self) + mid
+        if self.batched:
+            row = self._get_row_from_batches(mid_idx)
+            return row
         if len(self.matrix.shape) == 2:
             if self.matrix.shape[0] == self.matrix.shape[1]:
                 return self.matrix[mid_idx]
@@ -278,6 +284,28 @@ class SimilarityMatrix():
             else:
                 row.append(self.matrix[idx][0])
         return row
+
+    def _get_row_from_batches(self, index):
+        row = []
+        for batch in self.batches:
+            if batch[0][0] <= index: #lower boundary
+                offset = batch[0][0]
+                if batch[0][1] > index: # requested row is in batch
+                    matrix_batch_name = BatchIterator().make_file_name(batch, folder_name = self.batch_folder_name)
+                    matrix_batch = np.load(os.path.join(self.batch_folder_name, matrix_batch_name))
+                    if batch[0] == batch[1]: # diagonal elements
+                        for idx, item in enumerate(matrix_batch[index - offset]):
+                            row.append([idx+offset, item])
+                    else: # off-diagonals
+                        for idx, item in enumerate(matrix_batch[index - offset]):
+                            row.append([idx+batch[1][0], item])
+                elif batch[0][1] <= index and batch[1][0] <= index and batch[1][1] > index: # vertical batches
+                    matrix_batch_name = BatchIterator().make_file_name(batch, folder_name = self.batch_folder_name)
+                    matrix_batch = np.load(os.path.join(self.batch_folder_name, matrix_batch_name))
+                    for idx, item in enumerate(np.transpose(matrix_batch)[index - offset]):
+                        row.append([idx+offset, item])
+        row.sort(key = lambda x: x[0])
+        return np.array([x[1] for x in row])
 
     def get_entries(self):
         """
@@ -325,14 +353,16 @@ class SimilarityMatrix():
         np.save(mids_path, self.mids)
 
     @staticmethod
-    def load(matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.', memory_mapped = False, **kwargs):
+    def load(matrix_filename = 'similarity_matrix.npy', mids_filename = 'similarity_matrix_mids.npy', data_path = '.', memory_mapped = False, batched = False, batch_size = 10000, **kwargs):
         """
-        Load SimilarityMatrix from csv file. Static method.
+        Load SimilarityMatrix from file. Static method.
         Kwargs:
             * matrix_filename: string; default: 'similarity_matrix.npy'; name of the matrix file
             * mids_filename: string; default: 'similarity_matrix_mids.npy'; name of the mids file
-            * data_path: string; default: '.'; relative path to created files
+            * data_path: string; default: '.'; relative path to created files OR folder name for batched matrix
             * memory_mapped: bool; default: False; toogle if matrix file is a memory mapped matrix generated with ``calculate_memmap()``
+            * batched: bool; default: False: toogle if matrix is calculated as batches of sub-matrices as calculated by ``calculate_batch_files()``
+            * batch_size: integer; default: 10000; number of rows in a matrix batch; only used if ``batched == True``
         Addition kwargs are passed to SimilarityMatrix().__init__().
         Returns:
             * SimilarityMatrix() object
@@ -343,6 +373,10 @@ class SimilarityMatrix():
         self.mids = np.load(mids_path)
         if memory_mapped:
             self.matrix = np.memmap(matrix_path, mode = 'r', shape = (len(self.mids),len(self.mids)), dtype=np.float32)
+        elif batched:
+            self.batch_folder_name = data_path
+            self.batches = BatchIterator().create_batches(len(self.mids), batch_size)
+            self.batched = True
         else:
             self.matrix = np.load(matrix_path)
         return self
