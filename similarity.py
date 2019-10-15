@@ -757,6 +757,53 @@ def batched_similarity_matrix_k_nearest_search(folder_name = 'all_DOS_simat', ba
         for mid, neighbours in nearest_neighbours.items():
             print(json.dumps({mid:neighbours}, cls = float32_to_json))
 
+def _nearest_neighbour_search_batch_row(args):
+    folder_name, k, remove_self, mids, row, index_offset = args
+    nearest_neighbours = {}
+    vertical = True # batches in batch_row start vertically
+    for batch in row:
+        if batch[0] == batch[1]: # and then become horizontal
+            vertical = False
+        file_name = BatchIterator().make_file_name(batch, folder_name = folder_name)
+        batch_matrix = np.load(os.path.join(folder_name, file_name))
+        if vertical:
+            offset = batch[0][0]
+            batch_matrix = np.transpose(batch_matrix)
+        else:
+            offset = batch[1][0]
+        for matrix_row_index, matrix_row in enumerate(batch_matrix):
+            mid = mids[matrix_row_index + index_offset]
+            mid_matrix_row = [[mids[mid_idx + offset], similarity] for mid_idx, similarity in enumerate(matrix_row)]
+            if remove_self:
+                if index_offset == offset:
+                    mid_matrix_row.remove([mid,1.0])
+            mid_matrix_row.sort(key = lambda x: x[1], reverse = True)
+            matrix_row_nearest = mid_matrix_row[:k]
+            if mid in nearest_neighbours:
+                for item in nearest_neighbours[mid]:
+                    matrix_row_nearest.append(item)
+                matrix_row_nearest.sort(key = lambda x: x[1], reverse = True)
+                matrix_row_nearest = matrix_row_nearest[:k]
+            nearest_neighbours[mid] = matrix_row_nearest
+    is_locked = False
+    while not is_locked:
+        is_locked = lock.acquire(timeout=1)
+        if not is_locked:
+            time.sleep(5)
+    for mid, neighbours in nearest_neighbours.items():
+        print(json.dumps({mid:neighbours}, cls = float32_to_json))
+    lock.release()
+
+def batched_similarity_matrix_k_nearest_search_multiprocess(folder_name = 'all_DOS_simat', batch_size = 10000, k = 10, remove_self = True):
+    global lock
+    lock = multiprocessing.Lock()
+    mids = np.load(os.path.join(folder_name, folder_name + '_mid_list.npy'))
+    batch_rows, index_offsets = BatchIterator().create_batch_rows(len(mids), batch_size)
+    arg_list = [(folder_name, k, remove_self, mids, row, index_offset) for row, index_offset in zip(batch_rows, index_offsets)]
+    with multiprocessing.Pool() as pool:
+        pool.map(_nearest_neighbour_search_batch_row, arg_list)
+    del lock
+
 def similarity_search(db, mid, fp_type, name = None, k = 10, **kwargs):
     """
     brute-force searches an MaterialsDatabase for k most similar materials and returns them as a list
