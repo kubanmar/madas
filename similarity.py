@@ -744,7 +744,7 @@ def batched_similarity_matrix_k_nearest_search(folder_name = 'all_DOS_simat', ba
                 mid = mids[matrix_row_index + index_offset]
                 mid_matrix_row = [[mids[mid_idx + offset], similarity] for mid_idx, similarity in enumerate(matrix_row)]
                 if remove_self:
-                    if index_offset == offset:
+                    if batch[0] == batch[1]:
                         mid_matrix_row.remove([mid,1.0])
                 mid_matrix_row.sort(key = lambda x: x[1], reverse = True)
                 matrix_row_nearest = mid_matrix_row[:k]
@@ -775,7 +775,7 @@ def _nearest_neighbour_search_batch_row(args):
             mid = mids[matrix_row_index + index_offset]
             mid_matrix_row = [[mids[mid_idx + offset], similarity] for mid_idx, similarity in enumerate(matrix_row)]
             if remove_self:
-                if index_offset == offset:
+                if batch[0] == batch[1]:
                     mid_matrix_row.remove([mid,1.0])
             mid_matrix_row.sort(key = lambda x: x[1], reverse = True)
             matrix_row_nearest = mid_matrix_row[:k]
