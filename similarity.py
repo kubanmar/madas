@@ -364,6 +364,7 @@ class SimilarityMatrix():
             * batched: bool; default: False: toogle if matrix is calculated as batches of sub-matrices as calculated by ``calculate_batch_files()``
             * batch_size: integer; default: 10000; number of rows in a matrix batch; only used if ``batched == True``
         Addition kwargs are passed to SimilarityMatrix().__init__().
+        WARNING! SimilarityMatrix() objects that are loaded with batched = True will not allow for all functionality.
         Returns:
             * SimilarityMatrix() object
         """
@@ -716,6 +717,45 @@ def get_orphans(neighbors_dict, group_member_list):
         if not mid in full_list:
             orphans[mid] = neighbors_dict[mid]
     return orphans
+
+class float32_to_json(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj,np.float32):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
+
+def batched_similarity_matrix_k_nearest_search(folder_name = 'all_DOS_simat', batch_size = 10000, k = 10, remove_self = True):
+    mids = np.load(os.path.join(folder_name, folder_name + '_mid_list.npy'))
+    batch_rows, index_offsets = BatchIterator().create_batch_rows(len(mids), batch_size)
+    for row, index_offset in zip(batch_rows, index_offsets):
+        nearest_neighbours = {}
+        vertical = True # batches in batch_row start vertically
+        for batch in row:
+            if batch[0] == batch[1]: # and then become horizontal
+                vertical = False
+            file_name = BatchIterator().make_file_name(batch, folder_name = folder_name)
+            batch_matrix = np.load(os.path.join(folder_name, file_name))
+            if vertical:
+                offset = batch[0][0]
+                batch_matrix = np.transpose(batch_matrix)
+            else:
+                offset = batch[1][0]
+            for matrix_row_index, matrix_row in enumerate(batch_matrix):
+                mid = mids[matrix_row_index + index_offset]
+                mid_matrix_row = [[mids[mid_idx + offset], similarity] for mid_idx, similarity in enumerate(matrix_row)]
+                if remove_self:
+                    if index_offset == offset:
+                        mid_matrix_row.remove([mid,1.0])
+                mid_matrix_row.sort(key = lambda x: x[1], reverse = True)
+                matrix_row_nearest = mid_matrix_row[:k]
+                if mid in nearest_neighbours:
+                    for item in nearest_neighbours[mid]:
+                        matrix_row_nearest.append(item)
+                    matrix_row_nearest.sort(key = lambda x: x[1], reverse = True)
+                    matrix_row_nearest = matrix_row_nearest[:k]
+                nearest_neighbours[mid] = matrix_row_nearest
+        for mid, neighbours in nearest_neighbours.items():
+            print(json.dumps({mid:neighbours}, cls = float32_to_json))
 
 def similarity_search(db, mid, fp_type, name = None, k = 10, **kwargs):
     """

@@ -273,3 +273,30 @@ class BatchIterator():
             for batch_y in batch_x_list[idx:]:
                 batch_list.append([batch_x, batch_y])
         return batch_list
+
+    @staticmethod
+    def create_batch_rows(size, batch_size = 2):
+        batch_row_list = []
+        index_offset_list = []
+        len_batched = int(size / batch_size)
+        if len_batched * batch_size < size:
+            len_batched += 1
+        batch_x_list = []
+        batch_index = 0
+        for idx in range(len_batched):
+            if batch_index + batch_size > size:
+                batch_x_list.append([batch_index, size])
+                break
+            else:
+                batch_x_list.append([batch_index, batch_index + batch_size])
+                batch_index += batch_size
+        for idx, x_batch in enumerate(batch_x_list):
+            batch_list = []
+            for jdx, y_batch in enumerate(batch_x_list):
+                if idx <= jdx:
+                    batch_list.append([x_batch, y_batch])
+                else:
+                    batch_list.append([y_batch, x_batch])
+            index_offset_list.append(x_batch[0])
+            batch_row_list.append(batch_list)
+        return batch_row_list, index_offset_list
