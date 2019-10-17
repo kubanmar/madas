@@ -152,11 +152,12 @@ class DBRowWrapper(dict):
     Kwargs:
         * atoms; ASE Atoms() object; default: None; Atoms object of the material
     """
-    def __init__(self, data, atoms = None):
+    def __init__(self, data, atoms = None, mid = None):
         self.__dict__.update(**data)
         self['data'] = {}
         self['data'].update(**data)
         self.atoms = atoms
+        self.mid = mid
 
     def toatoms(self):
         return self.atoms
