@@ -147,10 +147,16 @@ class Fingerprint():
 class DBRowWrapper(dict):
     """
     Wrapper class to imitate the bahavior of an ASE AtomsRow object, if no ASE database is used.
-    Arguments:
-    data: dict; key-value pairs of data
+    Args:
+        * data: dict; key-value pairs of data
+    Kwargs:
+        * atoms; ASE Atoms() object; default: None; Atoms object of the material
     """
-    def __init__(self, data):
+    def __init__(self, data, atoms = None):
         self.__dict__.update(**data)
         self['data'] = {}
         self['data'].update(**data)
+        self.atoms = atoms
+
+    def toatoms(self):
+        return self.atoms
