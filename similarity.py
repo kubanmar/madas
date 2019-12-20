@@ -283,7 +283,7 @@ class SimilarityMatrix():
                 row.append(self.matrix[mid_idx][idx-mid_idx])
             else:
                 row.append(self.matrix[idx][0])
-        return row
+        return np.array(row)
 
     def _get_row_from_batches(self, index):
         row = []
@@ -506,12 +506,12 @@ class SimilarityMatrix():
         return self
 
     def __next__(self):
-        if self._iter_index + 1 > len(self):
+        if self._iter_index > len(self):
             self._iter_index = 0
             raise StopIteration
         else:
             self._iter_index += 1
-            return self.get_row(self._iter_index, use_matrix_index = True)
+            return self.get_row(self._iter_index - 1, use_matrix_index = True)
 
     def __getitem__(self, key):
         if isinstance(key, str):

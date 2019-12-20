@@ -44,6 +44,15 @@ def linear_comb_dist_mat(matrices, weights = None):
     simat.mids = matrices[0].mids
     return simat
 
+def linear_comb_sim_mat(matrices, weights = None):
+    if weights == None:
+        weights = np.ones(len(matrices)) / len(matrices)
+    mat = sum([weight * simat.matrix for weight, simat in zip(weights, matrices)])
+    simat = SimilarityMatrix()
+    simat.matrix=mat
+    simat.mids = matrices[0].mids
+    return simat
+
 
 class SimiliarityKernelRegression(BaseEstimator, RegressorMixin):
 
@@ -304,7 +313,7 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
 
     def predict(self):
         kernel = self.kernel_function(self.prediction_matrices)
-        return np.dot(kernel.matrix, np.transpose(self.gammas))
+        return self.regressor.predict(kernel.matrix)#np.dot(kernel.matrix, np.transpose(self.gammas))
 
     @staticmethod
     def calculate_prediction_matrix(kernel_fingerprints, target_fingerprints):

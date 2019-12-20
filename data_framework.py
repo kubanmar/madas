@@ -161,6 +161,7 @@ class MaterialsDatabase():
         Additional kwargs are passed to SimilarityMatrix().calculate().
         """
         fps = self.get_fingerprints(fp_type)
+        fps = [fp for fp in fps if not fp == None]
         mids = [fp.mid for fp in fps]
         simat = SimilarityMatrix()
         simat.calculate(fps, mids = mids, **kwargs)
