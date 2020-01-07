@@ -1,12 +1,12 @@
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from functools import partial
 
 import numpy as np
 
-import multiprocessing, copy
+import multiprocessing, copy, random
 
 from similarity import SimilarityMatrix
 
@@ -308,8 +308,45 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
         self.regressor.fit(kernel.get_square_matrix(), y)
         self.gammas =  self.regressor.coef_
 
+    def fitCV(self, y, test_size = 0.1, repeat = 5, error_function = mean_absolute_error):
+        results = []
+        models = []
+        kernel = self.kernel_function(self.kernel_matrices)
+        if len(kernel) == len(kernel[-1]):
+            kernel = kernel.matrix
+        else:
+            kernel = kernel.get_square_matrix()
+        test_size = int(len(kernel) * test_size)
+        for idx in range(repeat):
+            train_set, cv_set, train_y, cv_y = self._split_kernel_cv(kernel, y, test_size)
+            self.regressor.fit(train_set, train_y)
+            error = error_function(cv_y, self.regressor.predict(cv_set))
+            models.append(copy.deepcopy(self.regressor))
+            results.append(error)
+        best = [results[0], models[0]]
+        for error, model in zip(results[1:], models[1:]):
+            if error < best[0]:
+                best = [error, model]
+        self.regressor = best[1]
+        return best[0]
+
+    def _split_kernel_cv(self, kernel, y, abs_test_size):
+        test_x = []
+        test_y = []
+        kernel = copy.deepcopy(kernel)
+        y = copy.deepcopy(y)
+        if isinstance(kernel, np.ndarray):
+            kernel = kernel.tolist()
+        if isinstance(y, np.ndarray):
+            y = y.tolist()
+        for idx in range(abs_test_size):
+            jdx = random.randint(0,len(kernel)-1)
+            test_x.append(kernel.pop(jdx))
+            test_y.append(y.pop(jdx))
+        return np.array(kernel), np.array(test_x), np.array(y), np.array(test_y)
+
     def predict_fit(self):
-        return np.dot(self.kernel_function(self.kernel_matrices).get_square_matrix(), np.transpose(self.gammas))
+        return self.regressor.predict(self.kernel_function(self.kernel_matrices).get_square_matrix())#np.dot(, np.transpose(self.gammas))
 
     def predict(self):
         kernel = self.kernel_function(self.prediction_matrices)
