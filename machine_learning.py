@@ -288,12 +288,11 @@ class MultiKernelRegression(BaseEstimator, RegressorMixin):
 
 class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
 
-    def __init__(self, kernel_function = linear_comb_dist_mat, kernel_parameters = {}, kernel_matrices = [], prediction_matrices = [], regressor = linear_model.Ridge, regressor_params = {'alpha':0,'fit_intercept':False, 'normalize':False}):
+    def __init__(self, kernel_function = linear_comb_dist_mat, kernel_parameters = {}, kernel_matrices = [], prediction_matrices = [], regressor = linear_model.Ridge, regressor_params = {'alpha':0,'fit_intercept':True, 'normalize':False}):
         self.set_kernel_matrices(kernel_matrices)
         self.set_prediction_matrices(prediction_matrices)
         self.kernel_function = partial(kernel_function, **kernel_parameters)
         self.regressor = regressor(**regressor_params)
-        self.gammas = []
 
     def set_kernel_matrices(self, kernel_matrices):
         self.kernel_matrices = kernel_matrices
@@ -306,13 +305,12 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
     def fit(self, y):
         kernel = self.kernel_function(self.kernel_matrices)
         self.regressor.fit(kernel.get_square_matrix(), y)
-        self.gammas =  self.regressor.coef_
 
     def fitCV(self, y, test_size = 0.1, repeat = 5, error_function = mean_absolute_error):
         results = []
         models = []
         kernel = self.kernel_function(self.kernel_matrices)
-        if len(kernel) == len(kernel[-1]):
+        if len(kernel.matrix) == len(kernel.matrix[-1]):
             kernel = kernel.matrix
         else:
             kernel = kernel.get_square_matrix()
@@ -325,7 +323,7 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
             results.append(error)
         best = [results[0], models[0]]
         for error, model in zip(results[1:], models[1:]):
-            if error < best[0]:
+            if np.mean(error) < np.mean(best[0]):
                 best = [error, model]
         self.regressor = best[1]
         return best[0]
