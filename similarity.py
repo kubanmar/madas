@@ -1,22 +1,14 @@
 import numpy as np
-import logging
+import pandas as pd
 import os, csv
 import multiprocessing
 import json
 import copy
-import math
 import matplotlib.pyplot as plt
 from functools import partial
 
 from fingerprint import Fingerprint
-from utils import report_error, BatchIterator
-
-def _calc_sim_multiprocess(fp1__fp2):
-    fp1 = fp1__fp2[0]
-    fp2 = fp1__fp2[1]
-    s =fp1.get_similarity(fp2)
-    return s
-
+from utils import report_error, BatchIterator, Float32ToJson
 
 class SimilarityMatrix():
     """
@@ -26,10 +18,9 @@ class SimilarityMatrix():
         * mids: list; default: None; Values for material ids for precomputed similarities.
     """
 
-    def __init__(self, matrix = [], mids = [], batched = False):
+    def __init__(self, matrix = [], mids = []):
         self.matrix = matrix
         self.mids = mids
-        self.batched = batched
         self._iter_index = 0
 
     def calculate(self, fingerprints, mids = [], multiprocess = True, print_to_screen = True):
@@ -50,90 +41,8 @@ class SimilarityMatrix():
         self.matrix = np.array(self.matrix)
         if self.matrix.shape[0] == 0:
             raise RuntimeError('Similarity matrix could not be generated.')
-        print('\nFinished SimilarityMatrix generation.\n')
-
-    def calculate_memmap(self, fingerprints, mids = [], multiprocess = True, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc'):
-        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
-        self.mids = mids
-        if multiprocess:
-            with multiprocessing.Pool() as p:
-                self.matrix[:] = p.map(partial(self._get_similarities_list_index, square_matrix = True), [(idx, fingerprints) for idx in range(len(fingerprints))])
-        else:
-            for idx, fp in enumerate(fingerprints):
-                matrix_row = []
-                for fp2 in fingerprints[idx:]:
-                    matrix_row.append(fp.get_similarity(fp2))
-                self.matrix[idx] = np.array(matrix_row)
-        np.save(mids_filename, self.mids)
-        self._clear_temporary_matrix()
-        self.matrix.flush()
-
-    def calculate_memmap_batch(self, fingerprints, mids, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc', batch_size = 10000):
-        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
-        for idx in range(len(self.matrix)):
-            self.matrix[idx][:] = (-1 * np.ones(len(fingerprints)))[:]
-        self.mids = mids
-        self._calculate_batch(fingerprints, batch_size = batch_size)
-        np.save(mids_filename, self.mids)
-        self._clear_temporary_matrix()
-        self.matrix.flush()
-
-    def _multiprocess_batch_files_similarity(self, fingerprint__fingerprint_list):
-        fp, fp_list = fingerprint__fingerprint_list
-        return fp.get_similarities(fp_list)
-
-    def _make_batch_file_name(self, batch, folder_name = 'all_DOS_simat'):
-        appendix = '_'.join([str(batch[0][0]), str(batch[0][1]),'_',str(batch[1][0]), str(batch[1][1])])
-        name = folder_name + '_' + appendix + '.npy'
-        return name
-
-    def calculate_batch_files(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 10000):
-        self.batched = True
-        if not os.path.exists(folder_name):
-            os.mkdir(folder_name)
-        batches = self._create_batches(len(fingerprints), batch_size = batch_size)
-        batch_iterator = BatchIterator(fingerprints, batches)
-        for batch in batch_iterator:
-            with multiprocessing.Pool() as pool:
-                matrix = pool.map(self._multiprocess_batch_files_similarity, [(fp, batch[2]) for fp in batch[1]])
-            filename = batch_iterator.make_file_name(batch[0], folder_name = folder_name)
-            np.save(os.path.join(folder_name, filename), np.array(matrix, dtype = np.float32))
-        np.save(os.path.join(folder_name, folder_name + '_' + 'mid_list' + '.npy'), [fp.mid for fp in fingerprints])
-
-    def _create_batches(self, size, batch_size = 2): #TODO moved to utils.BatchIterator()
-        batch_list = []
-        len_batched = int(size / batch_size)
-        if len_batched * batch_size < size:
-            len_batched += 1
-        batch_x_list = []
-        batch_index = 0
-        for idx in range(len_batched):
-            if batch_index + batch_size > size:
-                batch_x_list.append([batch_index, size])
-                break
-            else:
-                batch_x_list.append([batch_index, batch_index + batch_size])
-                batch_index += batch_size
-        for idx, batch_x in enumerate(batch_x_list):
-            for batch_y in batch_x_list[idx:]:
-                batch_list.append([batch_x, batch_y])
-        return batch_list
-
-    def _calculate_batch_elements(self, batched_list):
-        result = []
-        batch, list1, list2 = batched_list
-        for item in list1:
-            result.append(item.get_similarities(list2))
-        return batch, np.array(result)
-
-    def _calculate_batch(self, value_list, batch_size = 2):
-        batches = self._create_batches(len(value_list), batch_size = batch_size)
-        batch_iterator = BatchIterator(value_list, batches)
-        with multiprocessing.Pool() as p:
-            for result in p.imap(self._calculate_batch_elements, batch_iterator):
-                batch = result[0]
-                for idx, row in zip([x for x in range(batch[0][0], batch[0][1])], result[1]):
-                    self.matrix[idx][batch[1][0]:batch[1][1]] = row[:]
+        if print_to_screen:
+            print('\nFinished SimilarityMatrix generation.\n')
 
     def get_sorted_square_matrix(self, new_mid_list):
         """
@@ -601,92 +510,94 @@ class SimilarityMatrix():
         array_copy = np.delete(array_copy,to_delete_index)
         return array_copy
 
-class SimilarityDictCrawler():
+class OverlapSimilarityMatrix(SimilarityMatrix):
+    """
+    A SimilarityMatrix that is used to store only similarities between different sets of fingerprints.
+    """
 
-    def __init__(self, first_members, threshold = 0.9):
-        self.members = {}
-        for mid in first_members.keys():
-            self.members[mid] = first_members[mid]
-        self.threshold = threshold
+    def __init__(self, matrix = [], row_mids = [], column_mids = []):
+        self.matrix = matrix
+        self.row_mids = row_mids
+        self.column_mids = column_mids
+        self._iter_index = 0
 
-    def reduce_threshold(self, reduce_by = 0.05):
-        self.threshold -= reduce_by
-        return self.threshold
 
-    def expand(self, neighbors_dict, associates):
-        expanded = False
-        new_member = None
-        used_members = []
-        for group in associates:
-            used_members = used_members + group
-        for mid in self.members.keys():
-            for new_mid, similarity in self.members[mid]:
-                if float(similarity) >= self.threshold:
-                    candidate = new_mid
-                    if not candidate in self.members.keys() and not candidate in used_members:
-                        new_member = candidate
-                        expanded = True
-                        break
-        if new_member != None:
-            self.members[new_member] = neighbors_dict[new_member]
-        return expanded
+class BatchedSimilarityMatrix(SimilarityMatrix):
+    """
+    A SimilarityMatrix, with similarity values distributed in batches in different files.
+    Only recommended if RAM is too small to hold full matrix and CPU cache is too small to hold fingerprints.
+    """
 
-    def iterate(self, neighbors_dict, associates):
-        running = True
-        nsteps = 0
-        while running:
-            running = self.expand(neighbors_dict, associates)
-            nsteps += 1
-        return nsteps
+    def __init__(self, matrix = [], mids = []):
+        super().__init__(matrix = matrix, mids = mids)
 
-    def report(self):
-        return [x for x in self.members.keys()]
+    def calculate(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 10000):
+        if not os.path.exists(folder_name):
+            os.mkdir(folder_name)
+        batch_iterator = BatchIterator(fingerprints, batches)
+        batches = batch_iterator.create_batches(len(fingerprints), batch_size = batch_size)
+        for batch in batch_iterator:
+            with multiprocessing.Pool() as pool:
+                matrix = pool.map(self._multiprocess_batch_files_similarity, [(fp, batch[2]) for fp in batch[1]])
+            filename = batch_iterator.make_file_name(batch[0], folder_name = folder_name)
+            np.save(os.path.join(folder_name, filename), np.array(matrix, dtype = np.float32))
+        np.save(os.path.join(folder_name, folder_name + '_' + 'mid_list' + '.npy'), [fp.mid for fp in fingerprints])
 
-class DBSCANClusterer():
+    def _multiprocess_batch_files_similarity(self, fingerprint__fingerprint_list):
+        fp, fp_list = fingerprint__fingerprint_list
+        return fp.get_similarities(fp_list)
 
-    def __init__(self, distance_matrix = np.array(None), mid_list = np.array(None)):
-        from sklearn.cluster import DBSCAN
-        self.matrix = [] if distance_matrix.all() == None else distance_matrix
-        self.mids = [] if mid_list == None else mid_list
-        self.dbscan = DBSCAN(eps = 0.5, metric='precomputed', n_jobs=-1)
-        self.clusters = []
-        self.orphans = []
 
-    def set_threshold(self, threshold):
-        self.dbscan.set_params(eps = threshold)
+class MemoryMappedSimilarityMatrix(SimilarityMatrix):
+    """
+    A SimilarityMatrix, with similarity values stored on disk upon creation.
+    Only recommended if RAM is too small to hold full matrix.
+    """
 
-    def cluster(self, distance_matrix = None, mid_list = None):
-        if distance_matrix == None:
-            distance_matrix = self.matrix
-        if mid_list == None:
-            mid_list = self.mids
-        self.dbscan.fit(distance_matrix)
-        labels = self.dbscan.labels_
-        self.clusters = []
-        self.orphans = []
-        for label in np.unique(labels):
-            if label == -1:
-                self.orphans.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
-            self.clusters.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
-        return len(self.clusters)
+    def __init__(self, matrix = [], mids = []):
+        super().__init__(matrix = matrix, mids = mids)
 
-    def maximize_n_clusters(self, distance_matrix = None, mid_list = None):
-        return_list = []
-        for threshold in range(999,0,-1):
-            self.set_threshold(threshold/1000)
-            return_list.append([threshold/1000, self.cluster(distance_matrix, mid_list)])
-        return return_list
+    def calculate(self, fingerprints, mids = [], multiprocess = True, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc'):
+        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
+        self.mids = mids
+        if multiprocess:
+            with multiprocessing.Pool() as p:
+                self.matrix[:] = p.map(partial(self._get_similarities_list_index, square_matrix = True), [(idx, fingerprints) for idx in range(len(fingerprints))])
+        else:
+            for idx, fp in enumerate(fingerprints):
+                matrix_row = []
+                for fp2 in fingerprints[idx:]:
+                    matrix_row.append(fp.get_similarity(fp2))
+                self.matrix[idx] = np.array(matrix_row)
+        np.save(mids_filename, self.mids)
+        self._clear_temporary_matrix()
+        self.matrix.flush()
 
-    def optimize_clusters_interactive(self, distance_matrix = None, mid_list = None):
-        liste = self.maximize_n_clusters(distance_matrix, mid_list)
-        xs = [x[0] for x in liste]
-        ys = [x[1] for x in liste]
-        plt.plot(xs,ys)
-        plt.xlabel('Distance (1-similarity) threshold')
-        plt.ylabel('Number of clusters')
-        plt.show()
-        threshold = float(input('Enter threshold:'))
-        self.set_threshold(threshold)
+    def calculate_batched(self, fingerprints, mids, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc', batch_size = 10000):
+        self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
+        for idx in range(len(self.matrix)):
+            self.matrix[idx][:] = (-1 * np.ones(len(fingerprints)))[:]
+        self.mids = mids
+        self._calculate_batch(fingerprints, batch_size = batch_size)
+        np.save(mids_filename, self.mids)
+        self._clear_temporary_matrix()
+        self.matrix.flush()
+
+    def _calculate_batch_elements(self, batched_list):
+        result = []
+        batch, list1, list2 = batched_list
+        for item in list1:
+            result.append(item.get_similarities(list2))
+        return batch, np.array(result)
+
+    def _calculate_batch(self, value_list, batch_size = 2):
+        batch_iterator = BatchIterator(value_list, batches)
+        batches = batch_iterator.create_batches(len(value_list), batch_size = batch_size)
+        with multiprocessing.Pool() as p:
+            for result in p.imap(self._calculate_batch_elements, batch_iterator):
+                batch = result[0]
+                for idx, row in zip([x for x in range(batch[0][0], batch[0][1])], result[1]):
+                    self.matrix[idx][batch[1][0]:batch[1][1]] = row[:]
 
 class SimilarityFunctionScaling():
     """
@@ -718,11 +629,7 @@ def get_orphans(neighbors_dict, group_member_list):
             orphans[mid] = neighbors_dict[mid]
     return orphans
 
-class float32_to_json(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj,np.float32):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
+
 
 def batched_similarity_matrix_k_nearest_search(folder_name = 'all_DOS_simat', batch_size = 10000, k = 10, remove_self = True):
     mids = np.load(os.path.join(folder_name, folder_name + '_mid_list.npy'))
@@ -755,7 +662,7 @@ def batched_similarity_matrix_k_nearest_search(folder_name = 'all_DOS_simat', ba
                     matrix_row_nearest = matrix_row_nearest[:k]
                 nearest_neighbours[mid] = matrix_row_nearest
         for mid, neighbours in nearest_neighbours.items():
-            print(json.dumps({mid:neighbours}, cls = float32_to_json))
+            print(json.dumps({mid:neighbours}, cls = Float32ToJson))
 
 def _nearest_neighbour_search_batch_row(args):
     folder_name, k, remove_self, mids, row, index_offset = args
@@ -791,7 +698,7 @@ def _nearest_neighbour_search_batch_row(args):
         if not is_locked:
             time.sleep(5)
     for mid, neighbours in nearest_neighbours.items():
-        print(json.dumps({mid:neighbours}, cls = float32_to_json))
+        print(json.dumps({mid:neighbours}, cls = Float32ToJson))
     lock.release()
 
 def batched_similarity_matrix_k_nearest_search_multiprocess(folder_name = 'all_DOS_simat', batch_size = 10000, k = 10, remove_self = True):

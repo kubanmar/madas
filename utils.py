@@ -220,7 +220,7 @@ def merge_k_nearest_neighbor_dicts(fp_type_list, dicts):
 
 class BatchIterator():
     """
-    A iterator class for unsing large, memory consuming lists.
+    A iterator class for using large, memory consuming lists.
     """
 
     def __init__(self, value_list = [], batches = [], return_batch = True):
@@ -300,3 +300,9 @@ class BatchIterator():
             index_offset_list.append(x_batch[0])
             batch_row_list.append(batch_list)
         return batch_row_list, index_offset_list
+
+class Float32ToJson(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj,np.float32):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
