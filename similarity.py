@@ -138,7 +138,7 @@ class SimilarityMatrix():
             * SimilarityMatrix() object with distances
         """
         distance_matrix = SimilarityMatrix()
-        distance_matrix.matrix = 1 - self.get_square_matrix()
+        distance_matrix.matrix = 1 - self.get_symmetric_matrix()
         distance_matrix.mids = self.mids
         return distance_matrix
 
@@ -158,7 +158,7 @@ class SimilarityMatrix():
         else:
             return self.matrix[idx2][idx1-idx2]
 
-    def get_symmertric_matrix(self):
+    def get_symmetric_matrix(self):
         """
         Get square matrix form. Transfers the internally stored triangular matrix to a (symmetric) square matrix.
         Returns:
@@ -174,7 +174,7 @@ class SimilarityMatrix():
         return np.array(symmetric_matrix)
 
     def get_square_matrix(self): #dowmward compatibility
-        return self.get_symmertric_matrix()
+        return self.get_symmetric_matrix()
 
     @staticmethod
     def triangular_from_square_matrix(matrix):
@@ -484,26 +484,129 @@ class SimilarityMatrix():
 
 class OverlapSimilarityMatrix(SimilarityMatrix):
     """
-    A SimilarityMatrix that is used to store only similarities between different sets of fingerprints.
+    A SimilarityMatrix that is used to store similarities between different sets of fingerprints.
     """
 
     def __init__(self, matrix = [], row_mids = [], column_mids = []):
         self.matrix = matrix
-        self.row_mids = row_mids
-        self.column_mids = column_mids
-        self._iter_index = 0
+        self.row_mids = row_mids if not isinstance(row_mids, np.ndarray) else row_mids.tolist()
+        self.column_mids = column_mids if not isinstance(column_mids, np.ndarray) else column_mids.tolist()
         self.fp_type = None
         self.fp_name = None
+        self._iter_index = 0
 
     def get_entries(self):
+        """
+        Get all entries of the matrix.
+        Returns:
+            * entries: numpy.ndarray; all entries of the matrix in a (N*M, 1)-dim list
+        """
         return np.array(self.matrix).flatten()
 
-    def get_row(self, *args, **kwargs):
-        raise NotImplementedError()
+    def get_row(self, mid, use_matrix_index = False):
+        """
+        Get a row of the matrix.
+        Args:
+            * mid: str; material id of the row
+        Kwargs:
+            * use_matrix_index: bool; default: False; use index of mid in self.row_mids instead of giving mid explicitly
+        """
+        if use_matrix_index:
+            matrix_index = mid
+        else:
+            matrix_index = self.row_mids.index(mid)
+        return self.matrix[matrix_index]
 
-    def get_column(self, *args, **kwargs):
-        raise NotImplementedError()
+    def get_column(self, mid, use_matrix_index = False):
+        """
+        Get a column of the matrix.
+        Args:
+            * mid: str; material id of the column
+        Kwargs:
+            * use_matrix_index: bool; default: False; use index of mid in self.column_mids instead of giving mid explicitly
+        """
+        if use_matrix_index:
+            matrix_index = mid
+        else:
+            matrix_index = self.column_mids.index(mid)
+        return [row[matrix_index] for row in self.matrix]
 
+    def get_sorted_square_matrix(self):
+        """
+        Not implemented for OverlapSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("OverlapSimilarityMatrix() does not support square matrices.")
+
+    def get_symmetric_matrix(self):
+        """
+        Not implemented for OverlapSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("OverlapSimilarityMatrix() does not support symmetric matrices.")
+
+    def get_data_frame(self):
+        """
+        Get matrix in form of a ``pandas`` ``DataFrame`` object.
+        Returns:
+            * frame: pandas.DataFrame() object; columns = column_mids, index = row_mids
+        """
+        frame = pd.DataFrame(data = self.matrix, columns = self.column_mids, index = self.row_mids)
+        return frame
+
+    def get_sub_matrix(self, row_mid_list, column_mid_list, copy = True):
+        """
+        Get sub matrix.
+        Args:
+            * column_mid_list: list of strings; list of mids of materials in matrix column to include in sub matrix
+            * row_mid_list: list of strings; list of mids of materials in matrix row to include in sub matrix
+        Kwargs:
+            * copy: bool; default: True; Return a new similarity matrix. If set to False, apply changes to ``self``.
+        Returns:
+            * ``OverlapSimilarityMatrix()`` object of sub matrix if ``copy == True``
+            * ``self`` restricted to, and sorted by, elements in ``mid_list``
+        """
+        frame = self.get_data_frame()
+        frame = frame[column_mid_list]
+        frame = frame.transpose()
+        frame = frame[row_mid_list]
+        frame = frame.transpose()
+        if copy:
+            return OverlapSimilarityMatrix(matrix = frame.values, column_mids = column_mid_list, row_mids = row_mid_list)
+        else:
+            self.matrix = frame.values
+            self.column_mids = column_mid_list
+            self.row_mids = row_mid_list
+            return self
+
+    def get_full_matrix(self):
+        """
+        Get full matrix.
+        Returns:
+            self.matrix; np.ndarray; Matrix of similarites
+        """
+        return np.array(self.matrix)
+
+    def get_complement(self):
+        """
+        Get the complement of the matrix, i.e. 1 - S_ij for each i,j in the data set.
+        Returns:
+            * OverlapSimilarityMatrix(); matrix object with complement of self.matrix as matrix
+        """
+        return OverlapSimilarityMatrix(matrix = 1 - self.get_full_matrix(), row_mids = self.row_mids, column_mids = self.column_mids)
+
+    def get_entry(self, row_mid, column_mid):
+        """
+        Get a single entry of the matrix.
+        Args:
+            * row_mid: str; material id of the material in the row of the matrix
+            * column_mid: str; material id of the material in the column of the matrix
+        Returns:
+            * similarity: float; similarity between both materials
+        """
+        return self.matrix[self.row_mids.index(row_mid)][self.column_mids.index(column_mid)]
 
 class BatchedSimilarityMatrix(SimilarityMatrix):
     """
@@ -553,6 +656,38 @@ class BatchedSimilarityMatrix(SimilarityMatrix):
 
     def save_csv(self, *args, **kwargs):
         raise NotImplementedError('Saving is not supported.')
+
+    def get_symmetric_matrix(self):
+        """
+        Not implemented for BatchedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_entries(self):
+        """
+        Not implemented for BatchedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_data_frame(self):
+        """
+        Not implemented for BatchedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_sub_matrix(self, *args):
+        """
+        Not implemented (yet).
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to implementation time constraints.")
 
     def _get_row_from_batches(self, index):
         row = []
@@ -647,6 +782,38 @@ class MemoryMappedSimilarityMatrix(SimilarityMatrix):
     def save_csv(self, *args, **kwargs):
         raise NotImplementedError('Saving as csv is not supported.')
 
+    def get_symmetric_matrix(self):
+        """
+        Not implemented for MemoryMappedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_entries(self):
+        """
+        Not implemented for MemoryMappedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_data_frame(self):
+        """
+        Not implemented for MemoryMappedSimilarityMatrix().
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to memory constraints.")
+
+    def get_sub_matrix(self, *args):
+        """
+        Not implemented (yet).
+        Raises:
+            * NotImplementedError: upon function call
+        """
+        raise NotImplementedError("Not supported due to implementation time constraints.")
+
     def _calculate_batch_elements(self, batched_list):
         result = []
         batch, list1, list2 = batched_list
@@ -678,8 +845,6 @@ class MemoryMappedSimilarityMatrix(SimilarityMatrix):
 
     def __mul__(self, simat):
         raise NotImplementedError("Multiplication is not implemented for memory-mapped matrices.")
-
-
 
 class SimilarityFunctionScaling():
     """
