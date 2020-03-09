@@ -24,6 +24,9 @@ def report_error(logger, error_message):
     else:
         print(error_message)
 
+def plot_minmax(target):
+    plt.plot([min(target), max(target)],[min(target), max(target)],'--')
+
 def plot_FP_in_grid(byte_fingerprint, grid, show_grid = True, show = True, label = '', axes = None, **kwargs):
     x=[]
     y=[]

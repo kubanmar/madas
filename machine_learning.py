@@ -306,7 +306,63 @@ class MatrixMultiKernelLearning(BaseEstimator, RegressorMixin):
         kernel = self.kernel_function(self.kernel_matrices)
         self.regressor.fit(kernel.get_square_matrix(), y)
 
+    def fit_weighs(self, y, weight_list, k = 5, regressor_params = {'alpha':0}, error_function = mean_absolute_error):
+        weight_cvs = []
+        self.regressor.set_params(**regressor_params)
+        n_samples_per_fold = int(len(y) / k)
+        sample_indices = list(range(len(y)))
+        indices_folds = []
+        for k_index in range(k-1):
+            in_fold = []
+            for _ in range(n_samples_per_fold):
+                in_fold.append(sample_indices.pop(random.randint(0,len(sample_indices)-1)))
+            indices_folds.append(sorted(in_fold, reverse = True))
+        indices_folds.append(sorted(sample_indices, reverse = True))
+        for weights in weight_list:
+            kernel = self.kernel_function(self.kernel_matrices, weights = weights).get_square_matrix()
+            cvs = []
+            train_errors = []
+            for k_index in range(k):
+                cv_kernel = copy.deepcopy(kernel).tolist()
+                cv_targets = list(copy.deepcopy(y))
+                cv_set = [cv_kernel.pop(sample_index) for sample_index in indices_folds[k_index]]
+                cv_test = [cv_targets.pop(sample_index) for sample_index in indices_folds[k_index]]
+                self.regressor.fit(cv_kernel, cv_targets)
+                cvs.append(error_function(self.regressor.predict(cv_set), cv_test))
+                train_errors.append(error_function(self.regressor.predict(cv_kernel), cv_targets))
+            weight_cvs.append([weights, np.mean(cvs), max(cvs), np.mean(train_errors), max(train_errors)])
+        return weight_cvs
+
+    def fit_params(self, y, weight_list, k = 5, alpha_range = [-8,-20], error_function = mean_absolute_error):
+        alphas = np.logspace(alpha_range[0],alpha_range[1], num = abs(sum(alpha_range))+1)
+        params_cvs = [] #output
+        n_samples_per_fold = int(len(y) / k)
+        sample_indices = list(range(len(y)))
+        indices_folds = []
+        for k_index in range(k-1):
+            in_fold = []
+            for _ in range(n_samples_per_fold):
+                in_fold.append(sample_indices.pop(random.randint(0,len(sample_indices)-1)))
+            indices_folds.append(sorted(in_fold, reverse = True))
+        indices_folds.append(sorted(sample_indices, reverse = True))
+        for weights in weight_list:
+            for alpha in alphas:
+                kernel = self.kernel_function(self.kernel_matrices, weights = weights).get_square_matrix()
+                self.regressor.set_params(alpha = alpha)
+                cvs = []
+                for k_index in range(k):
+                    cv_kernel = copy.deepcopy(kernel).tolist()
+                    cv_targets = list(copy.deepcopy(y))
+                    cv_set = [cv_kernel.pop(sample_index) for sample_index in indices_folds[k_index]]
+                    cv_test = [cv_targets.pop(sample_index) for sample_index in indices_folds[k_index]]
+                    self.regressor.fit(cv_kernel, cv_targets)
+                    cvs.append(error_function(self.regressor.predict(cv_set), cv_test))
+                params_cvs.append([weights, alpha, np.mean(cvs), max(cvs)])
+        return params_cvs
+
+
     def fitCV(self, y, test_size = 0.1, repeat = 5, error_function = mean_absolute_error):
+        raise ValueError('Returns wrong values.')
         results = []
         models = []
         kernel = self.kernel_function(self.kernel_matrices)
