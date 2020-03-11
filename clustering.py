@@ -153,3 +153,90 @@ class DatabaseCrawler():
     @staticmethod
     def _gen_hash(string):
         return hash(string).to_bytes(20, 'little', signed = True).hex()
+
+class SimilarityDictCrawler():
+
+    def __init__(self, first_members, threshold = 0.9):
+        self.members = {}
+        for mid in first_members.keys():
+            self.members[mid] = first_members[mid]
+        self.threshold = threshold
+
+    def reduce_threshold(self, reduce_by = 0.05):
+        self.threshold -= reduce_by
+        return self.threshold
+
+    def expand(self, neighbors_dict, associates):
+        expanded = False
+        new_member = None
+        used_members = []
+        for group in associates:
+            used_members = used_members + group
+        for mid in self.members.keys():
+            for new_mid, similarity in self.members[mid]:
+                if float(similarity) >= self.threshold:
+                    candidate = new_mid
+                    if not candidate in self.members.keys() and not candidate in used_members:
+                        new_member = candidate
+                        expanded = True
+                        break
+        if new_member != None:
+            self.members[new_member] = neighbors_dict[new_member]
+        return expanded
+
+    def iterate(self, neighbors_dict, associates):
+        running = True
+        nsteps = 0
+        while running:
+            running = self.expand(neighbors_dict, associates)
+            nsteps += 1
+        return nsteps
+
+    def report(self):
+        return [x for x in self.members.keys()]
+
+class DBSCANClusterer():
+
+    def __init__(self, distance_matrix = np.array(None), mid_list = np.array(None)):
+        from sklearn.cluster import DBSCAN
+        self.matrix = [] if distance_matrix.all() == None else distance_matrix
+        self.mids = [] if mid_list == None else mid_list
+        self.dbscan = DBSCAN(eps = 0.5, metric='precomputed', n_jobs=-1)
+        self.clusters = []
+        self.orphans = []
+
+    def set_threshold(self, threshold):
+        self.dbscan.set_params(eps = threshold)
+
+    def cluster(self, distance_matrix = None, mid_list = None):
+        if distance_matrix == None:
+            distance_matrix = self.matrix
+        if mid_list == None:
+            mid_list = self.mids
+        self.dbscan.fit(distance_matrix)
+        labels = self.dbscan.labels_
+        self.clusters = []
+        self.orphans = []
+        for label in np.unique(labels):
+            if label == -1:
+                self.orphans.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
+            self.clusters.append([mid for index, mid in enumerate(mid_list) if labels[index] == label])
+        return len(self.clusters)
+
+    def maximize_n_clusters(self, distance_matrix = None, mid_list = None):
+        return_list = []
+        for threshold in range(999,0,-1):
+            self.set_threshold(threshold/1000)
+            return_list.append([threshold/1000, self.cluster(distance_matrix, mid_list)])
+        return return_list
+
+    def optimize_clusters_interactive(self, distance_matrix = None, mid_list = None):
+        liste = self.maximize_n_clusters(distance_matrix, mid_list)
+        xs = [x[0] for x in liste]
+        ys = [x[1] for x in liste]
+        plt.plot(xs,ys)
+        plt.xlabel('Distance (1-similarity) threshold')
+        plt.ylabel('Number of clusters')
+        plt.show()
+        threshold = float(input('Enter threshold:'))
+        self.set_threshold(threshold)
