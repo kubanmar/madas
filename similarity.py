@@ -295,6 +295,7 @@ class SimilarityMatrix():
             mids_path = os.path.join(data_path, mids_filename)
         if memory_mapped:
             self = MemoryMappedSimilarityMatrix(**kwargs)
+            self.mids = np.load(mids_path).tolist()
             self.matrix = np.memmap(matrix_path, mode = 'r', shape = (len(self.mids),len(self.mids)), dtype=np.float32)
         elif batched:
             self = BatchedSimilarityMatrix(**kwargs)
@@ -892,6 +893,7 @@ class MemoryMappedSimilarityMatrix(SimilarityMatrix):
         np.save(mids_filename, self.mids)
         self._clear_temporary_matrix()
         self.matrix.flush()
+        return self
 
     def calculate_batched(self, fingerprints, mids, mapped_filename = 'data/mapped_similarity_matrix.pyc', mids_filename = 'data/mapped_similarity_matrix_mids.pyc', batch_size = 10000):
         self.matrix = np.memmap(mapped_filename, mode = 'w+', shape=(len(fingerprints),len(fingerprints)), dtype=np.float32)
