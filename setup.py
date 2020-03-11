@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="similarity_data_framework",
+    name="SimilarityDataFramework",
     version="0.8",
     author="Martin Kuban",
     author_email="kuban@physik.hu-berlin.de",
@@ -12,5 +12,5 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://git.physik.hu-berlin.de/kuban/similarity-data-framework",
-    packages=setuptools.find_packages()
+    packages=['simdatframe']
 )
