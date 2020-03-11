@@ -163,6 +163,10 @@ class MaterialsDatabase():
         fps = self.get_fingerprints(fp_type)
         fps = [fp for fp in fps if not fp == None]
         mids = [fp.mid for fp in fps]
+        if len(fps) < 1:
+            self.log.error('No fingerprints loaded (not generated?).')
+            raise ValueError('No fingerprints fitting criteria.')
+            return None
         simat = SimilarityMatrix()
         simat.calculate(fps, mids = mids, **kwargs)
         return simat

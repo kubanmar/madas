@@ -98,7 +98,7 @@ class SimilarityMatrix():
             self.mids = mid_list
             return self
 
-    def get_overlap_matrix(self, row_mids, column_mids):
+    def get_overlap_matrix(self, column_mids, row_mids):
         """
         Get OverlapSimilarityMatrix() from matrix.
         Args:
@@ -110,7 +110,7 @@ class SimilarityMatrix():
         frame = frame.transpose()
         frame = frame[row_mids]
         frame = frame.transpose()
-        simat =  OverlapSimilarityMatrix(matrix = overlap_dataframe.values, row_mids = row_mids, column_mids = column_mids)
+        simat =  OverlapSimilarityMatrix(matrix = frame.values, row_mids = row_mids, column_mids = column_mids)
         simat.fp_type = self.fp_type
         simat.fp_name = self.fp_name
         return simat
@@ -127,9 +127,13 @@ class SimilarityMatrix():
             * None
         Warning! Entries in both matrices will be altered, i.e. unique entries in each matrix will be dropped.
         """
-        shared_mids = [mid for mid in self.mids if np.array([mid in matrix.mids for matrix in matrices])]
+        if isinstance(matrices, (list, np.ndarray)):
+            shared_mids = [mid for mid in self.mids if np.array([mid in matrix.mids for matrix in matrices]).all()]
+            new_matrices = [matrix.get_sub_matrix(shared_mids, copy = False) for matrix in matrices]
+        else:
+            shared_mids = [mid for mid in self.mids if mid in matrices.mids]
+            new_matrices = matrices.get_sub_matrix(shared_mids, copy = False)
         new_self = self.get_sub_matrix(shared_mids, copy = False)
-        new_matrices = [matrix.get_sub_matrix(shared_mids, copy = False) for matrix in matrices]
 
     def get_complement(self):
         """
@@ -271,7 +275,7 @@ class SimilarityMatrix():
             np.save(mids_path, self.mids)
 
     @staticmethod
-    def load(matrix_filename = 'similarity_matrix.npy', mids_filename = None, data_path = '.', memory_mapped = False, batched = False, batch_size = 10000, **kwargs):
+    def load(matrix_filename = 'similarity_matrix.npy', mids_filename = None, data_path = '.', memory_mapped = False, batched = False, batch_size = 10000, batch_folder_name = 'full_DOS_simat', **kwargs):
         """
         Load SimilarityMatrix from file. Static method.
         Kwargs:
@@ -294,7 +298,9 @@ class SimilarityMatrix():
             self.matrix = np.memmap(matrix_path, mode = 'r', shape = (len(self.mids),len(self.mids)), dtype=np.float32)
         elif batched:
             self = BatchedSimilarityMatrix(**kwargs)
-            self.batch_folder_name = data_path
+            self.mids = np.load(os.path.join(data_path, batch_folder_name, batch_folder_name + '_' + 'mid_list' + '.npy')).tolist()
+            self.batch_folder_name = batch_folder_name
+            self.data_path = data_path
             self.batches = BatchIterator().create_batches(len(self.mids), batch_size)
             self.batched = True
         else:
@@ -468,6 +474,14 @@ class SimilarityMatrix():
         new_matrix = np.array(new_matrix)
         return SimilarityMatrix(matrix = new_matrix, mids = self.mids)
 
+    def __eq__(self, simat):
+        if sorted(self.mids) != sorted(simat.mids):
+            return False
+        if self.mids == simat.mids:
+            return (self.get_entries() == simat.get_entries()).all()
+        else:
+            return (self.get_entries() == simat.get_sub_matrix(self.mids).get_entries()).all()
+
     def _check_matrix_alignment(self, simat):
         if not sorted(self.mids) == sorted(simat.mids):
             raise ValueError("Mids of matrices do not coincide. Use SimilarityMatrix().align().")
@@ -494,6 +508,41 @@ class OverlapSimilarityMatrix(SimilarityMatrix):
         self.fp_type = None
         self.fp_name = None
         self._iter_index = 0
+
+    def calculate(self, fingerprints, reference_fingerprints, mids = [], reference_mids = []):
+        """
+        Calculate similarity of fingerprints to given reference fingerprints.
+        Args:
+            * fingerprints: list of Fingerpint() objects; fingerprints, that correspond to rows of the matrix
+            * reference_fingerprints: list of Fingerpint() objects; fingerprints, that correspond to columns of the matrix
+        Kwargs:
+            * mids: list of str; Material identifier for the rows of the matrix
+            * reference_mids: list of str; Material identifier for the columns of the matrix
+        If possible, mids and reference_mids are taken directly from the Fingerprint objects.
+        Returns:
+            * self: OverlapSimilarityMatrix(); fully calculated matrix object
+        """
+        try:
+            with multiprocessing.Pool() as p:
+                matrix = p.map(self._calc_simimilarities_multiprocess, [(fingerprints, reference_fingerprints, idx) for idx in range(len(fingerprints))])
+        except TypeError as e: #Fingerprints are not parallelizable
+            report_error(None, "Parallel computing not possible, calculating matrix seriell.")
+            report_error(None, str(e))
+            matrix = []
+            for fingerprint in fingerprints:
+                matrix.append(fingerprint.get_similarities(reference_fingerprints))
+        self.matrix = np.array([np.array(row) for row in matrix])
+        try:
+            self.row_mids = [fp.mid for fp in fingerprints]
+            self.column_mids = [fp.mid for fp in reference_fingerprints]
+            self.fp_type = fingerprints[0].fp_type
+            self.fp_name = fingerprints[0].name
+        except AttributeError as e:
+            report_error(None, "An error occured, but was caught: ")
+            report_error(None, str(e))
+            self.row_mids = mids
+            self.column_mids = reference_mids
+        return self
 
     def get_entries(self):
         """
@@ -608,6 +657,86 @@ class OverlapSimilarityMatrix(SimilarityMatrix):
         """
         return self.matrix[self.row_mids.index(row_mid)][self.column_mids.index(column_mid)]
 
+    def transpose(self):
+        column_mids = copy.deepcopy(self.column_mids)
+        row_mids = copy.deepcopy(self.row_mids)
+        self.row_mids = column_mids
+        self.column_mids = row_mids
+        self.matrix = np.transpose(self.matrix)
+
+    def _calc_simimilarities_multiprocess(self, tfp__kfp__idx):
+        target_fingerprints, kernel_fingerprints, idx = tfp__kfp__idx
+        fps = target_fingerprints[idx].get_similarities(kernel_fingerprints)
+        return fps
+
+    def align(self, matrices):
+        """
+        Align the materials in this matrix and all provided matrices.
+        Args:
+            * matrices: SimilarityMatrix() or list of SimilarityMatrix(); matrix object(s) to align with
+        Returns:
+            * None
+        Warning! Entries in both matrices will be altered, i.e. unique entries in each matrix will be dropped.
+        """
+        if isinstance(matrices, (list, np.ndarray)):
+            shared_row_mids = [mid for mid in self.row_mids if np.array([mid in matrix.row_mids for matrix in matrices]).all()]
+            shared_column_mids = [mid for mid in self.column_mids if np.array([mid in matrix.column_mids for matrix in matrices]).all()]
+            new_matrices = [matrix.get_sub_matrix(shared_row_mids, shared_column_mids, copy = False) for matrix in matrices]
+        else:
+            shared_row_mids = [mid for mid in self.row_mids if mid in matrices.row_mids]
+            shared_column_mids = [mid for mid in self.column_mids if mid in matrices.column_mids]
+            new_matrices = matrices.get_sub_matrix(shared_row_mids, shared_column_mids, copy = False)
+        new_self = self.get_sub_matrix(shared_row_mids, shared_column_mids, copy = False)
+
+    def _check_matrix_alignment(self, simat):
+        if self.column_mids == simat.column_mids and self.row_mids == simat.row_mids:
+            return True
+        return False
+
+    def __add__(self, simat):
+        if isinstance(simat, OverlapSimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Use ``align()`` method.")
+                return None
+            matrix = self.matrix + simat.matrix
+        elif np.isscalar(simat):
+            matrix = simat + self.matrix
+        else:
+            raise TypeError("Unknown variable type.")
+        return OverlapSimilarityMatrix(matrix, row_mids = self.row_mids, column_mids = self.column_mids)
+
+    def __sub__(self, simat):
+        if isinstance(simat, OverlapSimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Use ``align()`` method.")
+                return None
+            matrix = self.matrix - simat.matrix
+        elif np.isscalar(simat):
+            matrix = simat - self.matrix
+        else:
+            raise TypeError("Unknown variable type.")
+        return OverlapSimilarityMatrix(matrix, row_mids = self.row_mids, column_mids = self.column_mids)
+
+    def __mul__(self, simat):
+        if isinstance(simat, OverlapSimilarityMatrix):
+            if not self._check_matrix_alignment(simat):
+                raise IndexError("Matrices not aligned. Use ``align()`` method.")
+                return None
+            matrix = self.matrix * simat.matrix
+        elif np.isscalar(simat):
+            matrix = simat * self.matrix
+        else:
+            raise TypeError("Unknown variable type.")
+        return OverlapSimilarityMatrix(matrix, row_mids = self.row_mids, column_mids = self.column_mids)
+
+    def __eq__(self, simat):
+        if not sorted(self.column_mids) == sorted(simat.column_mids) or not sorted(self.row_mids) == sorted(simat.row_mids):
+            return False
+        if self.column_mids == simat.column_mids and self.row_mids == simat.row_mids:
+            return (self.get_entries() == simat.get_entries()).all()
+        else:
+            return (self.get_entries() == simat.get_sub_matrix(self.row_mids, self.column_mids).get_entries()).all()
+
 class BatchedSimilarityMatrix(SimilarityMatrix):
     """
     A SimilarityMatrix, with similarity values distributed in batches in different files. Reduced functionality.
@@ -617,20 +746,24 @@ class BatchedSimilarityMatrix(SimilarityMatrix):
     def __init__(self, matrix = [], mids = []):
         super().__init__(matrix = matrix, mids = mids)
 
-    def calculate(self, fingerprints, folder_name = 'all_DOS_simat', batch_size = 10000):
+    def calculate(self, fingerprints, folder_name = 'all_DOS_simat', data_path = '.', batch_size = 10000):
         self.fp_type = fingerprints[0].fp_type
         self.fp_name = fingerprints[0].name
         if not os.path.exists(folder_name):
             os.mkdir(folder_name)
+        batches = BatchIterator().create_batches(len(fingerprints), batch_size = batch_size)
+        self.batches = batches
+        self.batch_folder_name = folder_name
+        self.data_path = data_path
         batch_iterator = BatchIterator(fingerprints, batches)
-        batches = batch_iterator.create_batches(len(fingerprints), batch_size = batch_size)
         for batch in batch_iterator:
             with multiprocessing.Pool() as pool:
                 matrix = pool.map(self._multiprocess_batch_files_similarity, [(fp, batch[2]) for fp in batch[1]])
             filename = batch_iterator.make_file_name(batch[0], folder_name = folder_name)
-            np.save(os.path.join(folder_name, filename), np.array(matrix, dtype = np.float32))
+            np.save(os.path.join(data_path, folder_name, filename), np.array(matrix, dtype = np.float32))
         self.mids = [fp.mid for fp in fingerprints]
-        np.save(os.path.join(folder_name, folder_name + '_' + 'mid_list' + '.npy'), self.mids)
+        np.save(os.path.join(data_path, folder_name, folder_name + '_' + 'mid_list' + '.npy'), self.mids)
+        return self
 
     def get_row(self, mid, use_matrix_index = False):
         """
@@ -696,7 +829,7 @@ class BatchedSimilarityMatrix(SimilarityMatrix):
                 offset = batch[0][0]
                 if batch[0][1] > index: # requested row is in batch
                     matrix_batch_name = BatchIterator().make_file_name(batch, folder_name = self.batch_folder_name)
-                    matrix_batch = np.load(os.path.join(self.batch_folder_name, matrix_batch_name))
+                    matrix_batch = np.load(os.path.join(self.data_path, self.batch_folder_name, matrix_batch_name))
                     if batch[0] == batch[1]: # diagonal elements
                         for idx, item in enumerate(matrix_batch[index - offset]):
                             row.append([idx+offset, item])
@@ -705,7 +838,7 @@ class BatchedSimilarityMatrix(SimilarityMatrix):
                             row.append([idx+batch[1][0], item])
                 elif batch[0][1] <= index and batch[1][0] <= index and batch[1][1] > index: # vertical batches
                     matrix_batch_name = BatchIterator().make_file_name(batch, folder_name = self.batch_folder_name)
-                    matrix_batch = np.load(os.path.join(self.batch_folder_name, matrix_batch_name))
+                    matrix_batch = np.load(os.path.join(self.data_path, self.batch_folder_name, matrix_batch_name))
                     for idx, item in enumerate(np.transpose(matrix_batch)[index - offset]):
                         row.append([idx+offset, item])
         row.sort(key = lambda x: x[0])
@@ -729,6 +862,9 @@ class BatchedSimilarityMatrix(SimilarityMatrix):
 
     def __mul__(self, simat):
         raise NotImplementedError("Multiplication is not implemented for batched matrices.")
+
+    def __eq__(self, simat):
+        raise NotImplementedError("Comparison is not implemented for batched matrices.")
 
 class MemoryMappedSimilarityMatrix(SimilarityMatrix):
     """
@@ -845,6 +981,9 @@ class MemoryMappedSimilarityMatrix(SimilarityMatrix):
 
     def __mul__(self, simat):
         raise NotImplementedError("Multiplication is not implemented for memory-mapped matrices.")
+
+    def __eq__(self, simat):
+        raise NotImplementedError("Comparison is not implemented for memory-mapped matrices.")
 
 class SimilarityFunctionScaling():
     """
