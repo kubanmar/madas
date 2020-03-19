@@ -9,6 +9,15 @@ Features: <br>
     * SYM --> All symmetry operations of a material
     * SOAP --> A SOAP implementation using DScribe (https://singroup.github.io/dscribe/)
     * IAD --> InterAtomic Distances
-    * PROP --> Materials properties as available from the Encyclopedia
 
-More information can be found in the Wiki: https://git.physik.hu-berlin.de/kuban/similarity-data-framework/wikis/home
+More information can be found in the Wiki: https://git.physik.hu-berlin.de/kuban/similarity-data-framework/wikis/home <br>
+
+For installation:
+  * clone the repository:
+    * ``git clone git@git.physik.hu-berlin.de:kuban/similarity-data-framework.git``
+  * install it locally with pip:
+    * ``cd similarity_data_framework``
+    * ``pip install -e .``
+  * you may import the module in python with:
+    * ``import simdatframe``
+
