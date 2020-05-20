@@ -7,5 +7,5 @@ if __name__ == '__main__':
         os.mkdir('unit_test_data')
     os.chdir('unit_test_data')
     path = '../simdatframe/test/'
-    pytest.main([path,"-v","--cache-clear","--capture=no","--disable-warnings","--junit-xml=testlog.xml"])
+    pytest.main([path,"-v","--cache-clear","--capture=no","--junit-xml=testlog.xml"])
     os.chdir(returndir)
