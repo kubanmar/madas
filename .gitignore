@@ -16,3 +16,5 @@ unit_test_data/
 !unit_test_data/saved_matrix.csv
 tutorials/.ipynb_checkpoints/
 SimilarityDataFramework.egg-info
+.pytest_cache
+.cache
