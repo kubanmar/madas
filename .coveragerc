@@ -1,0 +1,4 @@
+[run]
+omit =
+     ../simdatframe/test/*
+     */__init__.py
