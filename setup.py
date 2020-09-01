@@ -12,6 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://git.physik.hu-berlin.de/kuban/similarity-data-framework",
-    install_requires = ['numpy', 'pandas', 'sklearn', 'lxml', 'requests', 'ase', 'tensorflow', 'scipy', 'matplotlib', 'bitarray', 'dscribe', 'tqdm', 'pytest', 'pytest-cov'],
+    python_requires='>=3.6',
+    install_requires = ['numpy', 'pandas', 'scikit-learn', 'lxml', 'requests', 'ase', 'tensorflow', 'scipy', 'matplotlib', 'bitarray', 'dscribe', 'tqdm', 'pytest', 'pytest-cov'],
     packages=['simdatframe']
 )
