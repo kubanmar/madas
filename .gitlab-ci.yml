@@ -7,4 +7,4 @@ test-similarity-debian-buster-python3.7:
   tags: 
     - docker
   script:
-    - python3 unit_tests.py
+    - python unit_tests.py
