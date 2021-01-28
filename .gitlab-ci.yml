@@ -1,10 +1,10 @@
-image: gitdocker.physik.hu-berlin.de/sol/exciting:debian-buster-GCC8
 
 stages:
   - test
 
 test-similarity-debian-buster-python3.7:
-  image: gitdocker.physik.hu-berlin.de/kuban/similarity-data-framework:debian-buster-python3.7
+  image: gitdocker.physik.hu-berlin.de/sol/exciting:debian-buster-GCC8
+  #image: gitdocker.physik.hu-berlin.de/kuban/similarity-data-framework:debian-buster-python3.7
   stage: test
   tags: 
     - docker
