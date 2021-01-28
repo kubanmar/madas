@@ -19,3 +19,4 @@ SimilarityDataFramework.egg-info
 .pytest_cache
 .cache
 [#]*[#]
+.vscode
