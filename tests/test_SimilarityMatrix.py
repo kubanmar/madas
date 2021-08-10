@@ -10,7 +10,7 @@ from random import shuffle
 #read db and fingerprints and so on.
 db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = test_data_path, path_to_api_key='..')
 print('\nSimilarity matrix test:')
-print('\nRunning in directory:',os.getcwd())
+print('\nRunning in directory:', os.getcwd())
 print('\nLoaded a database with length: ', len(db))
 dos_simat = db.get_similarity_matrix('DOS')
 soap_simat = db.get_similarity_matrix('SOAP')
@@ -61,17 +61,19 @@ def test_overlap_similarity_matrix():
     assert new_overlap_matrix == new_overlap_matrix.get_sub_matrix(shuffled_row_mids, shuffled_column_mids)
     assert new_overlap_matrix + generated_overlap_matrix == new_overlap_matrix * 2
 
-def test_batched_similarity_matrix():
+def test_batched_similarity_matrix(tmp_path):
     serial_matrix = dos_simat.get_symmetric_matrix()
     batched_matrix = []
-    bsm = BatchedSimilarityMatrix().calculate(all_dos_fingerprints, folder_name = 'test_matrix', batch_size = 5)
-    loaded_bsm = SimilarityMatrix().load(data_path = '.', batched = True, batch_size = 5, batch_folder_name = 'test_matrix')
+    bsm = BatchedSimilarityMatrix().calculate(all_dos_fingerprints, folder_name = 'test_matrix', batch_size = 5, data_path=str(tmp_path))
+    loaded_bsm = SimilarityMatrix().load(data_path = str(tmp_path), batched = True, batch_size = 5, batch_folder_name = 'test_matrix')
     assert (bsm[3] == loaded_bsm[3]).all()
     for mid in bsm.mids:
         batched_matrix.append(bsm.get_row(mid))
     assert np.allclose(serial_matrix, batched_matrix)
 
-def test_memory_mapped_similarity_matrix():
-    mmsm = MemoryMappedSimilarityMatrix().calculate(all_dos_fingerprints, mids = [fp.mid for fp in all_dos_fingerprints], mapped_filename = 'mapped_test_matrix.npy', mids_filename = 'mapped_test_matrix_mids.npy')
-    loaded_mmsm = SimilarityMatrix().load(matrix_filename = 'mapped_test_matrix.npy', mids_filename = 'mapped_test_matrix_mids.npy', memory_mapped = True)
+def test_memory_mapped_similarity_matrix(tmp_path):
+    mapped_filename = os.path.join(str(tmp_path), 'mapped_test_matrix.npy')
+    mids_filename = os.path.join(str(tmp_path), 'mapped_test_matrix_mids.npy')
+    mmsm = MemoryMappedSimilarityMatrix().calculate(all_dos_fingerprints, mids = [fp.mid for fp in all_dos_fingerprints], mapped_filename = mapped_filename, mids_filename = mids_filename)
+    loaded_mmsm = SimilarityMatrix().load(matrix_filename = mapped_filename, mids_filename = mids_filename, memory_mapped = True)
     assert (mmsm[3] == loaded_mmsm[3]).all()
