@@ -3,13 +3,13 @@ import pytest, logging
 from time import perf_counter
 
 from simdatframe.data_framework import MaterialsDatabase
-from simdatframe.apis.NOMAD_enc_API_2 import API
+from simdatframe.apis.NOMAD_enc_API import API
 
 TEST_TIMING = False
 
 #test_json = {"search_by":{"element":"Al,Si,P","exclusive":True,"page":1,"per_page":10},"has_dos":True, "code_name":["VASP"]}
 #test_json_2 = {"search_by":{"element":"Al,P","exclusive":True,"restricted":False,"page":1,"per_page":10},"has_dos":True, "code_name":["VASP"]}
-#test_json_3 = {"search_by":{"element":"Cu,Ir","exclusive":True,"page":1,"per_page":10},"crystal_system":["cubic"],"system_type":["bulk"],"has_dos":True}
+test_json_3 = {"search_by":{"element":"Cu,Ir","exclusive":True,"page":1,"per_page":10},"crystal_system":["cubic"],"system_type":["bulk"],"has_dos":True}
 test_json = {"search_by":{"elements":["Cu","Pt"],"exclusive":True,"restricted":True,"page":1,"per_page":10},"has_dos":True}
 db_filename = 'unit_test_db'
 file_path = '.'
@@ -31,6 +31,7 @@ console.setFormatter(formatter)
 log.addHandler(api_file)
 log.addHandler(console)
 
+@pytest.mark.skip()
 def test_API_class():
     try:
         api = API(logger  = log)
@@ -60,6 +61,7 @@ def test_API_class():
             print(item.mid)
     print(api.get_property('DWTe4soY7aCs8JcP2ty8-Dpow5to','qrXfGffK6LLT-5WI3YuNx662BUKx', property_path = 'section_metadata/encyclopedia/status') )
 
+@pytest.mark.skip()
 def test_filter_calculation_list():
     try:
         api = API(logger  = log)
@@ -73,6 +75,7 @@ def test_filter_calculation_list():
     filtered_list = api._filter_calculation_list(list_to_test, {"is_true":True})
     assert sorted(filtered_list, key = lambda x: x["rating"])[-1]["value"] == 4
 
+@pytest.mark.skip()
 def test_setup():
     api = API(logger  = log)
     if os.path.exists('enc_staging_test.db'):

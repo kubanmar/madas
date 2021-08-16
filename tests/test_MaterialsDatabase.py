@@ -5,7 +5,7 @@ import os
 test_json_old = {"search_by":{"element":"Al,Si,P","exclusive":"0","page":1,"per_page":10},"has_dos":"Yes", "code_name":["VASP"]}
 test_json_also_old = {"search_by":{"element":"Cu,Ir","exclusive":True,"page":1,"per_page":10},"crystal_system":["cubic"],"system_type":["bulk"],"has_dos":True}
 test_json = {"search_by":{"elements":["Cu","Pt"],"exclusive":True,"restricted":True,"page":1,"per_page":10},"has_dos":True}
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_database():
     if os.path.exists('data/test.db'):
         os.remove('data/test.db')
