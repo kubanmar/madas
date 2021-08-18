@@ -14,4 +14,4 @@ test-similarity-debian-buster-python3.7:
     - pip3 install numpy
     - pip3 install -e .
   script:
-    - pytest tests/test_self.py tests/test_SimilarityMatrix.py
+    - pytest tests
