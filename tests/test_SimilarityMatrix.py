@@ -2,22 +2,44 @@ import pytest
 from simdatframe.data_framework import MaterialsDatabase
 from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix, MemoryMappedSimilarityMatrix
 from simdatframe._test_data import test_data_path
-import os
+import os, shutil
 import numpy as np
 from copy import deepcopy
 from random import shuffle
 
 #read db and fingerprints and so on.
-db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = test_data_path, path_to_api_key='..')
-print('\nSimilarity matrix test:')
-print('\nRunning in directory:', os.getcwd())
-print('\nLoaded a database with length: ', len(db))
-dos_simat = db.get_similarity_matrix('DOS')
-soap_simat = db.get_similarity_matrix('SOAP')
-test_fingerprint = db.get_fingerprint("DOS", mid = db[0].mid)
-all_dos_fingerprints = db.get_fingerprints("DOS")
+#db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = test_data_path, #path_to_api_key='..')
+#print('\nSimilarity matrix test:')
+#print('\nRunning in directory:', os.getcwd())
+#print('\nLoaded a database with length: ', len(db))
+#dos_simat = db.get_similarity_matrix('DOS')
+#soap_simat = db.get_similarity_matrix('SOAP')
+#test_fingerprint = db.get_fingerprint("DOS", mid = db[0].mid)
+#all_dos_fingerprints = db.get_fingerprints("DOS")
 
-def test_similarity_matrix():
+@pytest.fixture
+def database(tmp_path):
+    shutil.copy(os.path.join(test_data_path, 'similarity_matrix_class_test.db'), tmp_path)
+    db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = str(tmp_path))
+    return db
+
+@pytest.fixture
+def dos_simat(database):
+    return database.get_similarity_matrix("DOS")
+
+#@pytest.fixture
+#def soap_simat(database):
+#    return database.get_similarity_matrix("SOAP")
+
+@pytest.fixture
+def test_fingerprint(database):
+    return database.get_fingerprint("DOS", mid = database[0].mid)
+
+@pytest.fixture
+def all_dos_fingerprints(database):
+    return database.get_fingerprints("DOS")
+
+def test_similarity_matrix(dos_simat, test_fingerprint):
     assert (np.array([np.isclose(test, true) for test, true in zip(dos_simat[3], np.array([0.36703822, 0.12966073, 0.18209813, 1.        , 0.4494311 ,
        0.29072238, 0.31711481, 0.36916951, 0.41760391, 0.32205882,
        0.39399191, 0.2646354 , 0.24575835, 0.42183623, 0.24537219,
@@ -42,7 +64,7 @@ def test_similarity_matrix():
     print('Function "get_symmetric_matrix()" implicitly tested during all tests.')
     print("Skipping some functions, to be added later.")
 
-def test_overlap_similarity_matrix():
+def test_overlap_similarity_matrix(dos_simat, all_dos_fingerprints):
     overlap_row_mids = dos_simat.mids[15:]
     overlap_column_mids = dos_simat.mids[:15]
     generated_overlap_matrix = dos_simat.get_overlap_matrix(overlap_column_mids, overlap_row_mids)
@@ -61,7 +83,7 @@ def test_overlap_similarity_matrix():
     assert new_overlap_matrix == new_overlap_matrix.get_sub_matrix(shuffled_row_mids, shuffled_column_mids)
     assert new_overlap_matrix + generated_overlap_matrix == new_overlap_matrix * 2
 
-def test_batched_similarity_matrix(tmp_path):
+def test_batched_similarity_matrix(tmp_path, dos_simat, all_dos_fingerprints):
     serial_matrix = dos_simat.get_symmetric_matrix()
     batched_matrix = []
     bsm = BatchedSimilarityMatrix().calculate(all_dos_fingerprints, folder_name = 'test_matrix', batch_size = 5, data_path=str(tmp_path))
@@ -71,7 +93,7 @@ def test_batched_similarity_matrix(tmp_path):
         batched_matrix.append(bsm.get_row(mid))
     assert np.allclose(serial_matrix, batched_matrix)
 
-def test_memory_mapped_similarity_matrix(tmp_path):
+def test_memory_mapped_similarity_matrix(tmp_path, all_dos_fingerprints):
     mapped_filename = os.path.join(str(tmp_path), 'mapped_test_matrix.npy')
     mids_filename = os.path.join(str(tmp_path), 'mapped_test_matrix_mids.npy')
     mmsm = MemoryMappedSimilarityMatrix().calculate(all_dos_fingerprints, mids = [fp.mid for fp in all_dos_fingerprints], mapped_filename = mapped_filename, mids_filename = mids_filename)
