@@ -1,40 +1,158 @@
-import pytest
-from simdatframe.data_framework import MaterialsDatabase
 import os
+from simdatframe.fingerprint import Fingerprint
+import pytest
+import simdatframe
+from simdatframe.data_framework import MaterialsDatabase
+from simdatframe.apis.api_core import Material
+from ase.build import bulk
+import re, json
 
-test_json_old = {"search_by":{"element":"Al,Si,P","exclusive":"0","page":1,"per_page":10},"has_dos":"Yes", "code_name":["VASP"]}
-test_json_also_old = {"search_by":{"element":"Cu,Ir","exclusive":True,"page":1,"per_page":10},"crystal_system":["cubic"],"system_type":["bulk"],"has_dos":True}
-test_json = {"search_by":{"elements":["Cu","Pt"],"exclusive":True,"restricted":True,"page":1,"per_page":10},"has_dos":True}
-@pytest.mark.skip()
-def test_database():
-    if os.path.exists('data/test.db'):
-        os.remove('data/test.db')
-        os.remove('data/.test_logs/test_api.log')
-        os.remove('data/.test_logs/test_errors.log')
-        os.remove('data/.test_logs/test_perf.log')
-        os.rmdir('data/.test_logs')
-        os.rmdir('data')
-    db = MaterialsDatabase(filename = 'test.db', db_path = 'data', path_to_api_key = '..')
-    #db2 = MaterialsDatabase(filename = 'test.db', db_path = 'data', api = db.api)
-    db.fill_database(test_json)
-    db.fill_database(test_json)
-#    db.add_material(32042,100490) #Needs update to new API
+@pytest.fixture
+def test_atoms():
+    return bulk('Cu', 'fcc', a=3.6)
 
-#    db.add_property(db[0].mid, 'code_version') #Needs update to new API
+@pytest.fixture
+def test_query():
+    return {
+        "search_by":
+            {
+                "elements": ["Cu","Pt"], 
+                "exclusive":True, 
+                "restricted":True,
+                "page":1,
+                "per_page":10
+            },
+        "has_dos":True,
+        "testquery" : "query"
+    }
 
-    db.add_fingerprints(['DOS', 'NMDDOS', 'SOAP', 'IAD', 'SYM', 'IAOD', 'AAO', 'AVEC', 'ChEnv', 'DUMMY', 'PROP', 'PWD'])
+@pytest.fixture
+def test_material(test_atoms):
+    return Material("a:b", atoms=test_atoms, data = {"test" : "data"})
 
-    assert db.get_property(db[1].mid, 'mid') == db[1].mid
-    assert db.get_property(db[0].mid, 'atomic_density') == db[0].data['atomic_density']
+class MockAPI():
 
-    props, mids = db.get_properties('mid', output_mids = True)
+    def __init__(self, test_material) -> None:
+        self._test_material = test_material
 
-    assert db.get_properties('id') == [entry.id for entry in db]
+    def get_calculations_by_search(self, *args, **kwargs):
+        """
+        Test doc string
+        """
+        return [self.test_material]
 
-    assert db.get_properties("atomic_density") == [entry.data['atomic_density'] for entry in db]
+    @property
+    def test_material(self):
+        return self._test_material
 
-    assert props == mids
+    def get_calculation(self, return_id, *args, **kwargs):
+        """
+        Test doc string
+        """
+        new_material = self.test_material
+        if return_id == 2:
+            new_material.mid = "c:d"
+        return new_material
 
-    assert db._get_row_by_mid(db[0].mid).toatoms() == db[0].toatoms()
+    def get_property(self, *args, **kwargs):
+        """
+        Test doc string
+        """
+        return 1
 
-    assert db.get_n_entries() == sum([1 for entry in db])
+    def set_logger(self, logger):
+        self.log = logger
+
+    def gen_mid(self, return_id):
+        if return_id == 1:
+            return "a:b"
+        else:
+            return "c:d"
+
+    def resolve_mid(self, *args):
+        return {"ignore" : "this"}
+
+class MockFingerprint():
+
+    def __init__(self, *args, name = None, **kwargs) -> None:
+        self.calculated = False
+        self.fp_type = "Mock"
+        self.name = name
+        self.mid = "a:b"
+
+    def calculate(self, *args, **kwargs) -> object:
+        self.calculated = True
+        return self
+
+    def get_data_json(self, *args, **kwargs):
+        return json.dumps({"test" : "data"})
+
+def test_database(tmp_path, test_material, test_query, caplog, monkeypatch, test_atoms):
+
+    """
+    Test database behaviour. TODO: split into separate tests by using a fixture of the DB
+    """
+
+    def mock_gen_fingerprints_list(fp_type, *args, name = None, **kwargs):
+        return [MockFingerprint(name = name)]
+
+    monkeypatch.setattr(MaterialsDatabase, "gen_fingerprints_list", mock_gen_fingerprints_list)
+
+    db = MaterialsDatabase(filename = 'test.db', db_path = str(tmp_path), api = MockAPI(test_material))
+
+    db.fill_database(test_query)
+
+    assert 'testquery' in str(caplog.text), "Did not write query to logs." 
+
+    assert len(db) == 1, "Not exactly one material added in fill_database"
+
+    assert db[0].mid == test_material.mid, "wrote wrong material to database"
+
+    db.fill_database(test_query)
+
+    assert len(db) == 1, "fill_database executed same query twice"
+
+    assert db.get_property(test_material.mid, "test") == "data", "could not get property data from material"
+
+    assert db.get_properties("test") == ["data"], "could not get properties from database"
+
+    assert db.get_fingerprint("XX", mid = "XX") == None, "Found non-existing fingeprint"
+    assert db.get_fingerprint("XX", mid = "XX", db_id = 100) == None, "Found non-existing fingerprint by db_id"
+
+    assert "No material with mid XX." in str(caplog.text), "Did not log missing material in get_fingerprint"
+
+    db.add_fingerprint("Mock", name = "test_name")
+
+    assert "Finished for fp_type: Mock" in str(caplog.text), "Did not confirm fingerprint writing"
+
+    assert hasattr(db[0], "test_name"), "Fingerprint was not stored for db entry"
+
+    assert db.get_formula(db[0].mid) == "Cu", "Material has wrong formula"
+
+    assert db.get_atoms(db[0].mid) == test_atoms, "Wrong atoms from db entry"
+
+    assert db.get_random() == "a:b", "Random only entry has wrong mid"
+
+    db.add_material(1)
+
+    assert len(db) == 1, "Added material with same mid twice"
+
+    db.add_material(2)
+
+    assert len(db) == 2, "Did not add new material"
+
+    db.update_entries(["a:b"], [{"delete":"this"}])
+
+    assert db["a:b"]["delete"] == "this", "Failed updating entries"
+
+    db.delete_keys("delete")
+
+    assert not hasattr(db[0], "delete"), "DB keys did not get removed"
+
+    db.add_property(db[0].mid, "test_property")
+
+    assert db[0]["test_property"] == 1, "Failed adding properties"
+
+    mat = db.get_material(db[0].mid)
+
+    assert mat.mid == "a:b", "Did not get correct material from get_material"
