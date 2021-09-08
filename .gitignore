@@ -20,3 +20,6 @@ SimilarityDataFramework.egg-info
 .cache
 [#]*[#]
 .vscode
+simdatframe/_test_data/*_logs
+tutorials/*
+!tutorials/*.ipynb

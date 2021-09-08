@@ -12,6 +12,8 @@ Features: <br>
 
 More information can be found in the Wiki: https://git.physik.hu-berlin.de/kuban/similarity-data-framework/wikis/home <br>
 
+The documentation is hosted in the following git repository: https://git.physik.hu-berlin.de/kuban/simdatframe_doc
+
 For installation:
   * clone the repository:
     * ``git clone git@git.physik.hu-berlin.de:kuban/similarity-data-framework.git``
