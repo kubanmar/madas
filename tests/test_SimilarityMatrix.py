@@ -25,7 +25,7 @@ def database(tmp_path):
 
 @pytest.fixture
 def dos_simat(database):
-    return database.get_similarity_matrix("DOS")
+    return database.get_similarity_matrix("DOS", dtype = np.float64)
 
 #@pytest.fixture
 #def soap_simat(database):
