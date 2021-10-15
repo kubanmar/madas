@@ -12,6 +12,7 @@ test-similarity-debian-buster-python3.7:
     - apt-get --allow-releaseinfo-change update && apt-get install -y libpython3.7 libpython3.7-dev python3-pip
     - pip3 install --upgrade pip
     - pip3 install numpy
+    - pip3 install jsonschema==3.2.0
     - pip3 install -e .
   script:
     - pytest tests
