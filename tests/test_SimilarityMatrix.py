@@ -7,15 +7,6 @@ import numpy as np
 from copy import deepcopy
 from random import shuffle
 
-#read db and fingerprints and so on.
-#db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = test_data_path, #path_to_api_key='..')
-#print('\nSimilarity matrix test:')
-#print('\nRunning in directory:', os.getcwd())
-#print('\nLoaded a database with length: ', len(db))
-#dos_simat = db.get_similarity_matrix('DOS')
-#soap_simat = db.get_similarity_matrix('SOAP')
-#test_fingerprint = db.get_fingerprint("DOS", mid = db[0].mid)
-#all_dos_fingerprints = db.get_fingerprints("DOS")
 
 @pytest.fixture
 def database(tmp_path):
@@ -26,10 +17,6 @@ def database(tmp_path):
 @pytest.fixture
 def dos_simat(database):
     return database.get_similarity_matrix("DOS", dtype = np.float64)
-
-#@pytest.fixture
-#def soap_simat(database):
-#    return database.get_similarity_matrix("SOAP")
 
 @pytest.fixture
 def test_fingerprint(database):
@@ -59,6 +46,10 @@ def test_similarity_matrix(dos_simat, test_fingerprint):
     print('Function "get_entry()" implicitly tested with "lookup_similarity()"')
     copied_dos_simat = dos_simat.get_sub_matrix(dos_simat.mids)
     copied_dos_simat.align(shortened_dos_simat)
+    shuffled_mids = deepcopy(dos_simat.mids)
+    shuffle(shuffled_mids)
+    shuffled_matrix = dos_simat.get_sub_matrix(shuffled_mids)
+    assert shuffled_matrix == dos_simat, "Identical matrices with shuffled mids need to equal"
     assert shortened_dos_simat == copied_dos_simat
     assert (1 - dos_simat.get_symmetric_matrix() == dos_simat.get_complement().get_symmetric_matrix()).all()
     print('Function "get_symmetric_matrix()" implicitly tested during all tests.')
