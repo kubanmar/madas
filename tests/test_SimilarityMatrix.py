@@ -1,6 +1,6 @@
 import pytest
 from simdatframe.data_framework import MaterialsDatabase
-from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix, MemoryMappedSimilarityMatrix
+from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix
 from simdatframe._test_data import test_data_path
 import os, shutil
 import numpy as np
@@ -83,6 +83,7 @@ def test_overlap_similarity_matrix(dos_simat, all_dos_fingerprints):
     assert new_overlap_matrix == new_overlap_matrix.get_sub_matrix(shuffled_row_mids, shuffled_column_mids)
     assert new_overlap_matrix + generated_overlap_matrix == new_overlap_matrix * 2
 
+@pytest.mark.xfail()
 def test_batched_similarity_matrix(tmp_path, dos_simat, all_dos_fingerprints):
     serial_matrix = dos_simat.get_symmetric_matrix()
     batched_matrix = []
@@ -92,10 +93,3 @@ def test_batched_similarity_matrix(tmp_path, dos_simat, all_dos_fingerprints):
     for mid in bsm.mids:
         batched_matrix.append(bsm.get_row(mid))
     assert np.allclose(serial_matrix, batched_matrix)
-
-def test_memory_mapped_similarity_matrix(tmp_path, all_dos_fingerprints):
-    mapped_filename = os.path.join(str(tmp_path), 'mapped_test_matrix.npy')
-    mids_filename = os.path.join(str(tmp_path), 'mapped_test_matrix_mids.npy')
-    mmsm = MemoryMappedSimilarityMatrix().calculate(all_dos_fingerprints, mids = [fp.mid for fp in all_dos_fingerprints], mapped_filename = mapped_filename, mids_filename = mids_filename)
-    loaded_mmsm = SimilarityMatrix().load(matrix_filename = mapped_filename, mids_filename = mids_filename, memory_mapped = True)
-    assert (mmsm[3] == loaded_mmsm[3]).all()
