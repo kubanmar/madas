@@ -26,7 +26,7 @@ def test_fingerprint(database):
 def all_dos_fingerprints(database):
     return database.get_fingerprints("DOS")
 
-def test_similarity_matrix(dos_simat, test_fingerprint):
+def test_similarity_matrix(dos_simat, test_fingerprint, tmp_path):
     assert (np.array([np.isclose(test, true) for test, true in zip(dos_simat[3], np.array([0.36703822, 0.12966073, 0.18209813, 1.        , 0.4494311 ,
        0.29072238, 0.31711481, 0.36916951, 0.41760391, 0.32205882,
        0.39399191, 0.2646354 , 0.24575835, 0.42183623, 0.24537219,
@@ -53,6 +53,9 @@ def test_similarity_matrix(dos_simat, test_fingerprint):
     assert shortened_dos_simat == copied_dos_simat
     assert (1 - dos_simat.get_symmetric_matrix() == dos_simat.get_complement().get_symmetric_matrix()).all()
     print('Function "get_symmetric_matrix()" implicitly tested during all tests.')
+    dos_simat.save(data_path = str(tmp_path))
+    assert SimilarityMatrix.load(data_path=str(tmp_path)) == dos_simat, "Loading or saving failed."
+    assert SimilarityMatrix.load(data_path=str(tmp_path)).fp_type == "DOS", "Did not load correct fp_type."
     print("Skipping some functions, to be added later.")
 
 def test_overlap_similarity_matrix(dos_simat, all_dos_fingerprints):
