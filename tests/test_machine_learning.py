@@ -61,4 +61,7 @@ def test_MatrixMultiKernelLearning(fingerprints, similarity_matrix, predictions)
                                  regressor_params={'alpha': 1e-12, 'fit_intercept': True, 'normalize': False})
     mmkl.fit(target_train)
     preds = mmkl.predict()
-    assert np.allclose(preds, predictions, atol=1e-5), "Predictions deviate too much from reference."
+
+    from sklearn.metrics import mean_squared_error
+
+    assert np.isclose(mean_squared_error(preds, target_test, squared=False), 0.0069, atol=1e-4), "Predictions deviate too much from reference."
