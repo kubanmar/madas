@@ -31,11 +31,11 @@ def test_similarity_matrix(dos_simat, test_fingerprint, tmp_path):
        0.29072238, 0.31711481, 0.36916951, 0.41760391, 0.32205882,
        0.39399191, 0.2646354 , 0.24575835, 0.42183623, 0.24537219,
        0.35934959, 0.45540309, 0.39454691, 0.12593435]))])).all()
-    assert (dos_simat.get_symmetric_matrix()[3] == dos_simat[3]).all()
+    assert (dos_simat.matrix[3] == dos_simat[3]).all()
     # test __next__
     for idx, row in enumerate(dos_simat):
         if idx == 3:
-            assert all(dos_simat.matrix[3] == row), "Problem in __next__"
+            assert (dos_simat.matrix[3] == row).all(), "Problem in __next__"
     leave_out_mids = [dos_simat.mids[idx] for idx in [0,10,-1]]
     shortened_dos_simat = dos_simat.get_cleared_matrix(leave_out_mids)
     assert (shortened_dos_simat.get_symmetric_matrix() == np.array([[entry for mid2, entry in zip(dos_simat.mids, row) if not mid2 in leave_out_mids] for mid1, row in zip(dos_simat.mids, dos_simat.get_symmetric_matrix()) if not mid1 in leave_out_mids])).all()
