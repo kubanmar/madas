@@ -2,8 +2,7 @@ import os
 from simdatframe.fingerprint import Fingerprint
 import pytest
 import simdatframe
-from simdatframe.data_framework import MaterialsDatabase
-from simdatframe.apis.api_core import Material
+from simdatframe.data_framework import MaterialsDatabase, Material
 from ase.build import bulk
 import re, json
 
@@ -86,6 +85,10 @@ class MockFingerprint():
 
     def get_data_json(self, *args, **kwargs):
         return json.dumps({"test" : "data"})
+
+@pytest.mark.skip()
+def test_Material():
+    pass
 
 def test_database(tmp_path, test_material, test_query, caplog, monkeypatch, test_atoms):
 
