@@ -58,6 +58,11 @@ def test_get_many(backend, materials):
     for mat in materials:
         assert mat in mats, "Material was not returned by database"
 
+def test_get_by_id(backend, material):
+    backend.add_single(material)
+    mat = backend.get_by_id(0)
+    assert material == mat, "Did not return correct material from database"
+
 def test_update_single(backend, material):
     backend.add_single(material)
     backend.update_single(material.mid, something = "new")
