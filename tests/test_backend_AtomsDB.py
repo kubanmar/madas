@@ -80,3 +80,13 @@ def test_update_many(backend, materials):
 def test_metadata(backend):
     backend.update_metadata(something = "new")
     assert backend.metadata == {"something" : "new"}, "Failed to update metadata"
+
+def test_has_entry(backend, material):
+    backend.add_single(material)
+    assert not backend.has_entry("a"), "Non existing entry reported"
+    assert backend.has_entry(material.mid), "Exisiting entry not found"
+
+def test_get_length(backend, material):
+    assert backend.get_length() == 0, "Finite length for empty database"
+    backend.add_single(material)
+    assert backend.get_length() == 1, "Wrong length for one-entry database"

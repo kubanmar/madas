@@ -4,30 +4,7 @@ import pytest
 import simdatframe
 from simdatframe.data_framework import MaterialsDatabase, Material
 from ase.build import bulk
-import re, json
-
-@pytest.fixture
-def test_atoms():
-    return bulk('Cu', 'fcc', a=3.6)
-
-@pytest.fixture
-def test_query():
-    return {
-        "search_by":
-            {
-                "elements": ["Cu","Pt"], 
-                "exclusive":True, 
-                "restricted":True,
-                "page":1,
-                "per_page":10
-            },
-        "has_dos":True,
-        "testquery" : "query"
-    }
-
-@pytest.fixture
-def test_material(test_atoms):
-    return Material("a:b", atoms=test_atoms, data = {"test" : "data"})
+import json
 
 class MockAPI():
 
@@ -86,9 +63,44 @@ class MockFingerprint():
     def get_data_json(self, *args, **kwargs):
         return json.dumps({"test" : "data"})
 
-@pytest.mark.skip()
-def test_Material():
+    def from_dict(self, *args, **kwargs) -> object:
+        return MockFingerprint().calculate()
+
+class MockBackend():
+
     pass
+
+@pytest.fixture()
+def test_atoms():
+    return bulk('Cu', 'fcc', a=3.6)
+
+@pytest.fixture()
+def test_query():
+    return {
+        "search_by":
+            {
+                "elements": ["Cu","Pt"], 
+                "exclusive":True, 
+                "restricted":True,
+                "page":1,
+                "per_page":10
+            },
+        "has_dos":True,
+        "testquery" : "query"
+    }
+
+@pytest.fixture()
+def test_material(test_atoms):
+    return Material("a:b", atoms=test_atoms, data = {"test" : "data"})
+
+@pytest.fixture()
+def materials_database():
+    raise NotImplementedError
+    db = MaterialsDatabase()
+
+@pytest.mark.skip()
+def test_Material(test_atoms):
+    material = Material(None)
 
 def test_database(tmp_path, test_material, test_query, caplog, monkeypatch, test_atoms):
 
