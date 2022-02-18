@@ -52,7 +52,7 @@ def test_linear_comb_sim_mat():
     pass
 
 def test_MatrixMultiKernelLearning(fingerprints, similarity_matrix, predictions):
-    mids, targets = np.transpose(np.array([[fp.fp_id, fp.y] for fp in fingerprints], dtype = object))
+    mids, targets = np.transpose(np.array([[fp.mid, fp.y] for fp in fingerprints], dtype = object))
     np.random.seed(0)
     mids_train, mids_test, target_train, target_test = train_test_split(mids, targets)
     train_matrix, test_matrix = similarity_matrix.train_test_split(mids_train, mids_test)

@@ -2,7 +2,7 @@ import pytest
 import os
 
 from simdatframe.backend.ASE_backend import ASEBackend
-from simdatframe.data_framework import Material
+from simdatframe import Material
 
 from ase.build import bulk
 
@@ -13,11 +13,11 @@ def backend(tmpdir):
 
 @pytest.fixture()
 def material():
-    return Material("Si:test", atoms = bulk("Si"), data = {"test" : "data"}, properies={"test" : "me"})
+    return Material("Si:test", atoms = bulk("Si"), data = {"test" : "data"}, properties={"test" : "me"})
 
 @pytest.fixture()
 def materials():
-    return [Material(f"Si:test{idx}", atoms = bulk("Si"), data = {"test" : f"data{idx}"}, properies={"test" : "me"}) for idx in range(1000)]
+    return [Material(f"Si:test{idx}", atoms = bulk("Si"), data = {"test" : f"data{idx}"}, properties={"test" : "me"}) for idx in range(1000)]
 
 def test_init(backend, tmpdir):
     assert backend.filename == "test_db.db", "Wrong filename set"

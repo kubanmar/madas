@@ -61,16 +61,16 @@ class MockFingerprint():
 
     def __init__(self, *args, name = None, **kwargs) -> None:
         self.calculated = False
-        self.fp_type = "Mock"
-        self.name = name
-        self.mid = "a:b"
+        self.set_fp_type("Mock")
+        self.set_name(name)
+        self._mid = "a:b"
         self._data = {"test" : "data"}
 
     def calculate(self, *args, **kwargs) -> object:
         self.calculated = True
         return self
 
-    def from_dict(self, *args, **kwargs) -> object:
+    def from_data(self, *args, **kwargs) -> object:
         return MockFingerprint().calculate()
 
 class MockBackend(Backend):
@@ -217,6 +217,7 @@ def test_get_fingerprint(materials_database, monkeypatch):
     
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
     monkeypatch.setattr(Fingerprint, "calculate", MockFingerprint.calculate)
+    monkeypatch.setattr(Fingerprint, "from_data", MockFingerprint.from_data)
 
     fp = materials_database.get_fingerprint("Mock", "a")
 
@@ -229,6 +230,7 @@ def test_get_fingerprints(materials_database, monkeypatch):
 
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
     monkeypatch.setattr(Fingerprint, "calculate", MockFingerprint.calculate)
+    monkeypatch.setattr(Fingerprint, "from_data", MockFingerprint.from_data)
 
     fps = materials_database.get_fingerprints("Mock", "a")
 
@@ -243,6 +245,7 @@ def test_get_similarity_matrix(materials_database, monkeypatch):
 
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
     monkeypatch.setattr(Fingerprint, "calculate", MockFingerprint.calculate)
+    monkeypatch.setattr(Fingerprint, "from_data", MockFingerprint.from_data)
 
     materials_database.add_material()
 
@@ -254,6 +257,7 @@ def test_add_fingerprint(materials_database, monkeypatch):
 
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
     monkeypatch.setattr(Fingerprint, "calculate", MockFingerprint.calculate)
+    monkeypatch.setattr(Fingerprint, "from_data", MockFingerprint.from_data)
 
     materials_database.add_material()
 
@@ -267,6 +271,7 @@ def test_add_fingerprints(materials_database, monkeypatch):
 
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
     monkeypatch.setattr(Fingerprint, "calculate", MockFingerprint.calculate)
+    monkeypatch.setattr(Fingerprint, "from_data", MockFingerprint.from_data)
 
     materials_database.add_material()
 

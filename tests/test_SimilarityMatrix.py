@@ -11,7 +11,7 @@ from random import shuffle
 @pytest.fixture
 def database(tmp_path):
     shutil.copy(os.path.join(test_data_path, 'similarity_matrix_class_test.db'), tmp_path)
-    db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', db_path = str(tmp_path))
+    db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', rootpath = str(tmp_path), filepath=".")
     return db
 
 @pytest.fixture
@@ -35,6 +35,8 @@ def test_similarity_matrix(dos_simat, test_fingerprint, tmp_path):
     # test __next__
     for idx, row in enumerate(dos_simat):
         if idx == 3:
+            for e1, e2 in zip(dos_simat.matrix[3], row):
+                print(e1, e2)
             assert (dos_simat.matrix[3] == row).all(), "Problem in __next__"
     leave_out_mids = [dos_simat.mids[idx] for idx in [0,10,-1]]
     shortened_dos_simat = dos_simat.get_cleared_matrix(leave_out_mids)
