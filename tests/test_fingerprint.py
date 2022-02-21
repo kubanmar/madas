@@ -82,6 +82,28 @@ def test_subclassing(test_material):
     assert sub_fp.mid == test_material.mid, "Did not set mid from material in subclass"
 
 
+def test_serialize(test_material):
+
+    class SubFingerprint(Fingerprint):
+
+        def __init__(self, a = 1, b = 1):
+            self.a = a
+            self.b = b
+
+        def calculate(self, material):
+            self.set_mid(material)
+            self.set_data("result", self.a + self.b)
+            return self
+
+    sub_fp = SubFingerprint().calculate(test_material)
+
+    data = sub_fp.serialize()
+
+    sub_fp2 = Fingerprint.deserialize(data)
+
+    assert sub_fp == sub_fp2, "Could not deserialize fingerprint correctly."
+
+
 def test_set_data(fingerprint):
 
     fingerprint.set_data("test", "data")
