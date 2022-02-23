@@ -283,18 +283,18 @@ def test_add_fingerprints(materials_database, monkeypatch):
 
 def test_fill_database(materials_database, caplog):
     
-    materials_database.fill_database("a")
+    materials_database.fill_database({"a" : "a"})
 
     assert materials_database.backend._added_many == 1, "Did not add many to backend"
     assert materials_database.api._called_get_calculations_by_search == 1, "Did not call API"
-    assert materials_database.get_metadata()["search_queries"] == ['["a"]']
+    assert materials_database.get_metadata()["search_queries"] == ['[{"a": "a"}]']
 
-    materials_database.fill_database("a")
+    materials_database.fill_database({"a" : "a"})
 
     assert materials_database.backend._added_many == 1, "Tried to add redundant materials"
     assert materials_database.api._called_get_calculations_by_search == 1, "Queried API twice"
 
-    materials_database.fill_database("b")
+    materials_database.fill_database({"b" : "b"})
 
     assert materials_database.backend._added_many == 2, "Tried to add redundant materials"
     assert materials_database.api._called_get_calculations_by_search == 2, "Queried API twice"

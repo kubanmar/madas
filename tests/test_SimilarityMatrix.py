@@ -57,11 +57,10 @@ def test_similarity_matrix(dos_simat, test_fingerprint, tmp_path):
     shuffled_matrix = dos_simat.get_sub_matrix(shuffled_mids)
     assert shuffled_matrix == dos_simat, "Identical matrices with shuffled mids need to equal"
     assert shortened_dos_simat == copied_dos_simat
-    assert (1 - dos_simat.get_symmetric_matrix() == dos_simat.get_complement().get_symmetric_matrix()).all()
     print('Function "get_symmetric_matrix()" implicitly tested during all tests.')
-    dos_simat.save(data_path = str(tmp_path))
-    assert SimilarityMatrix.load(data_path=str(tmp_path)) == dos_simat, "Loading or saving failed."
-    assert SimilarityMatrix.load(data_path=str(tmp_path)).fp_type == "DOS", "Did not load correct fp_type."
+    dos_simat.save(filepath = str(tmp_path))
+    assert SimilarityMatrix.load(filepath=str(tmp_path)) == dos_simat, "Loading or saving failed."
+    assert SimilarityMatrix.load(filepath=str(tmp_path)).fp_type == "DOS", "Did not load correct fp_type."
     print("Skipping some functions, to be added later.")
 
 def test_overlap_similarity_matrix(dos_simat, all_dos_fingerprints):
