@@ -47,7 +47,7 @@ def test_similarity_matrix(dos_simat, test_fingerprint, tmp_path):
     overlap_column_mids = dos_simat.mids[:15]
     overlap_dos_simat = dos_simat.get_overlap_matrix(overlap_column_mids, overlap_row_mids)
     assert len(overlap_dos_simat) == 4
-    assert (overlap_dos_simat.get_full_matrix() == np.array([[entry for mid2, entry in zip(dos_simat.mids, row) if mid2 in overlap_column_mids] for mid1, row in zip(dos_simat.mids, dos_simat.get_symmetric_matrix()) if mid1 in overlap_row_mids])).all()
+    assert (overlap_dos_simat.matrix == np.array([[entry for mid2, entry in zip(dos_simat.mids, row) if mid2 in overlap_column_mids] for mid1, row in zip(dos_simat.mids, dos_simat.get_symmetric_matrix()) if mid1 in overlap_row_mids])).all()
     assert dos_simat.lookup_similarity(test_fingerprint, test_fingerprint) == 1.0
     print('Function "get_entry()" implicitly tested with "lookup_similarity()"')
     copied_dos_simat = dos_simat.get_sub_matrix(dos_simat.mids)

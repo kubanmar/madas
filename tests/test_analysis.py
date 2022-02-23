@@ -21,6 +21,12 @@ def non_symmetric(x,y):
     else:
         return 1
 
+def non_identity(x,y):
+    if x.mid == y.mid:
+        return 0.8
+    else:
+        return 0.9
+
 def test_init(fingerprints):
 
     simat = SimilarityMatrix().calculate(fingerprints)
@@ -51,11 +57,14 @@ def test_symmetry(fingerprints):
 
     mst = MetricSpaceTest(fingerprints)
 
-    import matplotlib.pyplot as plt
-
-    plt.figure()
-    plt.imshow(mst.similarity_matrix)
-    plt.colorbar()
-    plt.show()
-
     assert not mst(only=["symmetry"])[0], "Symmetry passed for non-symmetric similarity measure"
+
+def test_identity(fingerprints):
+
+    for fp in fingerprints:
+        fp.set_similarity_function(non_identity)
+
+    mst = MetricSpaceTest(fingerprints)
+
+    assert not mst(only=["identity"])[0], "Symmetry passed for non-identic similarity measure"
+
