@@ -68,3 +68,19 @@ def test_identity(fingerprints):
 
     assert not mst(only=["identity"])[0], "Symmetry passed for non-identic similarity measure"
 
+def test_triangle_inequality(fingerprints):
+
+    mst = MetricSpaceTest(fingerprints)
+
+    df = mst.similarity_matrix.dataframe
+
+    mid1 = fingerprints[3].mid
+    mid2 = fingerprints[4].mid
+
+    df[mid1][mid2] = 0
+    df[mid2][mid1] = 0
+
+    mst.similarity_matrix.set_dataframe(df)
+
+    assert not mst(only=["triangle inequality"])[0], "Triangle inequality passed for non-metric space"
+    
