@@ -2,10 +2,8 @@ import os
 from simdatframe.backend.backend_core import Backend
 from simdatframe.fingerprint import Fingerprint
 import pytest
-import simdatframe
 from simdatframe.data_framework import MaterialsDatabase, Material
 from ase.build import bulk
-import json
 
 from simdatframe.similarity import SimilarityMatrix
 
@@ -267,6 +265,28 @@ def test_add_fingerprint(materials_database, monkeypatch):
 
     assert materials_database.get_metadata()["fingerprints"] == ["Mock"], "Did not write correct metadata"
 
+def test_add_fingerprint_by_type(materials_database):
+
+    class TestFingerprint(Fingerprint):
+
+        def calculate(self, material, *args, **kwargs):
+            self.set_mid(material)
+            self.set_data("calculated", {"test" : 1})
+            return self
+
+    def Test_similarity(fp1, fp2):
+        return fp1.data["calculated"]["test"] + fp2.data["calculated"]["test"]
+
+    materials_database.add_material()
+
+    materials_database.add_fingerprint(TestFingerprint)
+
+    fps = materials_database.get_fingerprints(TestFingerprint, similarity_function = Test_similarity)
+
+    assert fps[0].mid == "a:b", "Did not load fingerprint mid"
+
+    assert fps[0].get_similarities(fps) == [2], "Did not calculate similarities for deserialized fingerprint."
+
 def test_add_fingerprints(materials_database, monkeypatch):
 
     monkeypatch.setattr(Fingerprint, "__init__", MockFingerprint.__init__)
@@ -325,3 +345,15 @@ def test_add_property(materials_database):
 
     assert materials_database.api._called_get_property == 1, "Did not call API"
     assert materials_database.backend._update_buffer == [['a', {"b" : 1}]], "Did not update data correctly"
+
+def test_update_metadata(tmpdir):
+
+    db = MaterialsDatabase(filepath=tmpdir, rootpath="")
+
+    db._update_metadata({"test":"this"})
+
+    del db
+
+    db = MaterialsDatabase(filepath=tmpdir, rootpath="")
+
+    assert db.get_metadata() == {"test":"this"}, "Did not recover metadata"
