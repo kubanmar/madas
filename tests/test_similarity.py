@@ -1,4 +1,3 @@
-from _pytest.assertion import pytest_sessionfinish
 import pytest
 from simdatframe import MaterialsDatabase
 from simdatframe.fingerprint import Fingerprint
@@ -6,9 +5,7 @@ from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, Ba
 from simdatframe._test_data import test_data_path
 import os, shutil
 import numpy as np
-from copy import deepcopy
-from random import random, shuffle
-
+from random import random
 
 @pytest.fixture
 def database(tmp_path):
@@ -262,6 +259,9 @@ def test_SimilarityMatrix_save_load(simat, tmpdir):
 
     assert simat == matrix, "Save/load did not work properly"
 
+    with pytest.raises(FileExistsError):
+        simat.save(filepath = str(tmpdir))
+
 def test_SimilarityMatrix_get_matching_matrices():
 
     mids1 = ["a", "b", "c", "d", "e"]
@@ -401,6 +401,10 @@ def test_OverlapSimilarityMatrix_save_load(tmpdir):
 
     assert matrix == loaded, "Did not save/load correct matrix data"
 
+    with pytest.raises(FileExistsError):
+        matrix.save(filepath = str(tmpdir))
+
+
 def test_OverlapSimilarityMatrix_get_entry():
 
     fps = [MockFingerpint().calculate() for _ in range(15)]
@@ -493,13 +497,138 @@ def test_OverlapSimilarityMatrix_align():
     assert all(osm2.column_mids == ["e"]), "Did not align column mids matrix2"
     assert all(osm3.column_mids == ["e"]), "Did not align column mids matrix3"
 
-@pytest.mark.skip()
-def test_batched_similarity_matrix(tmp_path, dos_simat, all_dos_fingerprints):
-    serial_matrix = dos_simat.get_symmetric_matrix()
-    batched_matrix = []
-    bsm = BatchedSimilarityMatrix().calculate(all_dos_fingerprints, folder_name = 'test_matrix', batch_size = 5, data_path=str(tmp_path))
-    loaded_bsm = SimilarityMatrix().load(data_path = str(tmp_path), batched = True, batch_size = 5, batch_folder_name = 'test_matrix')
-    assert (bsm[3] == loaded_bsm[3]).all()
-    for mid in bsm.mids:
-        batched_matrix.append(bsm.get_row(mid))
-    assert np.allclose(serial_matrix, batched_matrix)
+def test_BatchedSimilarityMatrix_init_from_metadata(tmpdir):
+
+    bsm = BatchedSimilarityMatrix(root_path=tmpdir, size = 10)
+
+    bsm.save_metadata()
+
+    del bsm
+
+    bsm = BatchedSimilarityMatrix(root_path=tmpdir)
+
+    assert bsm.size == 10, "Did not read from metadata file"
+
+def test_BatchedSimilarityMatrix_fingerprint_file_batches(tmpdir):
+    
+    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
+    from itertools import product
+    import json
+
+    fps = [DUMMYFingerprint.from_list(prod) for prod in product(range(5), repeat = 2)]
+
+    fp_data_serialized = [fp.serialize() for fp in fps]
+
+    with open(os.path.join(tmpdir, "batched_fingerprints_test_full_list.json"), "w") as f:
+       json.dump(fp_data_serialized, f)
+
+    bsm = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5)
+
+    bsm.fingerprint_file_batches("batched_fingerprints_test_full_list.json", tmpdir, overwrite=True)
+
+    del bsm
+
+    bsm = BatchedSimilarityMatrix(root_path=tmpdir)
+
+    assert bsm.size == 25, "Did not save correct size to metadata"
+
+    fp_data = []
+
+    for batch in bsm.batch_iterator.linear_batch_list(bsm.size, bsm.batch_size):
+        fp_file_name = bsm.gen_fingerprint_batch_file_name(batch[0], batch[1])
+        fp_file_path = os.path.join(bsm.folder_path, fp_file_name)
+        assert os.path.exists(fp_file_path), f"Fingerprint file for batch {batch} not found at {fp_file_path}"
+        with open(fp_file_path, "r") as f:
+            data = json.load(f)
+        deserialized_data = [Fingerprint.deserialize(entry) for entry in data]
+        assert bsm.fingerprints_from_batch_file(batch[0], batch[1]) == deserialized_data, "Fingerprints from batch file did not return correct data"
+        fp_data.extend(data)
+
+    assert fp_data == fp_data_serialized, "Could not recover fingerprint data from files"
+
+    mid_file_path = os.path.join(bsm.folder_path, bsm.mid_filename)
+
+    with open(mid_file_path, "r") as f:
+        mids = [line.split()[1] for line in f.readlines()]
+
+    assert mids == [fp.mid for fp in fps], "Did not write correct mids to mid file"
+
+def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
+
+    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint, DUMMY_similarity
+    from itertools import product
+    import json
+
+    fps = [DUMMYFingerprint.from_list(prod) for prod in product(range(5), repeat = 2)]
+
+    ref_simat = SimilarityMatrix().calculate(fps)
+
+    fp_data_serialized = [fp.serialize() for fp in fps]
+
+    with open(os.path.join(tmpdir, "batched_fingerprints_test_full_list.json"), "w") as f:
+       json.dump(fp_data_serialized, f)
+
+    bsm_t1 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=0)
+    bsm_t1.fingerprint_file_batches("batched_fingerprints_test_full_list.json", tmpdir)
+    bsm_t2 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=1)
+
+    bsm_t1.calculate(DUMMY_similarity)
+
+    for batch in bsm_t1.batch_iterator:
+        file_name = bsm_t1.gen_matrix_batch_file_name(batch)
+        file_path = os.path.join(bsm_t1.folder_path, file_name)
+        assert os.path.exists(file_path), "Did not calculate similarity matrix batch task 0"
+
+    for batch in bsm_t2.batch_iterator:
+        file_name = bsm_t2.gen_matrix_batch_file_name(batch)
+        file_path = os.path.join(bsm_t2.folder_path, file_name)
+        assert not os.path.exists(file_path), "Did calculate wrong similarity matrix batch"
+
+    bsm_t2.calculate(DUMMY_similarity)
+    
+    for batch in bsm_t2.batch_iterator:
+        file_name = bsm_t2.gen_matrix_batch_file_name(batch)
+        file_path = os.path.join(bsm_t2.folder_path, file_name)
+        assert os.path.exists(file_path), "Did not calculate similarity matrix batch task 1"
+
+    batched_matrix_values = []
+    for mid in ref_simat.mids:
+        row = bsm_t1.get_row_by_mid(mid)
+        batched_matrix_values.append(row)
+
+    assert (ref_simat.matrix == batched_matrix_values).all(), "Did not reproduce reference similarity matrix"
+
+    bsm_t1.write_most_similar_materials_file(k = 5)
+    bsm_t2.write_most_similar_materials_file(k = 5)
+
+    msm_t1_path = os.path.join(bsm_t1.folder_path, bsm_t1.most_similar_materials_filename)
+    msm_t2_path = os.path.join(bsm_t2.folder_path, bsm_t2.most_similar_materials_filename)
+
+    assert os.path.exists(msm_t1_path), "Did not write most similar materials file task 0"
+    assert os.path.exists(msm_t2_path), "Did not write most similar materials file task 1"
+
+    msm_bsm = []
+
+    with open(msm_t1_path, 'r') as f:
+        for line in f:
+            msm_bsm.append(json.loads(line))
+    with open(msm_t2_path, 'r') as f:
+        for line in f:
+            msm_bsm.append(json.loads(line))
+
+    ref_msm = [ref_simat.get_k_most_similar(mid, k=5) for mid in ref_simat.mids]
+
+    msm_bsm.sort(key = lambda x: [idx for idx, entry in enumerate(ref_msm) if list(entry)[0] == list(x)[0]][0])
+
+    assert len(msm_bsm) == len(ref_msm), "Inconsistent number of most similar materials"
+
+    for r1, r2 in zip(msm_bsm, ref_msm):
+        ref_mid1 = list(r1)[0]
+        ref_mid2 = list(r2)[0]
+        assert ref_mid1 == ref_mid2, "Wrong mids in line!"
+        data1 = r1[ref_mid1]
+        data2 = r2[ref_mid2]
+        for key in data2.keys():
+            if not key in data1.keys():
+                other_key = [key1 for key1 in data1.keys() if not key1 in data2.keys()][0]
+                assert ref_simat.get_entry(ref_mid1, key) == ref_simat.get_entry(ref_mid1, other_key), "Similiarties for ambiguous entries are not identical."
