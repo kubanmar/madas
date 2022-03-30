@@ -1,6 +1,6 @@
 import pytest
 
-from simdatframe.machine_learning import MatrixMultiKernelLearning
+#from old.machine_learning_old import MatrixMultiKernelLearning
 from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
 from simdatframe import SimilarityMatrix, fingerprint
 
@@ -51,6 +51,7 @@ def predictions():
 def test_linear_comb_sim_mat():
     pass
 
+@pytest.mark.skip()
 def test_MatrixMultiKernelLearning(fingerprints, similarity_matrix, predictions):
     mids, targets = np.transpose(np.array([[fp.mid, fp.y] for fp in fingerprints], dtype = object))
     np.random.seed(0)
