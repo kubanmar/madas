@@ -1,8 +1,9 @@
 import os
+from simdatframe.apis.api_core import APIClass
 from simdatframe.backend.backend_core import Backend
 from simdatframe.fingerprint import Fingerprint
 import pytest
-from simdatframe.data_framework import MaterialsDatabase, Material
+from simdatframe import Material, MaterialsDatabase
 from ase.build import bulk
 
 from simdatframe.similarity import SimilarityMatrix
@@ -144,33 +145,25 @@ def materials_database(tmpdir, test_material):
     db = MaterialsDatabase(api = MockAPI(test_material), backend=MockBackend(), filepath=tmpdir)
     return db
 
-def test_Material(test_atoms):
-
-    #test immutable data and properties
-
-    material = Material(None)
-    with pytest.raises(AttributeError):
-        material.data = {}
-    with pytest.raises(AttributeError):
-        material.properties = {}
-    
-    # test setters
-
-    material.set_atoms(test_atoms)
-    assert material.atoms == test_atoms, "Error in setting atoms"
-
-    assert isinstance(material.data, dict), "Data is not set to dict"
-    material.set_data({"test" : "data"})
-    assert material.data == {"test" : "data"}, "Wrong data set"
-    
-    assert isinstance(material.properties, dict), "Data is not set to dict"
-    material.set_properties({"test" : "properties"})
-    assert material.properties == {"test" : "properties"}, "Wrong properties set"
-
 def test_setup(materials_database):
 
     assert materials_database.log.name == "materials_database_log"
     assert materials_database.api_logger.name == "materials_database_api"
+
+def test_API_missing_docstrings(tmpdir):
+
+    class EmptyAPI(APIClass):
+
+        def get_calculation(self, *args, **kwargs) -> Material:
+            return Material("a")
+
+        def get_calculations_by_search(self, *args, **kwargs):
+            return [Material("a")]
+
+        def get_property(self, **kwargs):
+            return "a"
+
+    db = MaterialsDatabase(filepath=tmpdir, api=EmptyAPI())
 
 def test_add_material(materials_database):
     

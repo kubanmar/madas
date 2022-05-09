@@ -131,11 +131,11 @@ def test_SimilarityMatrix_calculate():
 
     assert np.allclose(simat.matrix, [fp.get_similarities(fps) for fp in fps]), "Calculated similarities (not symmetric) are wrong"
 
-    simat = SimilarityMatrix().calculate(fps, multiprocess=False)
+    simat = SimilarityMatrix().calculate(fps, multiprocess=None)
 
     assert np.allclose(simat.matrix, [fp.get_similarities(fps) for fp in fps]), "Calculated similarities (serial) are wrong"
 
-    simat = SimilarityMatrix().calculate(fps, multiprocess=False, symmetric=False)
+    simat = SimilarityMatrix().calculate(fps, multiprocess=None, symmetric=False)
 
     assert np.allclose(simat.matrix, [fp.get_similarities(fps) for fp in fps]), "Calculated similarities (serial, not symmetric) are wrong"
 
@@ -561,7 +561,7 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
 
     fps = [DUMMYFingerprint.from_list(prod) for prod in product(range(5), repeat = 2)]
 
-    ref_simat = SimilarityMatrix().calculate(fps)
+    ref_simat = SimilarityMatrix(dtype=np.float32).calculate(fps)
 
     fp_data_serialized = [fp.serialize() for fp in fps]
 
@@ -571,6 +571,9 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
     bsm_t1 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=0)
     bsm_t1.fingerprint_file_batches("batched_fingerprints_test_full_list.json", tmpdir)
     bsm_t2 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=1)
+
+    assert bsm_t1.matrices_for_this_task == 8, "Wrong number of matrices for first task"
+    assert bsm_t2.matrices_for_this_task == 7, "Wrong number of matrices for second task"
 
     bsm_t1.calculate(DUMMY_similarity)
 
@@ -595,6 +598,10 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
     for mid in ref_simat.mids:
         row = bsm_t1.get_row_by_mid(mid)
         batched_matrix_values.append(row)
+
+    assert isinstance(batched_matrix_values[0][0], np.float32), "Wrong data type for matrix elements"
+
+    batched_matrix_values = np.array(batched_matrix_values, dtype=np.float32)
 
     assert (ref_simat.matrix == batched_matrix_values).all(), "Did not reproduce reference similarity matrix"
 

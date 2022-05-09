@@ -3,14 +3,12 @@ import pytest
 import os
 
 import pandas as pd
-import numpy as np
 
-from ase import Atoms
 from ase.build import bulk
 from ase.io import write
 
 from simdatframe.apis.local_data_API import FileReaderASE, CSVPropertyReader, API
-from simdatframe import Material
+from simdatframe import Material, MaterialsDatabase
 
 @pytest.fixture()
 def atoms_test_data(tmpdir):
@@ -89,3 +87,24 @@ def test_API_get_calculations_by_search(atoms_test_data, csv_test_data):
 
     assert read_data[0] == ref_material_a, "did not read material a"
     assert read_data[1] == ref_material_b, "did not read material b"
+
+def test_API_get_materials_from_different_locations(tmpdir, monkeypatch):
+
+    def mock_calculations_by_search(folder_path: str, 
+                                   file_name: str, 
+                                   property_file_path: str, 
+                                   property_file_name: str, 
+                                   file_reader_kwargs: str = {}, 
+                                   property_reader_kwargs: str = {}):
+        if folder_path == "1":
+            return [Material("a")]
+        else:
+            return [Material("b")]
+
+    monkeypatch.setattr(API, "get_calculations_by_search", mock_calculations_by_search)
+
+    db = MaterialsDatabase(filepath=tmpdir, api=API())
+
+    db.fill_database("1", None, None)
+
+    db.fill_database("2", None, None)

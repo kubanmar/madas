@@ -1,1 +1,5 @@
-tensorflow
+tensorflow>=2
+dscribe>=1 
+nomad_dos_fingerprints @ git+https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-dos-fingerprints.git
+scikit-learn 
+requests 

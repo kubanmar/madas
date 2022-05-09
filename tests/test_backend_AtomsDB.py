@@ -66,8 +66,10 @@ def test_get_by_id(backend, material):
 def test_update_single(backend, material):
     backend.add_single(material)
     backend.update_single(material.mid, something = "new")
+    backend.update_single(material.mid, different = 1)
     mat = backend.get_single(material.mid)
     assert mat.properties["something"] == "new", "Failed to update property of single material"
+    assert mat.properties["different"] == 1, "Failed to update integer property of single material"
 
 def test_update_many(backend, materials):
     backend.add_many(materials)
@@ -75,7 +77,8 @@ def test_update_many(backend, materials):
     backend.update_many(mids, [{"something" : f"different{idx}"} for idx in range(len(materials))])
     mats = backend.get_many(mids)
     for idx, mat in enumerate(mats):
-        assert mat.properties["something"] == f"different{idx}", "Failed to update property of many materials"
+        print(mat)
+        assert mat.properties["something"] == f"different{idx}", f"Failed to update property of many materials: {mat}"
 
 def test_metadata(tmpdir):
     backend = ASEBackend(filename="test_db.db", rootpath=tmpdir)
