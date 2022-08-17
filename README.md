@@ -23,3 +23,4 @@ For installation:
   * you may import the module in python with:
     * ``import simdatframe``
 
+There may be conflicting requirements for versions of ASE. However, this package requires a very recent version, because it contains a necessary fix for the database. So, please, make sure you have `ase>=3.22` installed.
