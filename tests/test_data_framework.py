@@ -337,7 +337,7 @@ def test_add_property(materials_database):
     materials_database.add_property("a", "b")
 
     assert materials_database.api._called_get_property == 1, "Did not call API"
-    assert materials_database.backend._update_buffer == [['a', {"b" : 1}]], "Did not update data correctly"
+    assert materials_database.backend._update_buffer == [['a', {"data" : {"b" : 1}}]], "Did not update data correctly"
 
 def test_update_metadata(tmpdir):
 
