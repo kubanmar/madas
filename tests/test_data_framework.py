@@ -16,10 +16,13 @@ class MockAPI():
         self._called_get_property = 0
         self._called_get_calculations_by_search = 0
 
-    def get_calculations_by_search(self, *args, **kwargs):
+    def get_calculations_by_search(self, some_string, **kwargs):
         """
         Test doc string
         """
+        if some_string == "duplicates":
+            self._called_get_calculations_by_search += 1
+            return [self.test_material, self.test_material]
         self._called_get_calculations_by_search += 1
         return [self.test_material]
 
@@ -83,7 +86,9 @@ class MockBackend(Backend):
     def add_single(self, *args, **kwargs):
         self._added_single += 1
 
-    def add_many(self, *args, **kwargs):
+    def add_many(self, entries, **kwargs):
+        if len(set(entries)) < len(entries):
+            raise ValueError("Tried to write same entry to db twice!") 
         self._added_many += 1
 
     def get_by_id(self, db_id):
@@ -313,6 +318,10 @@ def test_fill_database(materials_database, caplog):
     assert materials_database.api._called_get_calculations_by_search == 2, "Queried API twice"
 
     assert "Material a:b already in database. Skipping." in str(caplog.text), "Did not avoid adding duplicates"
+
+def test_fill_database_no_duplicates_from_api(materials_database):
+
+    materials_database.fill_database("duplicates")
 
 def test_get_random(materials_database):
 
