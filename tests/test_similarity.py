@@ -568,12 +568,12 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
     with open(os.path.join(tmpdir, "batched_fingerprints_test_full_list.json"), "w") as f:
        json.dump(fp_data_serialized, f)
 
-    bsm_t1 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=0)
+    bsm_t1 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 10, n_tasks=2, task_id=0)
     bsm_t1.fingerprint_file_batches("batched_fingerprints_test_full_list.json", tmpdir)
-    bsm_t2 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 5, n_tasks=2, task_id=1)
+    bsm_t2 = BatchedSimilarityMatrix(root_path=tmpdir, batch_size = 10, n_tasks=2, task_id=1)
 
-    assert bsm_t1.matrices_for_this_task == 8, "Wrong number of matrices for first task"
-    assert bsm_t2.matrices_for_this_task == 7, "Wrong number of matrices for second task"
+    assert bsm_t1.matrices_for_this_task == 3, "Wrong number of matrices for first task"
+    assert bsm_t2.matrices_for_this_task == 3, "Wrong number of matrices for second task"
 
     bsm_t1.calculate(DUMMY_similarity)
 
@@ -605,8 +605,8 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
 
     assert (ref_simat.matrix == batched_matrix_values).all(), "Did not reproduce reference similarity matrix"
 
-    bsm_t1.write_most_similar_materials_file(k = 5)
-    bsm_t2.write_most_similar_materials_file(k = 5)
+    bsm_t1.write_most_similar_materials_file(k = 10)
+    bsm_t2.write_most_similar_materials_file(k = 10)
 
     msm_t1_path = os.path.join(bsm_t1.folder_path, bsm_t1.most_similar_materials_filename)
     msm_t2_path = os.path.join(bsm_t2.folder_path, bsm_t2.most_similar_materials_filename)
@@ -623,7 +623,7 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
         for line in f:
             msm_bsm.append(json.loads(line))
 
-    ref_msm = [ref_simat.get_k_most_similar(mid, k=5) for mid in ref_simat.mids]
+    ref_msm = [ref_simat.get_k_most_similar(mid, k=10) for mid in ref_simat.mids]
 
     msm_bsm.sort(key = lambda x: [idx for idx, entry in enumerate(ref_msm) if list(entry)[0] == list(x)[0]][0])
 
