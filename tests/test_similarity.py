@@ -288,6 +288,39 @@ def test_SimilarityMatrix_get_cleared_matrix(simat):
 
     assert (cleared.matrix == [[1,3], [3,6]]).all(), "Did not remove entries"
 
+def test_SimilarityMatrix_add(simat):
+
+    from numpy.random import shuffle, seed
+    from copy import deepcopy
+
+    seed(0)
+    mids = simat.mids
+    shuffled_mids = deepcopy(mids)
+    shuffle(shuffled_mids)
+
+    assert shuffled_mids.tolist() != mids.tolist(), "Shuffling did not work"
+
+    simat2 = simat.get_sub_matrix(shuffled_mids)
+    
+    assert ((simat2 + simat).matrix == (simat * 2).matrix).all()
+    assert (simat2 * 0.5 + simat * 0.5) == simat
+
+def test_SimilarityMatrix_sub(simat):
+
+    from numpy.random import shuffle, seed
+    from copy import deepcopy
+
+    seed(0)
+    mids = simat.mids
+    shuffled_mids = deepcopy(mids)
+    shuffle(shuffled_mids)
+
+    assert shuffled_mids.tolist() != mids.tolist(), "Shuffling did not work"
+
+    simat2 = simat.get_sub_matrix(shuffled_mids)
+    
+    assert (simat2 * 2 - simat) == simat
+
 def test_OverlapSimilarityMatrix_set_mids():
 
     matrix = OverlapSimilarityMatrix([[1,0,0],[0,0,1]])

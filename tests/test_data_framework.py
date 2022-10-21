@@ -257,11 +257,11 @@ def test_add_fingerprint(materials_database, monkeypatch):
 
     materials_database.add_material()
 
-    materials_database.add_fingerprint("Mock")
+    materials_database.add_fingerprint("Mock", name = "Mock1")
 
-    assert materials_database.backend._update_buffer == [[['a:b'], [{'Mock': '{"test": "data"}'}]]], "Tried to update with wrong data"
+    assert materials_database.backend._update_buffer == [[['a:b'], [{'Mock1': '{"test": "data"}'}]]], "Tried to update with wrong data"
 
-    assert materials_database.get_metadata()["fingerprints"] == ["Mock"], "Did not write correct metadata"
+    assert materials_database.get_metadata()["fingerprints"] == ["Mock1"], "Did not write correct metadata"
 
 def test_add_fingerprint_by_type(materials_database):
 
