@@ -150,9 +150,9 @@ def test_get_similarity(fingerprint):
 
     fingerprint.set_pass_on_exceptions(True)
 
-    assert fingerprint.get_similarity(fp2) == None, "Passing on exceptions, invalid fingerprints should return None as similarity"
+    assert fingerprint.get_similarity(fp2) == 0, "Passing on exceptions, invalid fingerprints should return 0 as similarity"
 
-    assert fingerprint.get_similarity(0) == None, "Passing on exceptions, invalid fingerprints should return None as similarity"
+    assert fingerprint.get_similarity(0) == 0, "Passing on exceptions, invalid fingerprints should return 0 as similarity"
 
     def mock_failing_similarity_function(*args):
         raise AssertionError("I am failing.")
@@ -161,7 +161,7 @@ def test_get_similarity(fingerprint):
 
     fp2 = Fingerprint()
 
-    assert fingerprint.get_similarity(fp2) == None, "Passing on exceptions, failing similarity functions should return None as similarity"
+    assert fingerprint.get_similarity(fp2) == 0, "Passing on exceptions, failing similarity functions should return 0 as similarity"
 
     fingerprint.set_pass_on_exceptions(False)
 
