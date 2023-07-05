@@ -2,8 +2,8 @@ import pytest
 import numpy as np
 
 from simdatframe import Fingerprint, SimilarityMatrix
-
 from simdatframe.analysis import MetricSpaceTest
+from simdatframe.utils import seed_random_number_generators
 
 @pytest.fixture
 def fingerprints():
