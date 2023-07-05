@@ -83,3 +83,9 @@ def test_get_length(backend, material):
     assert backend.get_length() == 0, "Finite length for empty database"
     backend.add_single(material)
     assert backend.get_length() == 1, "Wrong length for one-entry database"
+
+def test_to_json(backend, material):
+    backend.add_single(material)
+    data = backend.to_json()
+    restored = DictBackend.from_json(data)
+    assert backend.get_single(material.mid) == restored.get_single(material.mid), "Serialized database did not contain same data"
