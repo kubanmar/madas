@@ -14,7 +14,6 @@ test-similarity-debian-buster-python3.7:
     - pip3 install numpy
     - pip3 install jsonschema==3.2.0
     - pip3 install -r requirements.txt
-    - pip3 install -r nomad-API-requirements.txt
     - pip3 install -e .
   script:
     - pytest tests
