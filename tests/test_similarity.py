@@ -1,29 +1,9 @@
 import pytest
-from simdatframe import MaterialsDatabase
 from simdatframe.fingerprint import Fingerprint
 from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix
-from simdatframe._test_data import test_data_path
-import os, shutil
+import os
 import numpy as np
 from random import random
-
-@pytest.fixture
-def database(tmp_path):
-    shutil.copy(os.path.join(test_data_path, 'similarity_matrix_class_test.db'), tmp_path)
-    db = MaterialsDatabase(filename = 'similarity_matrix_class_test.db', rootpath = str(tmp_path), filepath=".")
-    return db
-
-@pytest.fixture
-def dos_simat(database):
-    return database.get_similarity_matrix("DOS", dtype = np.float64)
-
-@pytest.fixture
-def test_fingerprint(database):
-    return database.get_fingerprint("DOS", mid = database[0].mid)
-
-@pytest.fixture
-def all_dos_fingerprints(database):
-    return database.get_fingerprints("DOS")
 
 @pytest.fixture()
 def simat():

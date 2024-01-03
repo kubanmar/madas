@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="SimilarityDataFramework",
-    version="0.8",
+    version="1.0.0rc1",
     author="Martin Kuban",
     author_email="kuban@physik.hu-berlin.de",
     description="A framework for working with materials similarity.",
@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://git.physik.hu-berlin.de/kuban/similarity-data-framework",
     python_requires='>=3.6',
     install_requires = ['numpy', 
-                        'pandas', 
+                        'pandas>=2.0', 
                         'ase>=3.22', 
                         'scipy', 
                         'matplotlib', 

@@ -55,7 +55,7 @@ def test_API_get_calculation(atoms_test_data, csv_test_data):
 
     api = API(root=tmpdir)
 
-    ref_material = Material(mid = api.gen_mid("a", "geometry.in", ".", "properties.csv"),
+    ref_material = Material(mid = api._gen_mid("a", "geometry.in", ".", "properties.csv"),
                             atoms=atoms,
                             data=data["a"])
 
@@ -70,13 +70,13 @@ def test_API_get_calculations_by_search(atoms_test_data, csv_test_data):
 
     api = API(root=tmpdir)
 
-    ref_material_a = Material(mid = api.gen_mid(os.path.join(tmpdir, "a"), 
+    ref_material_a = Material(mid = api._gen_mid(os.path.join(tmpdir, "a"), 
                                                 "geometry.in", 
                                                 ".", 
                                                 "properties.csv"),
                             atoms=atoms,
                             data=data["a"])
-    ref_material_b = Material(mid = api.gen_mid(os.path.join(tmpdir, "b"), 
+    ref_material_b = Material(mid = api._gen_mid(os.path.join(tmpdir, "b"), 
                                                 "geometry.in", 
                                                 ".", 
                                                 "properties.csv"),
@@ -85,8 +85,9 @@ def test_API_get_calculations_by_search(atoms_test_data, csv_test_data):
 
     read_data = api.get_calculations_by_search(tmpdir, "geometry.in", ".", "properties.csv")
 
-    assert read_data[0] == ref_material_a, "did not read material a"
-    assert read_data[1] == ref_material_b, "did not read material b"
+    assert len(read_data) == 2, "wrong number of data points read"
+    assert ref_material_a in read_data, "did not read material a"
+    assert ref_material_b in read_data, "did not read material b"
 
 def test_API_get_materials_from_different_locations(tmpdir, monkeypatch):
 

@@ -1,4 +1,3 @@
-import os
 from simdatframe.apis.api_core import APIClass
 from simdatframe.backend.backend_core import Backend
 from simdatframe.fingerprint import Fingerprint
@@ -8,7 +7,7 @@ from ase.build import bulk
 
 from simdatframe.similarity import SimilarityMatrix
 
-class MockAPI():
+class MockAPI(APIClass):
 
     def __init__(self, test_material) -> None:
         self._test_material = test_material
@@ -50,7 +49,7 @@ class MockAPI():
     def set_logger(self, logger):
         self.log = logger
 
-    def gen_mid(self, return_id = 1):
+    def _gen_mid(self, return_id = 1):
         if return_id == 1:
             return "a:b"
         else:
@@ -204,6 +203,16 @@ def test_get_properties(materials_database, test_material):
     assert properties == ["a"], "Did not recieve correct list of properties"
     assert mids == [test_material.mid], "Did not recieve correct list of mids"
 
+def test_get_property_dataframe(materials_database):
+
+    materials_database.add_material()
+
+    import pandas as pd
+
+    ref_dataframe=pd.DataFrame({'dos/a': {'a:b': 'a'}, 'dos/b': {'a:b': 'b'}, 'test': {'a:b': 'data'}})
+
+    assert ((materials_database.get_property_dataframe(["test", "dos/a", "dos/b"]) == ref_dataframe).all()).all(), "Did not create correct dataframe"
+
 def test_getitem(materials_database):
     materials_database.add_material()
     assert materials_database["a"].mid == "a:b", "Did not recieve correct material by mid"
@@ -305,7 +314,7 @@ def test_fill_database(materials_database, caplog):
 
     assert materials_database.backend._added_many == 1, "Did not add many to backend"
     assert materials_database.api._called_get_calculations_by_search == 1, "Did not call API"
-    assert materials_database.get_metadata()["search_queries"] == ['[{"a": "a"}]']
+    assert materials_database.get_metadata()["search_queries"] == ['bd3ab8c72d54553816132940bffd738c']
 
     materials_database.fill_database({"a" : "a"})
 
