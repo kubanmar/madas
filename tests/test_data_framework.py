@@ -70,6 +70,10 @@ class MockFingerprint():
     def calculate(self, *args, **kwargs) -> object:
         self.calculated = True
         return self
+    
+    def from_material(self, *args, **kwargs) -> object:
+        self.calculate( *args, **kwargs)
+        return self
 
     def from_data(self, *args, **kwargs) -> object:
         return MockFingerprint().calculate()
@@ -167,7 +171,7 @@ def test_API_missing_docstrings(tmpdir):
         def get_property(self, **kwargs):
             return "a"
 
-    db = MaterialsDatabase(filepath=tmpdir, api=EmptyAPI())
+    MaterialsDatabase(filepath=tmpdir, api=EmptyAPI())
 
 def test_add_material(materials_database):
     
@@ -211,7 +215,7 @@ def test_get_property_dataframe(materials_database):
 
     ref_dataframe=pd.DataFrame({'dos/a': {'a:b': 'a'}, 'dos/b': {'a:b': 'b'}, 'test': {'a:b': 'data'}})
 
-    assert ((materials_database.get_property_dataframe(["test", "dos/a", "dos/b"]) == ref_dataframe).all()).all(), "Did not create correct dataframe"
+    assert ((materials_database.get_property_dataframe(["dos/a", "dos/b", "test"]) == ref_dataframe).all()).all(), "Did not create correct dataframe"
 
 def test_getitem(materials_database):
     materials_database.add_material()
@@ -276,10 +280,15 @@ def test_add_fingerprint_by_type(materials_database):
 
     class TestFingerprint(Fingerprint):
 
-        def calculate(self, material, *args, **kwargs):
-            self.set_mid(material)
+        def calculate(self, *args, **kwargs):
             self.set_data("calculated", {"test" : 1})
             return self
+        
+        def from_material(self, material: Material, *args, **kwargs):
+            self.set_mid(material)
+            self.calculate(*args, **kwargs)
+            return self
+
 
     def Test_similarity(fp1, fp2):
         return fp1.data["calculated"]["test"] + fp2.data["calculated"]["test"]

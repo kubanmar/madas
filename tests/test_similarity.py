@@ -649,6 +649,6 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
         data1 = r1[ref_mid1]
         data2 = r2[ref_mid2]
         for key in data2.keys():
-            if not key in data1.keys():
-                other_key = [key1 for key1 in data1.keys() if not key1 in data2.keys()][0]
+            if key not in data1.keys():
+                other_key = [key1 for key1 in data1.keys() if key1 not in data2.keys()][0]
                 assert ref_simat.get_entry(ref_mid1, key) == ref_simat.get_entry(ref_mid1, other_key), "Similiarties for ambiguous entries are not identical."

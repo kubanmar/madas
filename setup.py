@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://git.physik.hu-berlin.de/kuban/similarity-data-framework",
     python_requires='>=3.10',
     install_requires = ['numpy', 
-                        'pandas>=2.0', 
+                        'pandas==2.2.0', 
                         'ase>=3.22', 
                         'scipy', 
                         'matplotlib', 
