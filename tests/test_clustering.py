@@ -11,7 +11,7 @@ def blobs_and_labels():
 @pytest.fixture()
 def fingerprints(blobs_and_labels):
     pos, _ = blobs_and_labels
-    return [Fingerprint("DUMMY").from_list(pos_) for pos_ in pos]
+    return [Fingerprint("DUMMY").from_material(".".join(map(str, pos_)), value=pos_) for pos_ in pos]
 
 @pytest.fixture()
 def similarity_matrix(fingerprints):
@@ -46,7 +46,7 @@ def test_save_and_load(fitted_clusterer, tmpdir):
     
     assert (fitted_clusterer.labels == loaded_clusterer.labels).all(), "Loading did not return same cluster labels"
     assert fitted_clusterer.simat == loaded_clusterer.simat, "Loading did not return same SimilarityMatrix"
-    assert fitted_clusterer.uses_distances == loaded_clusterer.uses_distances, "Loading did not return correct distance handling"
+    assert fitted_clusterer.use_complement == loaded_clusterer.use_complement, "Loading did not return correct complement handling"
 
 def test_get_mids_sorted_by_cluster_labels(fitted_clusterer):
     label_dict = fitted_clusterer.get_label_dict()

@@ -3,13 +3,14 @@ import numpy as np
 
 from simdatframe import Fingerprint, SimilarityMatrix
 from simdatframe.analysis import MetricSpaceTest
-from simdatframe.utils import seed_random_number_generators
+
+def mock_mid_creator(values) -> str:
+    return ".".join(str(val) for val in values)
 
 @pytest.fixture
 def fingerprints():
     points = np.arange(0,1.01,0.01), np.arange(0,1.01,0.01)
-    func = lambda x, y: np.exp(-0.5 * (x**2 + y**2) / 0.25)
-    fps = [Fingerprint("DUMMY", target_function = func).from_list(list(point)) for point in zip(*points)]
+    fps = [Fingerprint("DUMMY").from_material(mock_mid_creator(point), value=list(point)) for point in zip(*points)]
     return fps
 
 def unity(*args):

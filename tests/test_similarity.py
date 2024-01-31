@@ -528,7 +528,7 @@ def test_BatchedSimilarityMatrix_fingerprint_file_batches(tmpdir):
     from itertools import product
     import json
 
-    fps = [DUMMYFingerprint.from_list(prod) for prod in product(range(5), repeat = 2)]
+    fps = [DUMMYFingerprint().from_material(".".join(map(str,prod)), value=prod) for prod in product(range(5), repeat = 2)]
 
     fp_data_serialized = [fp.serialize() for fp in fps]
 
@@ -572,7 +572,7 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
     from itertools import product
     import json
 
-    fps = [DUMMYFingerprint.from_list(prod) for prod in product(range(5), repeat = 2)]
+    fps = [DUMMYFingerprint().from_material(".".join(map(str,prod)), value=prod) for prod in product(range(5), repeat = 2)]
 
     ref_simat = SimilarityMatrix(dtype=np.float32).calculate(fps)
 

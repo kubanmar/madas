@@ -25,7 +25,14 @@ def mock_response():
                     }
                 }
             },
-            "mock_data" : "some_test_data"
+            "mock_data" : "some_test_data",
+            "run" : [
+                {"system" : [{
+                    "atoms" : {
+                        "periodic" : [True, True, True]
+                    }
+                }]}
+            ]
         }
     }
     return data

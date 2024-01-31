@@ -1,6 +1,22 @@
 import pytest
 
-from simdatframe.utils import BatchIterator
+from simdatframe.utils import BatchIterator, print_dict_tree, print_key_paths
+
+@pytest.fixture
+def example_dict():
+    return {
+        "a" : {
+            "b" : 2, 
+            "c" : [
+                {"d" : 3},
+                {"e" : 4},
+                5,
+                "f"
+            ]
+        },
+        "g" : [1, 2, 3]
+    }
+
 
 def test_BatchIterator_init():
 
@@ -84,3 +100,28 @@ def test_BatchIterator_linear_batch_list():
     ]
 
     assert linear_list == expected_list, "Wrong linear list"
+
+def test_print_dict_tree(example_dict, capsys):
+    print_dict_tree(example_dict)
+    out, err = capsys.readouterr()
+    assert len(err) == 0, f"Produced an error: {err}"
+    assert out == """ a {
+   b : <value>
+   c [ 
+   [0] {
+     d : <value>
+  }
+   [1] {
+     e : <value>
+  }
+     <value>
+  ]
+}
+ g : <value>
+""", "Did not print correct tree!"
+    
+def test_print_key_paths(example_dict, capsys):
+    print_key_paths("e", example_dict)
+    out, err = capsys.readouterr()
+    assert len(err) == 0, f"Produced an error: {err}"
+    assert out == """/a/c/1/e\n""", "Did not print correct path!"

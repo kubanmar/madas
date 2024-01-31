@@ -118,12 +118,19 @@ def test_set_data(fingerprint):
 
 def test_set_similarity(fingerprint):
 
-    def dummy_similarity(*args):
-        return "Passed"
+    def dummy_similarity(*args, trigger=False):
+        if trigger:
+            return "Passed with kwargs"
+        else:
+            return "Passed"
 
     fingerprint.set_similarity_function(dummy_similarity)
 
     assert fingerprint.get_similarity(Fingerprint()) == "Passed", "Unable to set similarity function"
+
+    fingerprint.set_similarity_function(dummy_similarity, trigger=True)
+
+    assert fingerprint.get_similarity(Fingerprint()) == "Passed with kwargs", "Unable to set similarity function with kwargs"
 
 def test_get_similarity(fingerprint):
 
