@@ -3,7 +3,7 @@ image: python:3.10
 stages:
   - test
 
-install:
+full_test:
   stage: test
   before_script:
     - pip3 install --upgrade pip
