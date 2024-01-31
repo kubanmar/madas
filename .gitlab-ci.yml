@@ -10,7 +10,8 @@ install:
     - pip3 install -r requirements.txt
     - pip3 install .
   script:
-    - pytest tests
+    - pip show pandas
+    - pytest -vv tests
 
 
 #test-similarity-debian-buster-python3.7:
