@@ -260,7 +260,7 @@ def test_get_similarity_matrix(materials_database, monkeypatch):
 
     simat = materials_database.get_similarity_matrix(None)
 
-    assert simat._calculated == True, "Similarity matrix was not calculated"
+    assert simat._calculated is True, "Similarity matrix was not calculated"
 
 def test_add_fingerprint(materials_database, monkeypatch):
 
