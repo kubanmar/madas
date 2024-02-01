@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="MADAS"
+version="1.0.0rc1"
+description = "The MAterials DAta Similarity framework."
+readme = {file = "README.md", content-type = "text/markdown"}
+authors = [
+    {name="Martin Kuban et al."}
+]
+maintainers = [
+    {name="The MADAS developers", email="kuban@physik.hu-berlin.de"}
+]
+requires-python = ">= 3.10"
+dependencies = [
+    "numpy == 1.26",
+    "pandas == 2.2",
+    "ase >= 3.22",
+    "matplotlib >= 3.5",
+    "tqdm == 4.64"
+]
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/kubanmar/madas"
+
+[tool.setuptools.packages.find]
+include=["madas"]
+exclude=["tests"]

@@ -4,7 +4,7 @@ data/
 __pycache__/
 *.out
 *.log
-SimilarityDataFramework.egg-info
+*.egg-info
 .pytest_cache
 .cache
 [#]*[#]

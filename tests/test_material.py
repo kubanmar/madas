@@ -1,6 +1,6 @@
 import pytest
 
-from simdatframe import Material
+from madas import Material
 
 @pytest.fixture()
 def material():
@@ -8,7 +8,7 @@ def material():
 
 def test_init(material):
     assert material.mid == "a", "Did not set mid correctly"
-    assert material.atoms == None, "Did not set atoms correctly"
+    assert material.atoms is None, "Did not set atoms correctly"
     assert material.data == {}, "Did not set data correctly"
     assert material.properties == {}, "Did not set properties correctly"
 

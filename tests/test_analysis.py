@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 
-from simdatframe import Fingerprint, SimilarityMatrix
-from simdatframe.analysis import MetricSpaceTest
+from madas import Fingerprint, SimilarityMatrix
+from madas.analysis import MetricSpaceTest
 
 def mock_mid_creator(values) -> str:
     return ".".join(str(val) for val in values)

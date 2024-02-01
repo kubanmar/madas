@@ -1,11 +1,11 @@
-from simdatframe.apis.api_core import APIClass
-from simdatframe.backend.backend_core import Backend
-from simdatframe.fingerprint import Fingerprint
+from madas.apis.api_core import APIClass
+from madas.backend.backend_core import Backend
+from madas.fingerprint import Fingerprint
 import pytest
-from simdatframe import Material, MaterialsDatabase
+from madas import Material, MaterialsDatabase
 from ase.build import bulk
 
-from simdatframe.similarity import SimilarityMatrix
+from madas.similarity import SimilarityMatrix
 
 class MockAPI(APIClass):
 

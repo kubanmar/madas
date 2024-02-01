@@ -1,6 +1,6 @@
 import pytest
 
-from simdatframe.utils import BatchIterator, print_dict_tree, print_key_paths
+from madas.utils import BatchIterator, print_dict_tree, print_key_paths
 
 @pytest.fixture
 def example_dict():

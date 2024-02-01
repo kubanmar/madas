@@ -1,6 +1,6 @@
 import pytest
-from simdatframe.clustering import SimilarityMatrixClusterer
-from simdatframe import SimilarityMatrix, Fingerprint
+from madas.clustering import SimilarityMatrixClusterer
+from madas import SimilarityMatrix, Fingerprint
 
 from sklearn.datasets import make_blobs
 

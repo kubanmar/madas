@@ -1,8 +1,8 @@
 import pytest
 import os
 
-from simdatframe.backend.ASE_backend import ASEBackend
-from simdatframe import Material
+from madas.backend.ASE_backend import ASEBackend
+from madas import Material
 
 from ase.build import bulk
 

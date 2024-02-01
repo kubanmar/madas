@@ -7,7 +7,6 @@ full_test:
   stage: test
   before_script:
     - pip3 install --upgrade pip
-    - pip3 install -r requirements.txt
     - pip3 install .
   script:
     - pytest -vv tests

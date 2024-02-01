@@ -1,4 +1,4 @@
-from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
+from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
 
 def test_dummy_fingerprint():
     data = [1,2,3,4]

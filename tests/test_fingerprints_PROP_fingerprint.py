@@ -1,4 +1,4 @@
-from simdatframe import Fingerprint, Material
+from madas import Fingerprint, Material
 
 import pytest
 

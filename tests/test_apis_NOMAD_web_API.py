@@ -1,5 +1,7 @@
 import pytest
-from simdatframe.apis.NOMAD_web_API import *
+from madas.apis.NOMAD_web_API import get_atoms
+
+import numpy as np
 
 @pytest.fixture()
 def mock_response():

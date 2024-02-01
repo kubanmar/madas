@@ -1,6 +1,6 @@
 import pytest
-from simdatframe.fingerprint import Fingerprint
-from simdatframe.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix
+from madas.fingerprint import Fingerprint
+from madas.similarity import SimilarityMatrix, OverlapSimilarityMatrix, BatchedSimilarityMatrix
 import os
 import numpy as np
 from random import random
@@ -524,7 +524,7 @@ def test_BatchedSimilarityMatrix_init_from_metadata(tmpdir):
 
 def test_BatchedSimilarityMatrix_fingerprint_file_batches(tmpdir):
     
-    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
+    from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
     from itertools import product
     import json
 
@@ -568,7 +568,7 @@ def test_BatchedSimilarityMatrix_fingerprint_file_batches(tmpdir):
 
 def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
 
-    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint, DUMMY_similarity
+    from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint, DUMMY_similarity
     from itertools import product
     import json
 

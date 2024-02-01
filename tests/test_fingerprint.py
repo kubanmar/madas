@@ -1,4 +1,4 @@
-from simdatframe import Fingerprint, Material
+from madas import Fingerprint, Material
 import pytest
 
 @pytest.fixture
@@ -11,8 +11,8 @@ def test_material():
 
 def test_imports():
     
-    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint, DUMMY_similarity
-    from simdatframe.fingerprint import import_builtin_module
+    from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint, DUMMY_similarity
+    from madas.fingerprint import import_builtin_module
     
     fingerprint_class, similarity_function = import_builtin_module("DUMMY")
 
@@ -21,7 +21,7 @@ def test_imports():
 
 def test_specify(fingerprint):
 
-    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
+    from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
 
     def mock_target_function(x: list):
         return sum(x)
@@ -36,7 +36,7 @@ def test_specify(fingerprint):
 
 def test_specify_on_init():
 
-    from simdatframe.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
+    from madas.fingerprints.DUMMY_fingerprint import DUMMYFingerprint
 
     def mock_target_function(x: list):
         return sum(x)

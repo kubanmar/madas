@@ -1,8 +1,7 @@
 import pytest
-import os
 
-from simdatframe.backend.dictionary_backend import DictBackend
-from simdatframe import Material
+from madas.backend.dictionary_backend import DictBackend
+from madas import Material
 
 from ase.build import bulk
 from ase import Atoms

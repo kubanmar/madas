@@ -7,8 +7,8 @@ import pandas as pd
 from ase.build import bulk
 from ase.io import write
 
-from simdatframe.apis.local_data_API import FileReaderASE, CSVPropertyReader, API
-from simdatframe import Material, MaterialsDatabase
+from madas.apis.local_data_API import FileReaderASE, CSVPropertyReader, API
+from madas import Material, MaterialsDatabase
 
 @pytest.fixture()
 def atoms_test_data(tmpdir):
