@@ -19,7 +19,8 @@ dependencies = [
     "pandas == 2.2",
     "ase >= 3.22",
     "matplotlib >= 3.5",
-    "tqdm == 4.64"
+    "tqdm == 4.64",
+    "scikit-learn == 1.1"
 ]
 license = {file = "LICENSE"}
 
