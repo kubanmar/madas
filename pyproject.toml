@@ -3,7 +3,7 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name="MADAS"
+name="madas"
 version="1.0.0rc1"
 description = "The MAterials DAta Similarity framework."
 readme = {file = "README.md", content-type = "text/markdown"}
