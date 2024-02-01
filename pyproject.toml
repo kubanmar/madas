@@ -20,7 +20,8 @@ dependencies = [
     "ase >= 3.22",
     "matplotlib >= 3.5",
     "tqdm == 4.64",
-    "scikit-learn == 1.1"
+    "scikit-learn == 1.1",
+    "requests == 2.26" 
 ]
 license = {file = "LICENSE"}
 
