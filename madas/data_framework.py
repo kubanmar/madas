@@ -730,14 +730,12 @@ class MaterialsDatabase():
             console.setLevel(logging.DEBUG)
             console.setFormatter(formatter)
             console.set_name(db_filename + '_console')
+            handlers.append(console)
 
         for logger in [log, api]:
             for handler in handlers:
                 if handler.get_name() not in [h.get_name() for h in logger.handlers]:
-                    if not (handler.get_name().endswith('console')):
-                        logger.addHandler(handler)
-                    if not (handler.get_name().endswith('error')):
-                        logger.addHandler(handler)
+                    logger.addHandler(handler)
         self.log = log
         self.api_logger = api
 
