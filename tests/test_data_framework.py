@@ -150,7 +150,7 @@ def test_material(test_atoms):
 
 @pytest.fixture()
 def materials_database(tmpdir, test_material):
-    db = MaterialsDatabase(api = MockAPI(test_material), backend=MockBackend(), filepath=tmpdir)
+    db = MaterialsDatabase(api = MockAPI(test_material), backend=MockBackend(), filepath=tmpdir, log_mode="stream")
     return db
 
 def test_setup(materials_database):
@@ -171,7 +171,7 @@ def test_API_missing_docstrings(tmpdir):
         def get_property(self, **kwargs):
             return "a"
 
-    MaterialsDatabase(filepath=tmpdir, api=EmptyAPI())
+    MaterialsDatabase(filepath=tmpdir, api=EmptyAPI(), log_mode="stream")
 
 def test_add_material(materials_database):
     
@@ -368,12 +368,12 @@ def test_add_property(materials_database):
 
 def test_update_metadata(tmpdir):
 
-    db = MaterialsDatabase(filepath=tmpdir, rootpath="")
+    db = MaterialsDatabase(filepath=tmpdir, rootpath="", log_mode="stream")
 
     db._update_metadata({"test":"this"})
 
     del db
 
-    db = MaterialsDatabase(filepath=tmpdir, rootpath="")
+    db = MaterialsDatabase(filepath=tmpdir, rootpath="", log_mode="stream")
 
     assert db.get_metadata() == {"test":"this"}, "Did not recover metadata"

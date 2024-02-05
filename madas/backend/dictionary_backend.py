@@ -22,7 +22,7 @@ class DictBackend(Backend):
         self.key_name = key_name
         self._metadata = {}
         self._dict = {}
-        self.log = log
+        self.set_logger(log)
         #  kept for compatibility, but ignored in the remainder
         self.filename = filename 
         self.filepath = filepath

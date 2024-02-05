@@ -1,3 +1,4 @@
+import logging
 import os
 
 
@@ -25,7 +26,7 @@ class Backend():
                 os.makedirs(os.path.join(rootpath, filepath))
         self._metadata = {}
         self.key_name = key_name
-        self.log = log
+        self.set_logger(log)
 
     # properties
 
@@ -36,6 +37,10 @@ class Backend():
     @property
     def abs_path(self):
         return os.path.abspath(os.path.join(self.rootpath, self.filepath, self.filename))
+
+    @property
+    def log(self):
+        return self._log
 
     # methods
 
@@ -98,6 +103,12 @@ class Backend():
         Return the length of the database, i.e. the total number of entries.
         """
         raise NotImplementedError(f"Function 'get_length' is not implemented for object of class {self.__class__}")
+
+    def set_logger(self, logger: logging.Logger) -> None:
+        """
+        Set logger.
+        """
+        self._log = logger
 
     # private methods
 

@@ -104,7 +104,7 @@ def test_API_get_materials_from_different_locations(tmpdir, monkeypatch):
 
     monkeypatch.setattr(API, "get_calculations_by_search", mock_calculations_by_search)
 
-    db = MaterialsDatabase(filepath=tmpdir, api=API())
+    db = MaterialsDatabase(filepath=tmpdir, api=API(), log_mode="stream")
 
     db.fill_database("1", None, None)
 

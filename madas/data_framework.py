@@ -53,10 +53,18 @@ class MaterialsDatabase():
 
         default: 'ase'
 
-    silent_logging: *bool*
-        Do not write logs to STDOUT.
+    log_mode: *str*
+        Logging mode: choose between:
 
-        default: False
+        `"full"`: Write to screen and log file
+
+        `"silent"` : Write to file only
+
+        `"stream"` : Write to screen only
+
+        `"None"` : Do not log
+
+        default: `"full"`
 
     **Methods:**
     """
@@ -68,18 +76,22 @@ class MaterialsDatabase():
                  key_name = 'mid',
                  api = None, 
                  backend = 'ase', 
-                 silent_logging = False):
+                 log_mode = "full"):
         # initialize logs
         log_path = os.path.join(rootpath, filepath)
-        self._init_loggers(log_path, filename.split('.db')[0], silent_logging = silent_logging)
+        if  log_mode is not None and log_mode.lower() != "none":
+            self._init_loggers(log_path, filename.split('.db')[0], log_mode = log_mode)
+        else:
+            self.log, self.api_logger = None, None
 
         # initialization of database backend
         from madas.backend import Backend
         if backend == 'ase':
             from madas.backend import ASEBackend
-            self.backend = ASEBackend(filename, filepath, rootpath, key_name = key_name, log = self.log)
+            self.backend = ASEBackend(filename, filepath, rootpath, key_name = key_name, log = self.api_logger)
         elif isinstance(backend, Backend):
             self.backend = backend
+            self.backend.set_logger(self.api_logger)
         else:
             raise AttributeError("Ivalid argument for backend: Choose from ['ase'] or pass a Backend object.")
 
@@ -693,7 +705,10 @@ class MaterialsDatabase():
                 metadata.update({key:update_dict[key]})
         self.backend.update_metadata(**metadata)
 
-    def _init_loggers(self, path, db_filename, silent_logging):
+    def _init_loggers(self, path, db_filename, log_mode):
+
+        log_mode = log_mode.strip().lower()
+
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
         log = logging.getLogger(db_filename +'_log')
@@ -702,27 +717,33 @@ class MaterialsDatabase():
         api = logging.getLogger(db_filename + '_api')
         api.setLevel(logging.DEBUG)
 
-        log_folder_name = '.' + db_filename + '_logs'
+        handlers = []
 
-        self._log_folder_name = log_folder_name
+        if log_mode != "stream":
+            log_folder_name = '.' + db_filename + '_logs'
+            self._log_folder_name = log_folder_name
 
-        if not os.path.exists(os.path.join(path, log_folder_name)):
-            os.makedirs(os.path.join(path, log_folder_name))
+            if not os.path.exists(os.path.join(path, log_folder_name)):
+                os.makedirs(os.path.join(path, log_folder_name))
 
-        log_file = logging.FileHandler(os.path.join(path, log_folder_name,db_filename+'_errors.log'))
-        log_file.setLevel(logging.INFO)
-        log_file.setFormatter(formatter)
-        log_file.set_name(db_filename + '_error')
-
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        console.setFormatter(formatter)
-        console.set_name(db_filename + '_console')
+            log_file = logging.FileHandler(os.path.join(path, log_folder_name,db_filename+'_errors.log'))
+            log_file.setLevel(logging.INFO)
+            log_file.setFormatter(formatter)
+            log_file.set_name(db_filename + '_error')
+            handlers.append(log_file)
+        
+        if log_mode != "silent":
+            console = logging.StreamHandler()
+            console.setLevel(logging.DEBUG)
+            console.setFormatter(formatter)
+            console.set_name(db_filename + '_console')
 
         for logger in [log, api]:
-            for handler in [log_file, console]:
+            for handler in handlers:
                 if handler.get_name() not in [h.get_name() for h in logger.handlers]:
-                    if not (handler.get_name().endswith('console') and silent_logging):
+                    if not (handler.get_name().endswith('console')):
+                        logger.addHandler(handler)
+                    if not (handler.get_name().endswith('error')):
                         logger.addHandler(handler)
         self.log = log
         self.api_logger = api
