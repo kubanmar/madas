@@ -10,20 +10,16 @@ class Backend():
     def __init__(self, 
                  filename = "materials_database.db", 
                  filepath = "data", 
-                 rootpath = ".", 
                  make_dirs = True,
                  key_name = "mid",
                  log = None):
         self.filename = filename
         self.filepath = filepath
-        self.rootpath = rootpath
-        if os.path.isabs(self.filepath):
-            self.rootpath = ''
-        if not os.path.exists(os.path.join(rootpath, filepath)):
+        if not os.path.exists(filepath):
             if not make_dirs:
                 raise FileNotFoundError("Path for storing database does not exist. To create it, set `make_dirs = True`.")
             else:
-                os.makedirs(os.path.join(rootpath, filepath))
+                os.makedirs(filepath)
         self._metadata = {}
         self.key_name = key_name
         self.set_logger(log)
@@ -36,7 +32,7 @@ class Backend():
 
     @property
     def abs_path(self):
-        return os.path.abspath(os.path.join(self.rootpath, self.filepath, self.filename))
+        return os.path.abspath(os.path.join(self.filepath, self.filename))
 
     @property
     def log(self):

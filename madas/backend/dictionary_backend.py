@@ -15,7 +15,6 @@ class DictBackend(Backend):
     def __init__(self, 
                  filename=None, 
                  filepath=None, 
-                 rootpath=None, 
                  make_dirs=True, 
                  key_name="mid", 
                  log=None):
@@ -26,7 +25,6 @@ class DictBackend(Backend):
         #  kept for compatibility, but ignored in the remainder
         self.filename = filename 
         self.filepath = filepath
-        self.rootpath = rootpath
 
     @property
     def abs_path(self):

@@ -8,7 +8,7 @@ from ase.build import bulk
 
 @pytest.fixture()
 def backend(tmpdir):
-    _backend = ASEBackend(filename="test_db.db", rootpath=tmpdir)
+    _backend = ASEBackend(filename="test_db.db", filepath=tmpdir)
     return _backend
 
 @pytest.fixture()
@@ -21,9 +21,8 @@ def materials():
 
 def test_init(backend, tmpdir):
     assert backend.filename == "test_db.db", "Wrong filename set"
-    assert backend.filepath == "data", "Wrong filepath set"
-    assert backend.rootpath == str(tmpdir), "Wrong root directory"
-    assert os.path.exists(os.path.join(backend.rootpath, backend.filepath)), "Filepath was not created"
+    assert backend.filepath == tmpdir, "Wrong filepath set"
+    assert os.path.exists(backend.filepath), "Filepath was not created"
 
 def test_add_single(backend, material, capsys):
     backend.add_single(material)
@@ -81,13 +80,13 @@ def test_update_many(backend, materials):
         assert mat.properties["something"] == f"different{idx}", f"Failed to update property of many materials: {mat}"
 
 def test_metadata(tmpdir):
-    backend = ASEBackend(filename="test_db.db", rootpath=tmpdir)
+    backend = ASEBackend(filename="test_db.db", filepath=tmpdir)
     backend.update_metadata(something = "new")
     assert backend.metadata == {"something" : "new"}, "Failed to update metadata"
 
     del backend
 
-    backend1 = ASEBackend(filename="test_db.db", rootpath=tmpdir)
+    backend1 = ASEBackend(filename="test_db.db", filepath=tmpdir)
 
     assert backend1.metadata == {"something" : "new"}, "Failed to update metadata"
 

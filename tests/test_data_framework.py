@@ -80,8 +80,8 @@ class MockFingerprint():
 
 class MockBackend(Backend):
 
-    def __init__(self, filename="materials_database.db", filepath="data", rootpath=".", make_dirs=True, key_name="mid", log=None):
-        super().__init__(filename, filepath, rootpath, make_dirs, key_name, log)
+    def __init__(self, filename="materials_database.db", filepath="data", make_dirs=True, key_name="mid", log=None):
+        super().__init__(filename, filepath, make_dirs, key_name, log)
         self._added_single = 0
         self._added_many = 0
         self._update_buffer = []
@@ -150,7 +150,7 @@ def test_material(test_atoms):
 
 @pytest.fixture()
 def materials_database(tmpdir, test_material):
-    db = MaterialsDatabase(api = MockAPI(test_material), backend=MockBackend(), filepath=tmpdir, log_mode="stream")
+    db = MaterialsDatabase(api = MockAPI(test_material), backend=MockBackend(filepath=tmpdir), filepath=tmpdir, log_mode="stream")
     return db
 
 def test_setup(materials_database):
@@ -368,12 +368,12 @@ def test_add_property(materials_database):
 
 def test_update_metadata(tmpdir):
 
-    db = MaterialsDatabase(filepath=tmpdir, rootpath="", log_mode="stream")
+    db = MaterialsDatabase(filepath=tmpdir, log_mode="stream")
 
     db._update_metadata({"test":"this"})
 
     del db
 
-    db = MaterialsDatabase(filepath=tmpdir, rootpath="", log_mode="stream")
+    db = MaterialsDatabase(filepath=tmpdir, log_mode="stream")
 
     assert db.get_metadata() == {"test":"this"}, "Did not recover metadata"

@@ -12,11 +12,10 @@ class ASEBackend(Backend):
     def __init__(self, 
                  filename = "materials_database.db", 
                  filepath = "data", 
-                 rootpath = ".", 
                  make_dirs = True,
                  key_name = "mid", 
                  log = None) -> None:
-        super().__init__(filename, filepath, rootpath, make_dirs, key_name, log)
+        super().__init__(filename, filepath, make_dirs, key_name, log)
         self._db = connect(self.abs_path)
         self._metadata = self._db.metadata
         self._write_buffer = {}

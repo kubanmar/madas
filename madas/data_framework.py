@@ -31,11 +31,6 @@ class MaterialsDatabase():
 
         default: 'data'
 
-    rootpath: *str*
-        Root path of database filepath.
-
-        default: '.'
-
     key_name: *str*
         Name of unique key used in the database backend.
 
@@ -72,15 +67,13 @@ class MaterialsDatabase():
     def __init__(self, 
                  filename = 'materials_database.db', 
                  filepath = 'data',
-                 rootpath = '.',
                  key_name = 'mid',
                  api = None, 
                  backend = 'ase', 
                  log_mode = "full"):
         # initialize logs
-        log_path = os.path.join(rootpath, filepath)
         if  log_mode is not None and log_mode.lower() != "none":
-            self._init_loggers(log_path, filename.split('.db')[0], log_mode = log_mode)
+            self._init_loggers(filepath, filename.split('.db')[0], log_mode = log_mode)
         else:
             self.log, self.api_logger = None, None
 
@@ -88,7 +81,7 @@ class MaterialsDatabase():
         from madas.backend import Backend
         if backend == 'ase':
             from madas.backend import ASEBackend
-            self.backend = ASEBackend(filename, filepath, rootpath, key_name = key_name, log = self.api_logger)
+            self.backend = ASEBackend(filename, filepath, key_name = key_name, log = self.api_logger)
         elif isinstance(backend, Backend):
             self.backend = backend
             self.backend.set_logger(self.api_logger)
