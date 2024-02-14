@@ -1,11 +1,15 @@
+import warnings
 from typing import List
 from itertools import combinations
 
 from scipy.special import binom
+from nomad_dos_fingerprints import DOSFingerprint, Grid
+import numpy as np
 
 from .fingerprint import Fingerprint
 from .similarity import SimilarityMatrix
 from .utils import tqdm
+
 
 class MetricSpaceTest():
     """
@@ -201,3 +205,64 @@ class MetricSpaceTest():
             if not truth:
                 return False
         return True
+
+class StrideSpectrumComparison():
+    """
+    Compare two spectra by "striding" small spectum-fingerprint feature regions along the x-axis.
+    
+    **Usage**:
+        For spectra 1 and 2 with x-values x1 and x2 and y-values y1 and y2:
+
+        ssc = StrideSpectrumComparison()
+        stride_list, similarities = ssc(x1, y1, x2, y2)
+
+
+    **Returns:**
+    
+    stride_list: `list` of `float`
+        List of strides that were used for calculating the similarities
+
+    similarities:  `list` of `float`
+        Similiarity of the spectra in a window centered at the respective stride
+    """
+        
+    def __init__(self,
+                 grid_id: str = 'nonuniform:-2:0.05:1.05:0.3:8:0.5:-1:1:1024',
+                 cutoff: List[float] = [-1,1],
+                 eref_stepsize: float = 0.1,
+                 show_progress: bool = True,
+                 **kwargs):
+        self._grid = Grid.create(grid_id=grid_id)
+        self.grid.cutoff_min, self.grid.cutoff_max = cutoff
+        self.stepsize = eref_stepsize
+        self.show_progress = show_progress
+        self.kwargs = kwargs
+    
+    @property
+    def grid(self):
+        return self._grid
+    
+    def __call__(self, 
+                 x1: list, 
+                 y1: list, 
+                 x2: list, 
+                 y2: list) -> List[List[float]]:
+        # determine max range of strides
+        min_x = max([min(x1), min(x2)])
+        max_x = min([max(x1), max(x2)])
+        
+        offsets = np.arange(min_x, max_x, self.stepsize)
+        
+        sims = []
+        for offset in tqdm(offsets, disable=not self.show_progress):
+            self.grid.e_ref = offset
+            fp1 = DOSFingerprint(**self.kwargs).calculate(x1, y1, convert_data=None, grid_id = self.grid.get_grid_id())
+            fp2 = DOSFingerprint(**self.kwargs).calculate(x2, y2, convert_data=None, grid_id = self.grid.get_grid_id())
+            if any(map(lambda x: x.overflow>0, [fp1,fp2])):
+                warnings.warn("Fingerprint overflows. Consider increasing Grid().n_pix.")
+            if fp1.filling_factor == 0 and fp2.filling_factor == 0:
+                sims.append(1)
+            else:
+                sims.append(fp1.get_similarity(fp2))
+        return offsets.tolist(), sims
+    
