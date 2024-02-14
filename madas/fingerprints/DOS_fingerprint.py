@@ -5,13 +5,10 @@ from numpy import ndarray
 from madas import Material
 from madas.fingerprint import Fingerprint
 
+from nomad_dos_fingerprints import DOSFingerprint as NMDDOSFingerprint, Grid
+
 
 def _initialize_fingerprint(fingerprint):
-    version = fingerprint.data["version"]
-    if version == 1:
-        from nomad_dos_fingerprints.v1 import DOSFingerprint
-    elif version == 2:
-        from nomad_dos_fingerprints.v2 import DOSFingerprint
     fingerprint.fingerprint = DOSFingerprint.from_dict(fingerprint.data['fingerprint'])
     return fingerprint
 
@@ -46,7 +43,6 @@ class DOSFingerprint(Fingerprint):
     def calculate(self, 
                   energy: List[float] | ndarray,
                   dos: List[float] | ndarray,
-                  version: int  = 2,
                   convert_data: Callable | None =None, **kwargs):
         """
         Calculate the fingerprint. Possible kwargs (and defaults) are:
@@ -54,12 +50,7 @@ class DOSFingerprint(Fingerprint):
             unit_cell_volume = 1
             n_atoms = 1
         """
-        if version == 1:
-            from nomad_dos_fingerprints.v1 import DOSFingerprint
-        elif version == 2:
-            from nomad_dos_fingerprints.v2 import DOSFingerprint
-        self.set_data("version", 2)
-        self.fingerprint = DOSFingerprint().calculate(energy, dos, grid_id = self.grid_id, convert_data = convert_data, **kwargs)
+        self.fingerprint = NMDDOSFingerprint().calculate(energy, dos, grid_id = self.grid_id, convert_data = convert_data, **kwargs)
         self.set_data("fingerprint", self.fingerprint.to_dict())
         return self
 
@@ -67,30 +58,66 @@ class DOSFingerprint(Fingerprint):
                       material: Material, 
                       energy_path: str = "electronic_dos_energies", 
                       dos_path: str = "electronic_dos_values",
-                      version: int = 2,
                       convert_data : Callable | None = None, **kwargs):
         self.set_mid(material)
         energy = material.get_data_by_path(energy_path)
         dos = material.get_data_by_path(dos_path)
-        return self.calculate(energy, dos, version=version, convert_data=convert_data, **kwargs)
+        return self.calculate(energy, dos, convert_data=convert_data, **kwargs)
 
     def get_grid(self):
-        if self.data["version"] == 1:
-            from nomad_dos_fingerprints.v1 import Grid
-        elif self.data["version"] == 2:
-            from nomad_dos_fingerprints.v2 import Grid
         return Grid.create(grid_id = self.fingerprint.grid_id)
 
     def from_data(self, data):
         for key, value in data.items():
             self.set_data(key, value)
-        version = data["version"]
-        if version == 1:
-            from nomad_dos_fingerprints.v1 import DOSFingerprint
-        elif version == 2:
-            from nomad_dos_fingerprints.v2 import DOSFingerprint
-        self.fingerprint = DOSFingerprint.from_dict(data['fingerprint'])
+        self.fingerprint = NMDDOSFingerprint.from_dict(data['fingerprint'])
         return self
+
+    @classmethod
+    def from_nomad_dos_fingerprint(cls, 
+                                   fingerprint: NMDDOSFingerprint, 
+                                   name: str = "DOS", 
+                                   pass_on_exceptions: bool = False,
+                                   similarity_function: Callable = DOS_similarity) -> object:
+        """
+        Create MADAS DOSFingerprint from NOMAD DOS fingerprint object.
+
+        **Arguments:**
+
+        fingerprint: `nomad_dos_fingerprints.DOSFingerprint`
+            `nomad_dos_fingerprints.DOSFingerprint` object to convert to `madas.fingerprints.DOSFingerprint`
+
+        **Keyword arguments:**
+
+        name: `str`
+            Name of the fingerprint
+
+            default: `"DOS"`
+
+        pass_on_exceptions: `bool`
+            Set if fingerprint should pass and return None if an exception occures during calculation of similarities, or raise an Exception.
+
+            default: `False`
+
+        similarity_function: `Callable`
+            Similarity function to be used by the fingerprints.
+
+            default: `madas.fingerprints.DOS_fingerprint.DOS_similarity`
+
+        **Returns:**
+
+        self: `madas.fingerprints.DOS_fingerprint.DOSFingerprint`
+        """
+        self = cls(name=name, pass_on_exceptions=pass_on_exceptions, similarity_function=similarity_function)
+        self.grid_id = fingerprint.grid_id
+        self.set_data("fingerprint", fingerprint.to_dict())
+        self.fingerprint = fingerprint
+        return self
+
+
+    @staticmethod
+    def get_default_grid() -> Grid:
+        return Grid.create()
 
     @property
     def indices(self):
@@ -98,10 +125,7 @@ class DOSFingerprint(Fingerprint):
     
     @property
     def bins(self):
-        if self.data["version"] == 1:
-            return bytes.fromhex(self.fingerprint.bins)
-        else:
-            return self.fingerprint.bins
+        return self.fingerprint.bins
 
     @property
     def filling_factor(self):

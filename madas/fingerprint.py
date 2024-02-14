@@ -54,7 +54,7 @@ class Fingerprint():
             fp_type = fp_type.__name__
         else:
             raise TypeError("Attibute fp_type must be either a string or a Fingerprint child type")
-        name = name if name is not None else fp_type
+        name = self._name_from_type(name, fp_type)
         self._safe_set_attribute("similarity_function", similarity_function)
         self._safe_set_attribute("_fp_type", fp_type)
         self._safe_set_attribute("_name", name)
@@ -319,8 +319,8 @@ class Fingerprint():
             }
         return json.dumps(data)
 
-    @staticmethod
-    def deserialize(data: str) -> object:
+    @classmethod
+    def deserialize(cls, data: str) -> object:
         """
         Read a fingerprint object from string data.
         This returns a *Fingerprint* object, _not_ a subclass of it. 
@@ -337,13 +337,22 @@ class Fingerprint():
             Fingerprint object with all fields set. 
         """
         data = json.loads(data)
-        self = Fingerprint()
+        self = cls()
         self.set_mid(data["mid"])
         self.set_name(data["name"])
         self.set_fp_type(data["fp_type"])
         self.set_pass_on_exceptions(data["pass_on_exceptions"])
         self.from_data(json.loads(data["data"]))
         return self
+
+    @staticmethod
+    def _name_from_type(name, fp_type):
+        if name is None:
+            if isinstance(fp_type, type):
+                name = fp_type.__name__
+            else:
+                name = str(fp_type)
+        return name
 
     def from_data(self, data: dict): #TODO test, and make sure this is what you want
         self._data = data

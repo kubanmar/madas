@@ -78,8 +78,8 @@ def test_triangle_inequality(fingerprints):
     mid1 = fingerprints[3].mid
     mid2 = fingerprints[4].mid
 
-    df[mid1][mid2] = 0
-    df[mid2][mid1] = 0
+    df.loc[mid1, mid2] = 0
+    df.loc[mid2, mid1] = 0
 
     mst.similarity_matrix.set_dataframe(df)
 
