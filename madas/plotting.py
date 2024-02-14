@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import mean_squared_error
-from bitarray import bitarray
 
 from ase.visualize.plot import plot_atoms
 from ase.build import make_supercell
@@ -28,37 +27,6 @@ def parity_plot(pred, target, symbol = 'o', figsize = (7,7), show = True):
     plt.setp(axes.spines.values(), linewidth=3)
     axes.xaxis.set_tick_params(width=3, length = 10)
     axes.yaxis.set_tick_params(width=3, length = 10)
-    if show:
-        plt.show()
-
-def plot_FP_in_grid(byte_fingerprint, grid, show_grid = True, show = True, label = '', axes = None, **kwargs):
-    # This should go to nomad-dos-fingerprints
-    x=[]
-    y=[]
-    all_width=[]
-    bin_fp=bitarray()
-    bin_fp.frombytes(byte_fingerprint.bins)
-    grid_indices=byte_fingerprint.indices
-    plotgrid=grid.grid()
-    plotgrid=plotgrid[grid_indices[0]:grid_indices[1]]
-    bit_position=0
-    for index,item in enumerate(plotgrid):
-        if index<len(plotgrid)-1:
-            width=plotgrid[index+1][0]-item[0]
-        else:
-            width=abs(item[0]-plotgrid[index-1][0])
-        for dos_value in item[1]:
-            if bin_fp[bit_position]==1 and bin_fp[bit_position+1]==0:
-                x.append(item[0])
-                y.append(dos_value)
-                all_width.append(width)
-            bit_position+=1
-    if axes is None:
-        plt.bar(x,y,width=all_width,align='edge', label = label, **kwargs)
-    else:
-        axes.bar(x,y,width=all_width,align='edge', label = label, **kwargs)
-    if show_grid:
-        grid.plot_grid_bars(show = False, axes = axes, **kwargs)
     if show:
         plt.show()
 

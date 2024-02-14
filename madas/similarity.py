@@ -450,7 +450,7 @@ class SimilarityMatrix():
 
         **Returns:**
 
-        dict: {`ref_mid`: {<1st_nearest_mid>:<similarity>}, {2nd_nearest_mid>:<similiarty>, ...}}
+        dict: {<1st_nearest_mid>:<similarity>, 2nd_nearest_mid>:<similiarty>, ...}
         """
         row = [(mid,entry) for mid, entry in zip(self.mids, self.get_row(ref_mid))]
         row.sort(reverse = True, key = lambda x: x[1])
@@ -459,7 +459,7 @@ class SimilarityMatrix():
                 if item[0] == ref_mid:
                     row.pop(idx)
                     break
-        return {ref_mid : {mid: entry for mid, entry in row[:k]}}
+        return {mid: entry for mid, entry in row[:k]}
 
     def save(self, 
              filename: str = 'similarity_matrix.npy', 

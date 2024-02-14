@@ -376,4 +376,4 @@ def test_update_metadata(tmpdir):
 
     db = MaterialsDatabase(filepath=tmpdir, log_mode="stream")
 
-    assert db.get_metadata() == {"test":"this"}, "Did not recover metadata"
+    assert db.get_metadata() == {'database_name': 'unnamed', "test":"this"}, "Did not recover metadata"

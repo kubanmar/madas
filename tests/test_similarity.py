@@ -229,7 +229,7 @@ def test_SimilarityMatrix_get_k_most_similar(simat):
 
     most_similar = simat.get_k_most_similar("2")
 
-    assert most_similar == {"2" : {"1" : 5.0, "0" : 3.0}}, "Wrong list of most similar materials"
+    assert most_similar == {"1" : 5.0, "0" : 3.0}, "Wrong list of most similar materials"
 
 def test_SimilarityMatrix_save_load(simat, tmpdir):
 
@@ -636,7 +636,7 @@ def test_BatchedSimilarityMatrix_calculate_and_retrieve_results(tmpdir):
         for line in f:
             msm_bsm.append(json.loads(line))
 
-    ref_msm = [ref_simat.get_k_most_similar(mid, k=10) for mid in ref_simat.mids]
+    ref_msm = [{mid : ref_simat.get_k_most_similar(mid, k=10)} for mid in ref_simat.mids]
 
     msm_bsm.sort(key = lambda x: [idx for idx, entry in enumerate(ref_msm) if list(entry)[0] == list(x)[0]][0])
 

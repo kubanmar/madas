@@ -65,12 +65,13 @@ class MaterialsDatabase():
     """
 
     def __init__(self, 
-                 filename = 'materials_database.db', 
-                 filepath = 'data',
-                 key_name = 'mid',
-                 api = None, 
-                 backend = 'ase', 
-                 log_mode = "full"):
+                 filename: str = 'materials_database.db', 
+                 filepath: str = 'data',
+                 name: str | None = None,
+                 key_name: str = 'mid',
+                 api: object | None = None, 
+                 backend: str | object = 'ase', 
+                 log_mode: str = "full"):
         # initialize logs
         if  log_mode is not None and log_mode.lower() != "none":
             self._init_loggers(filepath, filename.split('.db')[0], log_mode = log_mode)
@@ -104,11 +105,28 @@ class MaterialsDatabase():
         # miscellaneous
         self._iter_index = 0
         self.query_encoder = json.JSONEncoder
+        self.set_name(name)
 
     @property
     def log_file_path(self):
         handlers = list(filter(lambda x: x.get_name().split('_')[-1] == 'error', self.log.handlers))
         return handlers[0].baseFilename
+
+    @property
+    def name(self):
+        if self._name is None:
+            if "database_name" in self.get_metadata().keys():
+                self._name = self.get_metadata()["database_name"]
+            else:
+                return "unnamed"
+        return self._name
+    
+    def set_name(self, name: str | None):
+        """
+        Set name of the database.
+        """
+        self._name = str(name) if name is not None else None
+        self._update_metadata({"database_name":self.name})
 
     def get_property(self, 
                      mid: str, 
@@ -275,7 +293,7 @@ class MaterialsDatabase():
         return fingerprint
 
     def get_fingerprints(self, 
-                         fp_type: str, 
+                         fp_type: str | type, 
                          name: str = None, 
                          fingerprint_kwargs: dict = {},
                          force_calculate = False, 
@@ -284,9 +302,11 @@ class MaterialsDatabase():
         """
         Get fingerprints of type *fp_type* for all materials in the database.
 
+        Generates fingerprints if they don't exist. To retrieve existing fingerprints, 
+
                 **Arguments:**
 
-        fp_type: *str*
+        fp_type: *str* or `type`
             Type of fingerprint X, must correspond to a XFingerprint() object defined elsewhere
 
         **Keyword arguments:**
@@ -324,6 +344,14 @@ class MaterialsDatabase():
         List[Fingerprint() object or None]
         """
         fingerprints = []
+        name = Fingerprint._name_from_type(name, fp_type)
+        if name in self.get_metadata().get('fingerprints', []):
+            if force_calculate:
+                self.log.info(f'Fingerprints with name "{name}" exist in database. Generating new.')
+            else:
+                self.log.info(f'Fingerprints with name "{name}" exist. Reading from database.')
+        else:
+            self.log.info(f'Generating "{fp_type}" fingerprints.')
         for material in tqdm(self, disable = not show_progress):
             fp = self._get_fingerprint(material, fp_type, name, fingerprint_kwargs, force_calculate, **kwargs)
             if similarity_function is not None:
@@ -376,7 +404,7 @@ class MaterialsDatabase():
                         fp_type: str | type, 
                         name: str = None, 
                         show_progress: bool = True, 
-                        force_calculate: bool = True, 
+                        force_calculate: bool = False, 
                         fingerprint_kwargs: dict = {}, **kwargs) -> None:
         """
         Calculate fingerprints of all materials in the database and store them.
@@ -401,7 +429,7 @@ class MaterialsDatabase():
         force_calculate: *bool*
             Force calculation of the fingerprint even if fingerprint data was stored in the database before.
 
-            default: True
+            default: False
 
         fingerprint_kwargs: *dict*
             Additional keyword arguments that are passed to Fingerprint().__init__.
@@ -415,11 +443,13 @@ class MaterialsDatabase():
 
         Additional keyword arguments are passed to Fingerprint().calculate().        
         """
-        if name is None:
-            if isinstance(fp_type, type):
-                name = fp_type.__name__
+        name = Fingerprint._name_from_type(name, fp_type)
+        if name in self.get_metadata().get('fingerprints', []):
+            if force_calculate:
+                self.log.info(f'Fingerprints with name "{name}" exist. Overwriting...')
             else:
-                name = str(fp_type)
+                self.log.info(f'Fingerprints with name "{name}" exist. To overwrite, set `force_calculate=True`.')
+                return
         self.log.info(f'Generating {name} fingerprints...')
         fingerprints = self.get_fingerprints(fp_type, name = name, fingerprint_kwargs = fingerprint_kwargs, force_calculate = force_calculate, show_progress = show_progress, **kwargs)
         self.log.info(f'Writing {name} fingerprints to database...')
@@ -435,7 +465,7 @@ class MaterialsDatabase():
         self._update_metadata({'fingerprints' : [name]}) #TODO Adapt new metadata schema
 
     def add_fingerprints(self, 
-                         fp_types: List[str], 
+                         fp_types: List[str | type], 
                          names: List[str] = [None], 
                          show_progress = False,
                          fingerprint_kwargs_list: List[dict] = None,
@@ -661,11 +691,7 @@ class MaterialsDatabase():
         return prop
 
     def _get_fingerprint(self, material, fp_type, name, fingerprint_kwargs, force_calculate, **kwargs):
-        if name is None:
-            if isinstance(fp_type, type):
-                name = fp_type.__name__
-            else:
-                name = str(fp_type)
+        name = Fingerprint._name_from_type(name, fp_type)
         try:
             if name in material.properties.keys() and not force_calculate:
                 if isinstance(fp_type, type):
@@ -764,4 +790,4 @@ class MaterialsDatabase():
             raise KeyError(f'Key {key} can not be interpreted as database key.')
 
     def __repr__(self) -> str:
-        return f"MaterialsDatabase(filename = {self.backend.filename}, len = {len(self)})"
+        return f"MaterialsDatabase(name = {self.name}, filename = {self.backend.filename}, len = {len(self)})"
