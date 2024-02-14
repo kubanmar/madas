@@ -11,6 +11,7 @@ import numpy as np
 
 from madas.apis.api_core import APIClass, APIError
 from madas import Material
+from madas.utils import tqdm
 
 def get_atoms(NOMAD_respose: dict) -> Atoms:
     """
@@ -70,6 +71,7 @@ class API(APIClass):
     def __init__(self, processing=DEFAULT_PROCESSING, logger=None):
         self.set_logger(logger)
         self.set_processing(processing)
+        self._failed_download = set()
 
     @property
     def processing(self):
@@ -81,6 +83,15 @@ class API(APIClass):
         Functions are used to read values from the NOMAD archives.
         """
         return deepcopy(self._processing)
+
+    @property
+    def failed_download(self):
+        """
+        List of entry_id of calculations that could not be downloaded.
+
+        Use `API().retry()` to try to retrieve them.
+        """
+        return list(self._failed_download)
 
     def get_calculation(self, 
                         entry_id: str, 
@@ -146,7 +157,7 @@ class API(APIClass):
     def get_calculations_by_search(self, 
                                    query: dict, 
                                    required: dict = {"required" : "*"},
-                                   n_threads: int = 20,
+                                   n_threads: int = 5,
                                    max_entries: int | None = None,
                                    ignore_entries: list | None = None) -> List[Material]:
         """
@@ -201,6 +212,7 @@ class API(APIClass):
         if ignore_entries is not None:
             for id in ignore_entries:
                 ids.discard(id)
+            self._report_error(f"Download data for {len(ids)} entries", level="info")
         query_function = partial(self.get_calculation, required=required, fail_quietly=True)
         if n_threads < 1:
             materials = [query_function(id_) for id_ in ids]
@@ -215,7 +227,8 @@ class API(APIClass):
                 self._report_error(message)
                 errornous_entries.append(idx)
         for idx in sorted(errornous_entries, reverse=True):
-            materials.pop(idx)
+            failed_download = materials.pop(idx)
+            self._failed_download.add(failed_download['entry_id'])
         return materials
         
     def get_property(self,
@@ -223,7 +236,30 @@ class API(APIClass):
                      entry_id: str, 
                      required: dict = {"required" : "*"}) -> Any:
         """
-        TODO Write me
+        Receive a property from NOMAD.
+
+        **Arguments:**
+
+        processing_function: `Callable`
+            Function to extract data from NOMAD Archive.
+            For more details please refer to the documentation of the class.
+
+        entry_id: `str`
+            NOMAD entry id of the calculation that shall be downloaded.
+
+        **Keyword arguments:**
+
+        required: `dict`
+            Dictionary containing the information which sections of the NONAD Archive are downloaded.
+            This argument is passed directly to the NOMAD API and _must_ follow its definition given
+            in the NOMAD documentation. Downloads the full Archive by default.
+
+            default: ``{'required' : '*'}``
+
+        **Returns:**
+
+        property: `Any`
+            The desired property, parsed from the NOMAD Archive.
         """
         resp = requests.post(self._URL_from_entry_id(entry_id), json=required).json()
         return processing_function(resp["data"])
@@ -235,6 +271,41 @@ class API(APIClass):
         See documentation of the class for more information.
         """
         self._processing = processing
+
+    def retry(self, required: dict = {"required" : "*"}, use_progress_bar: bool= False) -> List[Material]:
+        """
+        Retry previously failed downloads.
+
+        **Keyword arguments:**
+
+        required: `dict`
+            Dictionary containing the information which sections of the NONAD Archive are downloaded.
+            This argument is passed directly to the NOMAD API and _must_ follow its definition given
+            in the NOMAD documentation. Downloads the full Archive by default.
+
+            default: ``{'required' : '*'}``
+
+        use_progress_bar: `bool`
+            Show progress bar when downloading data.
+
+        **Returns:**
+
+        materials: `List[madas.Material]`
+            Materials that could successfully be downloaded with this attempt.
+        """
+        if len(self.failed_download) == 0:
+            self._report_error("Retry list is empty.")
+            return []
+        self._report_error(f"Retrying {len(self.failed_download)} entries.", level="info")
+        materials = []
+        for mid in tqdm(self.failed_download, disable=not use_progress_bar):
+            new_mat = self.get_calculation(mid, fail_quietly=True, required=required)
+            if not isinstance(new_mat, Material):
+                self._report_error(f"Retry failed for material with entry_id {mid}. Error message: {new_mat['error_message']}")
+                continue
+            self._failed_download.discard(mid)
+            materials.append(new_mat)
+        return materials
 
     def _URL_from_entry_id(self, entry_id: str):
         return f"{DEFAULT_BASE_URL}/entries/{entry_id}/archive/query"
