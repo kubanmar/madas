@@ -1,6 +1,9 @@
-import pytest
+import json
 
-from madas.utils import BatchIterator, print_dict_tree, print_key_paths
+import pytest
+import numpy as np
+
+from madas.utils import BatchIterator, print_dict_tree, print_key_paths, JSONNumpyEncoder
 
 @pytest.fixture
 def example_dict():
@@ -125,3 +128,8 @@ def test_print_key_paths(example_dict, capsys):
     out, err = capsys.readouterr()
     assert len(err) == 0, f"Produced an error: {err}"
     assert out == """/a/c/1/e\n""", "Did not print correct path!"
+
+def test_JSONNumpyEncoder():
+
+    assert json.loads(json.dumps([np.float32(2), np.float128(0.3), np.array([1,2,3,4], dtype=np.int64)], 
+                                 cls=JSONNumpyEncoder))==[2,0.3,[1,2,3,4]], "Failed to encode and decode values"

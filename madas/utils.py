@@ -2,7 +2,7 @@ from typing import Any
 import numpy as np
 import sys
 from json import JSONEncoder
-import logging, json  # noqa: E401
+import logging 
 
 # check which progress bar to use, from: https://stackoverflow.com/questions/15411967/how-can-i-check-if-code-is-executed-in-the-ipython-notebook
 is_jupyter = False
@@ -50,9 +50,6 @@ def rmsle(y_true, y_pred):
     errors = [np.log((np.array(y_p) + 1)/(np.array(y_t) + 1))**2 for y_t, y_p in zip(y_true, y_pred)]
     msle = sum(errors) / len(errors)
     return np.sqrt(msle).tolist()
-
-#def _SI_to_Angstom(length):
-#    return np.power(length,10^10)
 
 def report_error(logger: logging.Logger, error_message: str):
     """
@@ -209,14 +206,6 @@ def merge_k_nearest_neighbor_dicts(fp_type_list, dicts):
                         merged_dict[material][mid].update({fp_type:sim})
     return merged_dict
 
-
-class Float32ToJson(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj,np.float32):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
 def contour_data_from_list(coord_list):
     xs = np.unique([x[0] for x in coord_list])
     ys = np.unique([x[1] for x in coord_list])
@@ -233,11 +222,15 @@ def contour_data_from_list(coord_list):
     return np.array(z_matrix), xs, ys
 
 class JSONNumpyEncoder(JSONEncoder):
-    
-    def default(self, o: Any) -> Any:
-        if isinstance(o, np.ndarray):
-            o=o.tolist()
-        return super().default(o)
+    """
+    Encoder to 
+    """
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, np.ndarray):
+            obj=obj.tolist()
+        if isinstance(obj,np.floating):
+            obj=float(obj)
+        return obj
 
 class BatchIterator():
     """

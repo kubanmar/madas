@@ -70,7 +70,7 @@ class MetricSpaceTest():
         return result
     
     @staticmethod
-    def symmetry(similarity_matrix: SimilarityMatrix, show_progress = True):
+    def symmetry(similarity_matrix: SimilarityMatrix, show_progress: bool = True):
         """
         Test symmetry property of a similarity matrix. The threshold for being equal is `1e-8`.
 
@@ -102,7 +102,7 @@ class MetricSpaceTest():
 
     
     @staticmethod
-    def identity(similarity_matrix, show_progress = True):
+    def identity(similarity_matrix: SimilarityMatrix, show_progress: bool = True):
         """
         Test identity property of a similarity matrix.
 
@@ -132,7 +132,7 @@ class MetricSpaceTest():
         return all(identities)
 
     @staticmethod
-    def uniqueness(similarity_matrix, fingerprints, show_progress = True):
+    def uniqueness(similarity_matrix: SimilarityMatrix, fingerprints: List[Fingerprint], show_progress: bool = True):
         """
         Test uniqueness property of a similarity matrix.
 
@@ -173,7 +173,7 @@ class MetricSpaceTest():
         return True
 
     @staticmethod
-    def triangle_inequality(similarity_matrix, show_progress = True):
+    def triangle_inequality(similarity_matrix: SimilarityMatrix, show_progress: bool = True):
         """
         Test triangle inequality property of a similarity matrix. The threshold for being equal is `1e-8`.
 

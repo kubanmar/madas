@@ -336,7 +336,8 @@ class SimilarityMatrix():
         """
         if isinstance(matrices, (list, np.ndarray)):
             #shared_mids = [mid for mid in self.mids if np.array([mid in matrix.mids for matrix in matrices]).all()]
-            shared_mids = list(set.intersection(*[set(simat.mids) for simat in matrices]))
+            shared_mids = set.intersection(*[set(simat.mids) for simat in matrices])
+            shared_mids = list(shared_mids.intersection(set(self.mids)))
             shared_mids.sort()
             for matrix in matrices:
                 matrix.get_sub_matrix(shared_mids, copy = False)

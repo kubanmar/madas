@@ -9,6 +9,5 @@ full_test:
     - pip3 install --upgrade pip
     - pip3 install pytest
     - pip3 install .
-    - python -c "import madas; print(madas.__version__)"
   script:
     - pytest -vv tests

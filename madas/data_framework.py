@@ -512,19 +512,34 @@ class MaterialsDatabase():
 
         AssertionError: Number of kwargs passed to the __init__() and calculate() functions of all fingerprints are inconsitent. Thus, it is ambiguous which parameters correspond to which fingerprint.
         """
+        assert len(names) <= len(fp_types), "Recieved more names than fingerprint types. Please resolve ambiguity."
         while len(fp_types) < len(names):
             names.append(None)
         for idx, fp_type in enumerate(fp_types):
-            if names[idx] is None:
-                if isinstance(fp_type, type):
-                    names[idx] = fp_type.__name__
-                else:
-                    names[idx] = str(fp_type)
+            names[idx] = Fingerprint._name_from_type(names[idx], fp_type)
         if fingerprint_kwargs_list is None:
             fingerprint_kwargs_list = [{} for _ in fp_types]
         if fingerprint_calculate_kwargs_list is None:
             fingerprint_calculate_kwargs_list = [{} for _ in fp_types]
-        assert len(fp_types) == len(fingerprint_kwargs_list) == len(fingerprint_calculate_kwargs_list), "Inconsistent number of kwargs! Please provide arguments for each fingerprint type or None."   
+        assert len(fp_types) == len(fingerprint_kwargs_list) == len(fingerprint_calculate_kwargs_list), "Inconsistent number of kwargs! Please provide arguments for each fingerprint type or None."
+        # Check if fingerprints exist
+        _drop_fingerprint = []
+        for idx, name in enumerate(names):
+            if name in self.get_metadata().get('fingerprints', []):
+                if force_calculate:
+                    self.log.info(f'Fingerprints with name "{name}" exist. Overwriting...')
+                else:
+                    self.log.info(f'Fingerprints with name "{name}" exist. To overwrite, set `force_calculate=True`.')
+                    _drop_fingerprint.append(idx)
+        if len(_drop_fingerprint) > 0:
+            for idx in sorted(_drop_fingerprint, reverse=True):
+                fp_types.pop(idx)
+                names.pop(idx)
+                fingerprint_kwargs_list.pop(idx)
+                fingerprint_calculate_kwargs_list.pop(idx)
+        if len(fp_types) == 0:
+            self.log.info("No new fingerprints to calculate.")
+            return
         mid_list = []
         dictionary_list = []
         self.log.info(f"Generating {names} fingerprints...")
@@ -533,7 +548,7 @@ class MaterialsDatabase():
             for fp_type, name, fp_kwargs, calc_kwargs in zip(fp_types, names, fingerprint_kwargs_list, fingerprint_calculate_kwargs_list):
                 new_fp = self._get_fingerprint(material, fp_type, name, fp_kwargs, force_calculate, **calc_kwargs)
                 if new_fp is None:
-                    fps_data[name] = None
+                    continue
                 else:
                     if isinstance(fp_type, type):
                         fps_data[name] = new_fp.serialize()
