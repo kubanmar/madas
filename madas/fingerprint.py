@@ -7,7 +7,7 @@ from functools import partial
 
 from madas import Material
 
-from .utils import report_error
+from .utils import report_error, JSONNumpyEncoder
 
 def import_builtin_module(fp_type: str, 
                           file_suffix: str = '_fingerprint', 
@@ -292,7 +292,7 @@ class Fingerprint():
         """
         Return fingerprint data in as a json-coded string.
         """
-        json_data = json.dumps(self.data)
+        json_data = json.dumps(self.data, cls=JSONNumpyEncoder)
         return json_data
     
     def copy(self) -> object:
