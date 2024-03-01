@@ -1,5 +1,0 @@
-dscribe>=1 
-nomad_dos_fingerprints @ git+https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-dos-fingerprints.git #TODO: update to github URL
-scikit-learn 
-requests 
-spglib

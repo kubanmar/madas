@@ -28,14 +28,23 @@ class Backend():
 
     @property
     def metadata(self):
+        """
+        Metadata property, returns metadata attached to the backend.
+        """
         return self._metadata
 
     @property
     def abs_path(self):
+        """
+        Absolute path property, contains the absolute path of the backend file.
+        """
         return os.path.abspath(os.path.join(self.filepath, self.filename))
 
     @property
     def log(self):
+        """
+        Logger property, returns the log.
+        """
         return self._log
 
     # methods

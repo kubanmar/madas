@@ -14,7 +14,7 @@ def import_builtin_module(fp_type: str,
                           class_suffix: str = 'Fingerprint', 
                           similarity_measure_suffix: str = '_similarity'):
     """
-    Function to import specific fingerprint classes and similarity measures from different files.
+    Function to import built-in fingerprint classes and similarity measures from different files.
     """
     module_name = 'madas.fingerprints.' + fp_type + file_suffix
     module = importlib.import_module(module_name)
@@ -30,22 +30,56 @@ class Fingerprint():
 
     Intended use case is subclassing to integrate with the `madas` framework.
 
-    Arbitrary data can be passed to the Fingerprint object by using `Fingerprint().set_data(<key>: str, <data>: Any)`. It can be retrieved either through the property `Fingerprint().data` as a dictionary, or directly via `Fingerprint()[<key>]`.
+    Arbitrary data can be passed to the Fingerprint object by using `Fingerprint().set_data(<key>: str, <data>: Any)`. 
+    It can be retrieved either through the property `Fingerprint().data` as a dictionary, or directly via `Fingerprint()[<key>]`.
 
     **Parameters:**
 
-    fp_type: *str* or *type*
+    fp_type: `str`, `type`, or `None`
+        Type of fingerprint. The behavior changes based on the type of the argument:
 
-    Keyword arguments are passed to the `__init__` of the specific fingerprint.
+            - `None`: Don't intialize the fingerprint type. The object will be a generic `Fingerprint` 
+            - `type`: Intialize as a fingerprint of the given type. All keyword arguments will be passed to the child class.
+            - `str`: Initialize as a built-in fingerprint type using the `importfunction`. All keyword arguments will be passed to the child class.
+
+        default: `None`
+
+    name: `str`
+        Name of the fingerprint. Can be used to distinguish between fingerprints of the same type with different parameters.
+
+    similarity_function: `Callable` or `None`
+        Function used to evaluate the similarity to other fingerprints.
+
+        This function will be called when `Fingerprint().get_similarity()` is called.
+
+        If set to `None` upon initialization and a fingerprint type is given, the respective
+        similarity function will be set automatically.
+
+        If set to a `callable`, *use this similarity function instead of any other*, 
+        even if a fingerprint type is given.
+
+        default: `None`
+
+    pass_on_exceptions: `bool`
+        In order to allow processing of big amounts of data without interruptions,
+        the fingerprint can return 0 similarity instead of raising exceptions.
+        A warning will be printed if the calculation of similarity is not successful.
+
+        default: `False`
+
+    importfunction: `callable`
+        Function that imports fingerprint classes if the fingerprint type is provided as a string.
+
+        default: `madas.fingerprint.import_builtin_module`
 
     **Methods:**
     """
 
-    def __init__(self, fp_type = None, 
-                       name = None,
-                       similarity_function = None,
-                       pass_on_exceptions = False,
-                       importfunction = import_builtin_module, 
+    def __init__(self, fp_type: str | type | None = None, 
+                       name: str | None = None,
+                       similarity_function: Callable | None = None,
+                       pass_on_exceptions: bool = False,
+                       importfunction: Callable = import_builtin_module, 
                        **kwargs) -> None:
         if isinstance(fp_type, str) or fp_type is None:
             fingerprint_class = None
@@ -64,11 +98,12 @@ class Fingerprint():
         if self.fp_type is not None and type(self) == Fingerprint:
             if fingerprint_class is None:
                 self.set_import_function(importfunction)
-                fingerprint_class, similarity_function = self.importfunction(fp_type)
+                fingerprint_class, similarity_function_imported = self.importfunction(fp_type)
+                similarity_function = similarity_function if similarity_function is not None else similarity_function_imported
             self.specify(fingerprint_class, **kwargs)
-            if self.similarity_function is None:
-                self.set_similarity_function(similarity_function)
-
+            #if self.similarity_function is None:
+            self.set_similarity_function(similarity_function)
+ 
     @property
     def data(self) -> dict:
         """
@@ -81,6 +116,9 @@ class Fingerprint():
 
     @property
     def mid(self):
+        """
+        Material identifier property.
+        """
         try:
             return self._mid
         except AttributeError:
@@ -88,6 +126,9 @@ class Fingerprint():
 
     @property
     def pass_on_exceptions(self):
+        """
+        Property that controls if exceptions should be raised.
+        """
         try:
             return self._pass_on_exceptions
         except AttributeError:
@@ -95,6 +136,9 @@ class Fingerprint():
 
     @property
     def fp_type(self):
+        """
+        Property that contains the type of fingerprint.
+        """
         try:
             return self._fp_type
         except AttributeError:
@@ -102,6 +146,9 @@ class Fingerprint():
 
     @property 
     def name(self):
+        """
+        Property that contains the name of fingerprint.
+        """
         try:
             return self._name
         except AttributeError:

@@ -11,7 +11,7 @@ authors = [
     {name="Martin Kuban et al."}
 ]
 maintainers = [
-    {name="The MADAS developers", email="kuban@physik.hu-berlin.de"}
+    {name="Martin Kuban", email="kuban@physik.hu-berlin.de"}
 ]
 requires-python = ">= 3.10"
 dependencies = [
@@ -22,7 +22,7 @@ dependencies = [
     "tqdm == 4.64",
     "scikit-learn == 1.1",
     "requests == 2.26",
-    "nomad_dos_fingerprints@git+https://github.com/kubanmar/dos-fingerprints"
+    "nomad_dos_fingerprints@git+https://github.com/kubanmar/dos-fingerprints >= 2.0"
 ]
 license = {file = "LICENSE"}
 

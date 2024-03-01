@@ -43,7 +43,7 @@ class DOSFingerprint(Fingerprint):
     def calculate(self, 
                   energy: List[float] | ndarray,
                   dos: List[float] | ndarray,
-                  convert_data: Callable | None =None, **kwargs):
+                  convert_data: Callable | None = None, **kwargs):
         """
         Calculate the fingerprint. Possible kwargs (and defaults) are:
             grid_id = 'dg_cut:56:-2:7:(-10, 5):56'

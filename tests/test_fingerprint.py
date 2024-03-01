@@ -41,13 +41,22 @@ def test_specify_on_init():
     def mock_target_function(x: list):
         return sum(x)
 
-    fingerprint = Fingerprint("DUMMY", target_function = mock_target_function)
+    def mock_similarity_function(*args, **kwargs):
+        return -1
+
+    fingerprint = Fingerprint("DUMMY", target_function = mock_target_function, similarity_function=mock_similarity_function)
 
     assert isinstance(fingerprint, DUMMYFingerprint), "Specify was not called upon initialization."
 
     fingerprint.set_data("data", [1,2,3])
 
     assert fingerprint.y == 6, "Target function was not passed as kwarg to fingerprint"
+
+    assert fingerprint.get_similarity(fingerprint) == -1, "Did not use similarity function provided upon initialization."
+
+    fingerprint = Fingerprint("DUMMY", target_function = mock_target_function).calculate([1,2,3])
+
+    assert fingerprint.get_similarity(fingerprint) == 1.0, "Did not use specified similarity function."
 
     class NewFingerprint(Fingerprint):
 

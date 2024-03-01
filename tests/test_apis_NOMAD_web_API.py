@@ -46,3 +46,4 @@ def test_get_atoms(mock_response):
     assert np.allclose(at.positions, [[0,0,0], [.25,.25,.25]]), "Failed to parse atomic positions"
     assert np.allclose(at.cell, np.eye(3)), "Failed to parse atomic cell"
     assert (at.symbols == ["C", "Si"]).all(), "Failed to parse atomic symbols"
+
