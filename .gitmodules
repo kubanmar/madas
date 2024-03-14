@@ -1,0 +1,3 @@
+[submodule "dependencies/dos-fingerprints"]
+	path = dependencies/dos-fingerprints
+	url = https://github.com/kubanmar/dos-fingerprints.git
