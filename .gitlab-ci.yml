@@ -3,6 +3,9 @@ image: python:3.10
 stages:
   - test
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 full_test:
   stage: test
   before_script:
