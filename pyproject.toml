@@ -21,7 +21,8 @@ dependencies = [
     "matplotlib >= 3.5",
     "tqdm == 4.64",
     "scikit-learn == 1.1",
-    "requests >= 2.26"
+    "requests >= 2.26",
+    "bitarray == 2.4.1"
 ]
 license = {file = "LICENSE"}
 classifiers=[
@@ -36,6 +37,5 @@ Source = "https://github.com/kubanmar/madas"
 Issues = "https://github.com/kubanmar/madas/issues"
 
 [tool.setuptools.packages.find]
-where=["madas", "dependencies"]
-include=["madas", "madas.apis", "madas.backend", "madas.fingerprints", "nomad_dos_fingerprints"]
-exclude=["tests"]
+where=["madas", "dependencies/dos-fingerprints"]
+exclude=["tests", "timing"]

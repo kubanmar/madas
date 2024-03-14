@@ -8,6 +8,16 @@ The documentation can be found here:
 
 [MADAS documentation at readthedocs](https://madas.readthedocs.io)
 
+## Install
+
+For installation from source, please execute:
+
+```bash
+git clone --recurse-submodules https://github.com/kubanmar/madas.git
+cd madas
+pip install .
+```
+
 ## How to cite
 
 If you use `MADAS`, please cite our paper:
