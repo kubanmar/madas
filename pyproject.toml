@@ -30,5 +30,5 @@ license = {file = "LICENSE"}
 Repository = "https://github.com/kubanmar/madas"
 
 [tool.setuptools.packages.find]
-include=["madas"]
+include=["madas", "madas.apis", "madas.backend", "madas.fingerprints"]
 exclude=["tests"]
