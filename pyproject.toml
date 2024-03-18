@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="madas"
-version="1.0.0"
+version="1.0.1"
 description = "The MAterials DAta Similarity framework."
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
@@ -37,5 +37,6 @@ Source = "https://github.com/kubanmar/madas"
 Issues = "https://github.com/kubanmar/madas/issues"
 
 [tool.setuptools.packages.find]
-where=["madas", "dependencies/dos-fingerprints"]
-exclude=["tests", "timing"]
+where=[".", "dependencies/dos-fingerprints"]
+include=["madas*", "nomad_dos_fingerprints*"]
+exclude=["tests*", "timing", "*venv"]
