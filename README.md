@@ -10,6 +10,12 @@ The documentation can be found here:
 
 ## Install
 
+*MADAS* can be installed via pip:
+
+```bash
+pip install madas
+```
+
 For installation from source, please execute:
 
 ```bash

@@ -4,6 +4,7 @@ from typing import Callable, List
 from typing import Any
 from copy import deepcopy
 from functools import partial
+import warnings
 
 from madas import Material
 
@@ -232,10 +233,16 @@ class Fingerprint():
 
         **Raises:**
 
-        TypeError: Different fingerprint types are used.
+        `TypeError`: Different fingerprint types are used.
+
+        **Warnings:**
+
+        `UserWarning`: Fingerprints of different names are used.
         """
         if not self._check_type_compatibility(other):
             return 0
+        if not self.name == other.name:
+            warnings.warn(f"Fingerprint names {self.name} and {other.name} do not match. Use similarities with caution.")
         try:
             similarity = self.similarity_function(self, other)
             return similarity

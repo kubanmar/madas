@@ -184,3 +184,20 @@ def test_get_similarity(fingerprint):
     with pytest.raises(AssertionError):
         # This should fail because the similarity function raises an exception
         fingerprint.get_similarity(fp2)
+
+@pytest.mark.filterwarnings("error")
+def test_name_mismatch_warning():
+
+    def mock_similarity(a,b):
+        return 0
+    
+    a = Fingerprint(name="a", similarity_function=mock_similarity)
+    b = Fingerprint(name="b", similarity_function=mock_similarity)
+
+    with pytest.warns(UserWarning):
+        a.get_similarity(b)
+
+    # test that the warning is not emitted if the names are the same  
+    a.get_similarity(a)
+    b.get_similarity(b)
+    
