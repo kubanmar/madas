@@ -26,12 +26,12 @@ class ASEBackend(Backend):
 
         **Arguments:**
 
-        material: *madas.data_framework.Material*
+        material: *madas.Material*
             Material object to be added to the database
 
         **Return:**
 
-        *None*
+        `None`
         """
         self._db.write(material.atoms, **{self.key_name : material.mid}, data = material.data, **material.properties)
         safe_log(self._log_write_message(material.mid), logger=self.log, level = "info")
@@ -42,12 +42,12 @@ class ASEBackend(Backend):
 
         **Arguments:**
 
-        materials: *List[madas.data_framework.Material]*
+        materials: *List[madas.Material]*
             List of material objects to be added to the database
 
         **Return:**
 
-        *None*
+        `None`
         """
         with self._db as db:
             for material in materials:
@@ -61,15 +61,15 @@ class ASEBackend(Backend):
         **Keyword arguments**
 
         mid: *str*
-            default: *None*
+            default: `None`
 
-            Material identifier used in the database and madas.data_framework.Material objects
+            Material identifier used in the database and madas.Material objects
 
         Additional kwargs are used to retrieve entries from the database, e.g. if a single Material object has a specific property value. 
         
         **Returns:**
 
-        material: *madas.data_framework.Material*
+        material: *madas.Material*
             Material object of the selected database entry
 
         **Raises:**
@@ -97,15 +97,15 @@ class ASEBackend(Backend):
         **Keyword arguments**
 
         mids: *List[str]*
-            default: *None*
+            default: `None`
 
-            List of material identifiers used in the database and madas.data_framework.Material objects
+            List of material identifiers used in the database and madas.Material objects
 
         Additional kwargs are used to retrieve entries from the database, e.g. if several Material objects have a specific property value. 
         
         **Returns:**
 
-        materials: *List[madas.data_framework.Material]*
+        materials: *List[madas.Material]*
             List of Material objects of the selected database entries
 
         **Raises:**
@@ -145,7 +145,7 @@ class ASEBackend(Backend):
 
         **Returns**
 
-        material: *madas.data_framework.Material*
+        material: *madas.Material*
             Material object associated with the database entry
 
         *KeyError*
@@ -163,15 +163,15 @@ class ASEBackend(Backend):
         **Keyword arguments**
 
         mid: *str*
-            default: *None*
+            default: `None`
 
-            Material identifier used in the database and madas.data_framework.Material objects
+            Material identifier used in the database and madas.Material objects
 
         Additional kwargs are used to identify entries from the database, e.g. if a single Material object has a specific property value. 
         
         **Returns:**
 
-        *None*
+        `None`
 
         **Raises:**
 
@@ -196,9 +196,9 @@ class ASEBackend(Backend):
         **Keyword arguments**
 
         mids: *List[str]*
-            default: *None*
+            default: `None`
 
-            List of material identifiers used in the database and madas.data_framework.Material objects
+            List of material identifiers used in the database and madas.Material objects
         
         kwargs_list: `List[dict]`
             default: `[]`
@@ -207,7 +207,7 @@ class ASEBackend(Backend):
 
         **Returns:**
 
-        *None*
+        `None`
 
         **Raises:**
 
@@ -249,7 +249,7 @@ class ASEBackend(Backend):
 
         **Returns:**
 
-        *None*
+        `None`
         """
         metadata = self.metadata
         metadata.update(**kwargs)
