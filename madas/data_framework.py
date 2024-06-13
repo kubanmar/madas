@@ -22,17 +22,17 @@ class MaterialsDatabase():
     **Keyword arguments**
 
     filename: *str*
-        Name of database file.
+        Name of database file. Ignored if a Backend is specified explicitly.
 
         default: 'materials_database.db'
 
     filepath: *str*
-        Path of database file.
+        Path of database file. Ignored if a Backend is specified explicitly.
 
         default: 'data'
 
     key_name: *str*
-        Name of unique key used in the database backend.
+        Name of unique key used in the database backend. Ignored if a Backend is specified explicitly.
 
         default: 'mid'
 

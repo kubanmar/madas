@@ -90,7 +90,7 @@ class Backend():
         """
         raise NotImplementedError(f"Function 'get_many' is not implemented for object of class {self.__class__}")
 
-    def get_by_id(self, db_id) -> List[Material]:
+    def get_by_id(self, db_id) -> Material:
         """
         Return a single entry from an (integer valued) database id.
         """
