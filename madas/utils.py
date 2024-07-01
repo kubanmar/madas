@@ -331,13 +331,12 @@ class BatchIterator():
             default: `True`
         """
         import matplotlib.pyplot as plt
-        from matplotlib import cm
         if figure:
             plt.figure(figsize = (10,10))
         plt.xlim(0,self.n_entries)
         plt.ylim(self.n_entries,0)
         for batch in self:
-            plt.fill_between([batch[0][0], batch[0][1]],[batch[1][1], batch[1][1]], [batch[1][0], batch[1][0]], color = cm.get_cmap("cool")(self.task_id / self.n_tasks))
+            plt.fill_between([batch[0][0], batch[0][1]],[batch[1][1], batch[1][1]], [batch[1][0], batch[1][0]], color = plt.get_cmap("cool")(self.task_id / self.n_tasks))
             plt.text(sum(batch[0])/2, sum(batch[1])/2, f"{batch}\n{self.task_id}", horizontalalignment='center', fontsize=text_fontsize)
         if show:
             plt.show()
@@ -359,14 +358,13 @@ class BatchIterator():
             default: `True`
         """
         import matplotlib.pyplot as plt
-        from matplotlib import cm
         if figure:
             plt.figure(figsize = (10,10))
         plt.xlim(0,self.n_entries)
         plt.ylim(self.n_entries,0)
         for idx, batch_row in enumerate(self.get_batch_rows()):
             for batch in batch_row:
-                plt.fill_between([batch[0][0], batch[0][1]],[batch[1][1], batch[1][1]], [batch[1][0], batch[1][0]], color = cm.get_cmap("tab20")(idx), alpha = 0.5)
+                plt.fill_between([batch[0][0], batch[0][1]],[batch[1][1], batch[1][1]], [batch[1][0], batch[1][0]], color = plt.get_cmap("tab20")(idx), alpha = 0.5)
                 plt.text(sum(batch[0])/2, sum(batch[1])/2, f"{batch}\n{self.task_id}", horizontalalignment='center', fontsize=text_fontsize)
         if show:
             plt.show()

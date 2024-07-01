@@ -1,8 +1,4 @@
-"""
-Similarity data framework. Under construction.
-"""
-
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 # Commonly used classes
 from .material import Material  # noqa: F401
