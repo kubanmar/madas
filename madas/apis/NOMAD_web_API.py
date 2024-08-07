@@ -21,7 +21,6 @@ def get_atoms(NOMAD_respose: dict) -> Atoms:
     try:
         structure_data = NOMAD_respose["archive"]["results"]['properties']["structures"]["structure_original"]
     except KeyError:
-        print("using OPTIMADE structure")
         structure_data = NOMAD_respose["archive"]["metadata"]["optimade"]
         is_optimade=True
     pbc = NOMAD_respose["archive"]["run"][0]["system"][0]["atoms"]["periodic"]
