@@ -17,13 +17,21 @@ def get_atoms(NOMAD_respose: dict) -> Atoms:
     """
     Creates an ASE Atoms object from a NOMAD API response.
     """
+    is_optimade=False
     try:
         structure_data = NOMAD_respose["archive"]["results"]['properties']["structures"]["structure_original"]
     except KeyError:
+        print("using OPTIMADE structure")
         structure_data = NOMAD_respose["archive"]["metadata"]["optimade"]
+        is_optimade=True
     pbc = NOMAD_respose["archive"]["run"][0]["system"][0]["atoms"]["periodic"]
-    at = Atoms(positions=np.array(structure_data['cartesian_site_positions']) * 1e10, 
-               cell=np.array(structure_data["lattice_vectors"]) * 1e10, 
+    pos = np.array(structure_data['cartesian_site_positions'])
+    cell = np.array(structure_data["lattice_vectors"])
+    if not is_optimade:
+        pos = pos * 1e10
+        cell = cell * 1e10
+    at = Atoms(positions=np.array(pos), 
+               cell=np.array(cell), 
                symbols=structure_data["species_at_sites"], 
                pbc=pbc)
     return at
