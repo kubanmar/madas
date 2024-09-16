@@ -131,5 +131,5 @@ def test_print_key_paths(example_dict, capsys):
 
 def test_JSONNumpyEncoder():
 
-    assert json.loads(json.dumps([np.float32(2), np.float128(0.3), np.array([1,2,3,4], dtype=np.int64)], 
+    assert json.loads(json.dumps([np.single(2), np.longdouble(0.3), np.array([1,2,3,4], dtype=np.int64)], 
                                  cls=JSONNumpyEncoder))==[2,0.3,[1,2,3,4]], "Failed to encode and decode values"

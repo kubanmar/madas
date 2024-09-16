@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="madas"
-version="1.0.4"
+version="1.0.5"
 description = "The MAterials DAta Similarity framework."
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
