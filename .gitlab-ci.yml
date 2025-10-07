@@ -11,6 +11,10 @@ full_test:
   before_script:
     - pip3 install --upgrade pip
     - pip3 install pytest
-    - pip3 install .
+    - pip3 install --upgrade build
+    - python -m build
+    - pip3 install dist/madas-*-py3-none-any.whl
+    - mkdir runtests && cd runtests
   script:
-    - pytest -vv tests
+    - pytest -vv ../tests
+    - pytest -vv ../dependencies/dos-fingerprints/tests

@@ -2,6 +2,7 @@ from typing import Any, List, Callable
 from functools import partial
 from itertools import islice
 from copy import deepcopy
+import multiprocessing
 from multiprocessing.pool import ThreadPool
 import traceback
 

@@ -36,7 +36,19 @@ Documentation = "https://madas.readthedocs.io"
 Source = "https://github.com/kubanmar/madas"
 Issues = "https://github.com/kubanmar/madas/issues"
 
+[project.optional-dependencies]
+tests = [
+    "pytest>=8.4.1",
+]
+
 [tool.setuptools.packages.find]
-where=[".", "dependencies/dos-fingerprints"]
+where=["src", "dependencies/dos-fingerprints"]
 include=["madas*", "nomad_dos_fingerprints*"]
 exclude=["tests*", "timing", "*venv"]
+
+[tool.pytest.ini_options]
+addopts = "-vv"
+testpaths = [
+    "tests",
+    "dependencies/dos-fingerprints/tests",
+]
