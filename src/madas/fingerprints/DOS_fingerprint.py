@@ -28,17 +28,22 @@ def DOS_similarity(fingerprint1, fingerprint2):
 class DOSFingerprint(Fingerprint):
     """
     A DOS fingerprint that uses the NOMAD DOS fingerprint package.
+
+    The generation of fingerprints from a `Grid` object instead of the `grid_id` is suggested, as it is much faster. 
     """
     def __init__(self, 
                  name: str = "DOS", 
-                 grid_id: str = None,
+                 grid_id: str | None = None,
+                 grid: Grid | None = None,
                  pass_on_exceptions: bool = False,
                  similarity_function = DOS_similarity):
         self.set_fp_type('DOS')
         self.set_name(name)
         self.set_pass_on_exceptions(pass_on_exceptions)
         self.set_similarity_function(similarity_function)
-        self.grid_id = grid_id
+        self.grid = grid if grid is not None else Grid.create(grid_id=grid_id)
+        self.grid_id = grid_id if grid_id is not None else self.grid.get_grid_id()
+        assert self.grid == Grid.create(grid_id = self.grid_id), f"Both grid and grid_id are given and do not correspond to same Grid: grid: {self.grid.get_grid_id()}, grid_id: {self.grid_id}"
 
     def calculate(self, 
                   energy: List[float] | ndarray,
@@ -50,7 +55,7 @@ class DOSFingerprint(Fingerprint):
             unit_cell_volume = 1
             n_atoms = 1
         """
-        self.fingerprint = NMDDOSFingerprint().calculate(energy, dos, grid_id = self.grid_id, convert_data = convert_data, **kwargs)
+        self.fingerprint = NMDDOSFingerprint().calculate(energy, dos, grid = self.grid, convert_data = convert_data, **kwargs)
         self.set_data("fingerprint", self.fingerprint.to_dict())
         return self
 
