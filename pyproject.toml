@@ -25,10 +25,9 @@ dependencies = [
     "bitarray >= 2.4.1",
     "python-decouple >= 3.8"
 ]
-license = {file = "LICENSE"}
+license = "Apache-2.0"
 classifiers=[
     "Programming Language :: Python :: 3.10",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux"
 ]
 
