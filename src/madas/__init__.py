@@ -1,4 +1,6 @@
-__version__ = "1.0.5"
+from importlib.metadata import version
+
+__version__ = version('madas')
 
 # Commonly used classes
 from .material import Material  # noqa: F401
