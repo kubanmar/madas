@@ -80,21 +80,15 @@ class API(APIClass):
         "https://nomad-lab.eu/prod/v1/oasis/api/v1"
 
         To access data that requires a login, e.g., upublished data, you need to provide your credentials.
-        This can be done via a file called `.env` in the working directory with the following content:
-
-        .. code-block:: bash 
-
-            NOMAD_USERNAME="MyLogin"
-            NOMAD_PASSWORD="MyPassWord"
-
-        where "MyLogin" and "MyPassWord" are your NOMAD username and password, respectively.
-
-        Alternatively, these variables can also be set as environment variables in bash:
-
-        .. code-block:: bash 
         
+        This can be done by setting them as environment variables in bash:
+
+        .. code-block:: bash 
+
             export NOMAD_USERNAME="MyLogin"
             export NOMAD_PASSWORD="MyPassWord"
+                
+        where "MyLogin" and "MyPassWord" are your NOMAD username and password, respectively.  
 
     timeout: `int`
         Timeout in seconds for calls to the Oasis authentication.
