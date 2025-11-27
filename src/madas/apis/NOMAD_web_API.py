@@ -2,17 +2,18 @@ from typing import Any, List, Callable
 from functools import partial
 from itertools import islice
 from copy import deepcopy
-import multiprocessing
 from multiprocessing.pool import ThreadPool
 import traceback
 
 import requests
 from ase import Atoms
 import numpy as np
+from decouple import config as environ, UndefinedValueError
 
 from madas.apis.api_core import APIClass, APIError
 from madas import Material
 from madas.utils import tqdm
+
 
 def get_atoms(NOMAD_respose: dict) -> Atoms:
     """
@@ -65,7 +66,7 @@ class API(APIClass):
         function to process the data, such that only the necessary meta-data is kept.
 
         default: 
-        
+
         .. code-block:: python
 
             DEFAULT_PROCESSING = {
@@ -73,16 +74,59 @@ class API(APIClass):
                 "archive" : madas.apis.NOMAD_web_API.get_archive
             }
 
+    base_url: `str`
+        Where to pull NOMAD data from. Only change this is you are trying
+        to connect to a NOMAD OASIS instance. An example would be:
+        "https://nomad-lab.eu/prod/v1/oasis/api/v1"
+
+        To access data that requires a login, e.g., upublished data, you need to provide your credentials.
+        This can be done via a file called `.env` in the working directory with the following content:
+
+        .. code-block:: bash 
+            NOMAD_USERNAME="MyLogin"
+            NOMAD_PASSWORD="MyPassWord"
+
+        where "MyLogin" and "MyPassWord" are your NOMAD username and password, respectively.
+
+        Alternatively, these variables can also be set as environment variables in bash:
+
+        .. code-block:: bash 
+            export NOMAD_USERNAME="MyLogin"
+            export NOMAD_PASSWORD="MyPassWord"
+
+    timeout: `int`
+        Timeout in seconds for calls to the Oasis authentication.
+
+    force_auth: `bool`
+        Force authentification if default URL is used. This can be used to access unpublished uploads on the 
+        central NOMAD installation.
+
     logger: `logging.Logger` | `None`
         Logger to write error and info messages.
 
     **Methods:**         
     """
 
-    def __init__(self, processing=DEFAULT_PROCESSING, logger=None):
+    def __init__(
+            self, 
+            processing=DEFAULT_PROCESSING,
+            base_url: str = DEFAULT_BASE_URL,
+            timeout: int = 60,
+            force_auth: bool = False,
+            logger=None):
         self.set_logger(logger)
         self.set_processing(processing)
         self._failed_download = set()
+        self.base_url = base_url
+        self.timeout = timeout
+        if self.base_url != DEFAULT_BASE_URL or force_auth:
+            try:
+                self.headers = self._get_headers_for_authentication()
+            except UndefinedValueError:
+                self._report_error("Cant't find NOMAD login data in environment. Authentification not possible.")
+                self.headers = None
+        else:
+            self.headers = None
 
     @property
     def processing(self):
@@ -120,7 +164,7 @@ class API(APIClass):
         **Keyword arguments:**
         
         required: `dict`
-            Dictionary containing the information which sections of the NONAD Archive are downloaded.
+            Dictionary containing the information which sections of the NOMAD Archive are downloaded.
             This argument is passed directly to the NOMAD API and _must_ follow its definition given
             in the NOMAD documentation. Downloads the full Archive by default.
 
@@ -153,7 +197,10 @@ class API(APIClass):
         """
         url = self._URL_from_entry_id(entry_id)
         try:
-            resp = requests.post(url, json=required).json()
+            resp = requests.post(
+                url, json=required, 
+                headers=self.headers,
+                timeout=self.timeout).json()
             if return_raw:
                 return resp
             resp = resp["data"]
@@ -195,7 +242,7 @@ class API(APIClass):
 
             Set to any number smaller than 1 (one) to disable threading. 
             
-            default: `100`
+            default: `5`
 
 
         max_entries: `int` or `None`
@@ -272,7 +319,10 @@ class API(APIClass):
         property: `Any`
             The desired property, parsed from the NOMAD Archive.
         """
-        resp = requests.post(self._URL_from_entry_id(entry_id), json=required).json()
+        resp = requests.post(self._URL_from_entry_id(entry_id), 
+                             json=required,
+                             headers=self.headers,
+                             timeout=self.timeout).json()
         return processing_function(resp["data"])
 
     def set_processing(self, processing: dict) -> None:
@@ -319,8 +369,7 @@ class API(APIClass):
         return materials
 
     def _URL_from_entry_id(self, entry_id: str):
-        return f"{DEFAULT_BASE_URL}/entries/{entry_id}/archive/query"
-
+        return f"{self.base_url}/entries/{entry_id}/archive/query"
 
     def _gen_mid(self, query):
         if isinstance(query, str):
@@ -332,8 +381,10 @@ class API(APIClass):
             
     def _query_for_entries(self, query: dict, max_entries: int | None = None) -> List[str]:
         entries = set()
-        payload = {"query" : query, "required" : {"include": ["entry_id"]}}
-        resp = requests.post(f"{DEFAULT_BASE_URL}/entries/query", json=payload).json()
+        payload = {"owner": "visible", "query": query, "required": {"include": ["entry_id"]}}
+        resp = requests.post(
+            f"{self.base_url}/entries/query", json=payload,
+            headers=self.headers, timeout=self.timeout).json()
         entries.update(self._ids_from_response(resp))
         total_entries = self._get_max_entries(resp)
         if max_entries is not None:
@@ -341,7 +392,9 @@ class API(APIClass):
         while len(entries) < total_entries:
             last_len = len(entries)
             payload = self._update_pagination(payload, page_after=self._get_page_after(resp)) 
-            resp = requests.post(f"{DEFAULT_BASE_URL}/entries/query", json=payload).json()
+            resp = requests.post(
+                f"{self.base_url}/entries/query", json=payload,
+                headers=self.headers, timeout=self.timeout).json()
             entries.update(self._ids_from_response(resp))
             if not len(entries) > last_len:
                 raise APIError(f"Did not add any entry ids at {len(entries)} of {total_entries} entries")
@@ -363,3 +416,26 @@ class API(APIClass):
     
     def _get_max_entries(self, response: dict) -> int:
         return response["pagination"]["total"]
+
+    def _get_headers_for_authentication(self):
+        """Get headers to authenticate in a NOMAD Oasis instance."""
+        if not self.base_url.endswith('/api/v1'):
+            self._report_error(
+                f'The given URL: {self.base_url} does not appear to be a '
+                f'valid NOMAD API URL, i.e., ending with /api/v1.',
+                level="info")
+        response = requests.get(
+            self.base_url + '/auth/token',
+            params={
+                'username': environ('NOMAD_USERNAME'), 
+                'password': environ('NOMAD_PASSWORD')
+                },
+            timeout=self.timeout)
+        if not response.ok:
+            raise ValueError(
+                f'Unexpected authetentication response {response.json()}')
+        token = response.json().get('access_token')
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Accept': 'application/json'}
+        return headers
