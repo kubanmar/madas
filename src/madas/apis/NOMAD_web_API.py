@@ -83,6 +83,7 @@ class API(APIClass):
         This can be done via a file called `.env` in the working directory with the following content:
 
         .. code-block:: bash 
+
             NOMAD_USERNAME="MyLogin"
             NOMAD_PASSWORD="MyPassWord"
 
@@ -91,6 +92,7 @@ class API(APIClass):
         Alternatively, these variables can also be set as environment variables in bash:
 
         .. code-block:: bash 
+        
             export NOMAD_USERNAME="MyLogin"
             export NOMAD_PASSWORD="MyPassWord"
 
