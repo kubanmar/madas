@@ -17,7 +17,8 @@ class ASEBackend(Backend):
                  log = None) -> None:
         super().__init__(filename, filepath, make_dirs, key_name, log)
         self._db = connect(self.abs_path)
-        self._metadata = self._db.metadata
+        with self._db:
+            self._metadata = self._db.metadata
         self._write_buffer = {}
 
     def add_single(self, material: Material) -> None:
