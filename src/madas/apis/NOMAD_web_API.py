@@ -378,19 +378,36 @@ class API(APIClass):
     def _query_for_entries(self, query: dict, max_entries: int | None = None) -> List[str]:
         entries = set()
         payload = {"owner": "visible", "query": query, "required": {"include": ["entry_id"]}}
-        resp = requests.post(
-            f"{self.base_url}/entries/query", json=payload,
-            headers=self.headers, timeout=self.timeout).json()
+        retries = 0
+        while retries<10:
+            resp = requests.post(
+                f"{self.base_url}/entries/query", json=payload,
+                headers=self.headers, timeout=self.timeout)
+            if resp.ok:
+                break
+            retries += 1
+            self.log.error(f'Response returned: {resp.text}')
+        if not resp.ok:
+            assert False, "Failed to download data more than 10 times, aborting."
+        resp = resp.json()
         entries.update(self._ids_from_response(resp))
         total_entries = self._get_max_entries(resp)
         if max_entries is not None:
             total_entries = min([total_entries, max_entries])
+        retries = 0
         while len(entries) < total_entries:
             last_len = len(entries)
             payload = self._update_pagination(payload, page_after=self._get_page_after(resp)) 
-            resp = requests.post(
+            resp_ = requests.post(
                 f"{self.base_url}/entries/query", json=payload,
-                headers=self.headers, timeout=self.timeout).json()
+                headers=self.headers, timeout=self.timeout)
+            if not resp_.ok:
+                self.log.error(f'Response returned: {resp_.text}')
+                retries += 1
+                if retries > 10:
+                    assert False, "Failed to download data more than 10 times, aborting."
+                continue
+            resp = resp_.json()
             entries.update(self._ids_from_response(resp))
             if not len(entries) > last_len:
                 raise APIError(f"Did not add any entry ids at {len(entries)} of {total_entries} entries")
@@ -408,7 +425,10 @@ class API(APIClass):
         return json_data
 
     def _get_page_after(self, response: dict) -> str:
-        return response["pagination"]["next_page_after_value"]
+        try:
+            return response["pagination"]["next_page_after_value"]
+        except KeyError as e:
+            self.log.error(f'Failed to get next page with data: {str(e)}')
     
     def _get_max_entries(self, response: dict) -> int:
         return response["pagination"]["total"]
@@ -420,9 +440,10 @@ class API(APIClass):
                 f'The given URL: {self.base_url} does not appear to be a '
                 f'valid NOMAD API URL, i.e., ending with /api/v1.',
                 level="info")
-        response = requests.get(
+        response = requests.post(
             self.base_url + '/auth/token',
-            params={
+            data={
+                'grant_type' : 'password',
                 'username': environ('NOMAD_USERNAME'), 
                 'password': environ('NOMAD_PASSWORD')
                 },

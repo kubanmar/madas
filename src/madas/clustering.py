@@ -41,7 +41,7 @@ class SimilarityMatrixClusterer():
     def __init__(self, 
                  similarity_matrix: SimilarityMatrix, 
                  clusterer: type = DBSCAN, 
-                 clusterer_kwargs: dict = {'metric':'precomputed', 'eps' : 0.15}, 
+                 clusterer_kwargs: dict = {'metric':'precomputed', 'eps' : 0.15, 'min_samples' : 2}, 
                  use_complement: bool = True):
         self.simat = similarity_matrix
         self.use_complement = use_complement
@@ -66,7 +66,7 @@ class SimilarityMatrixClusterer():
         """
         List of mids associated with the similarity matrix.
         """
-        return [mid for mid in self.simat.mids]
+        return [str(mid) for mid in self.simat.mids]
 
     def cluster(self, **kwargs) -> object:
         """
