@@ -107,7 +107,7 @@ class API(APIClass):
             self, 
             processing=DEFAULT_PROCESSING,
             base_url: str = DEFAULT_BASE_URL,
-            timeout: int = 60,
+            timeout: int = 600,
             force_auth: bool = False,
             logger=None):
         self.set_logger(logger)
@@ -213,7 +213,7 @@ class API(APIClass):
                                    required: dict = {"required" : "*"},
                                    n_threads: int = 5,
                                    max_entries: int | None = None,
-                                   ignore_entries: list | None = None) -> List[Material]:
+                                   skip_entries: list | None = None) -> List[Material]:
         """
         Download several calculations from NOMAD, defined by a query. 
         Uses multithreading to maximize download speed.
@@ -263,8 +263,8 @@ class API(APIClass):
             self._report_error("Possibly not all entries discovered due to max_entries limit", level="info")        
             self._report_error(f"Downloading {int(max_entries)} entries", level="info")        
             ids = set(islice(ids, int(max_entries)))
-        if ignore_entries is not None:
-            for id in ignore_entries:
+        if skip_entries is not None:
+            for id in skip_entries:
                 ids.discard(id)
             self._report_error(f"Download data for {len(ids)} entries", level="info")
         query_function = partial(self.get_calculation, required=required, fail_quietly=True)
@@ -363,6 +363,17 @@ class API(APIClass):
             self._failed_download.discard(mid)
             materials.append(new_mat)
         return materials
+
+    @staticmethod
+    def get_default_processing():
+        """
+        Dictionary containing the defaults defining how data from NOMAD will be processed.
+
+        Keys indicate the name of the property in MADAS.
+
+        Functions are used to read values from the NOMAD archives.
+        """
+        return deepcopy(DEFAULT_PROCESSING)
 
     def _URL_from_entry_id(self, entry_id: str):
         return f"{self.base_url}/entries/{entry_id}/archive/query"

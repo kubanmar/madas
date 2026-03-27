@@ -38,7 +38,7 @@ class APIClass():
         raise NotImplementedError('The option to get individual calculations is not implemented in this API.')
         return Material()
 
-    def get_calculations_by_search(self, *args, **kwargs) -> List[Material]:
+    def get_calculations_by_search(self, *args, skip_entries: list | None = None, **kwargs) -> List[Material]:
         """
         Get a list of materials from the external data source.
 
@@ -47,6 +47,9 @@ class APIClass():
         search_query: *Any*
             Any piece of data that allows the external resource to identify which data shall be returned.
 
+        skip_entries: *list[str] | None*
+            List of ids of entries that should not be retrieved.    
+        
         **Expected to return:**
 
         material: *List[madas.Material]*

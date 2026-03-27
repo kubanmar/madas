@@ -96,7 +96,8 @@ def test_API_get_materials_from_different_locations(tmpdir, monkeypatch):
                                    property_file_path: str, 
                                    property_file_name: str, 
                                    file_reader_kwargs: str = {}, 
-                                   property_reader_kwargs: str = {}):
+                                   property_reader_kwargs: str = {},
+                                   **kwargs):
         if folder_path == "1":
             return [Material("a")]
         else:

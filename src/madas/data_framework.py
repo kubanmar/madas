@@ -574,13 +574,17 @@ class MaterialsDatabase():
             material = self.api.get_calculation(*args, **kwargs)
             self.backend.add_single(material)
 
-    def fill_database(self, *args, repeat_query: bool = False, **kwargs):
+    def fill_database(self, *args, repeat_query: bool = False, skip_existing: bool = True, **kwargs):
         """
         Fills the database with all materials matching the query. Parameters depend on the API that is used. 
         To perform the query even though it has been performed before, set
 
         ``repeat_query = True``
 
+        When ``skip_existing = True``, the data for entries with existing IDs in the database will not be 
+        downloaded again. This may take time because it iterates over the database, but can safe time by 
+        avoiding to download data several times. This is the default behavior.
+        
         See below for the documentation of the API functions.
         """
         metadata = self.get_metadata()
@@ -593,8 +597,13 @@ class MaterialsDatabase():
             if query_hash in metadata['search_queries']:
                 self.log.info("Query has already been performed.")
                 return
+        if skip_existing:
+            skip_entries = [entry.mid for entry in self]
         self.log.info('Retrieving data...')
-        materials = list(set(self.api.get_calculations_by_search(*args, **kwargs)))
+        if skip_existing:
+            materials = list(set(self.api.get_calculations_by_search(*args, skip_entries=skip_entries, **kwargs)))
+        else:
+            materials = list(set(self.api.get_calculations_by_search(*args, **kwargs)))
         self.log.info(f"Got data for {len(materials)} entries.")
         pop_indices = []
         for idx, material in enumerate(materials):

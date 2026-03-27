@@ -318,6 +318,7 @@ def test_add_fingerprints(materials_database, monkeypatch):
     assert materials_database.get_metadata()["fingerprints"] == ["m1", "m2"], "Did not write correct metadata"
 
 def test_fill_database(materials_database, caplog):
+    #TODO add test for skip_existing
     
     materials_database.fill_database({"a" : "a"})
 

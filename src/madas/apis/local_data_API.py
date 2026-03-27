@@ -261,7 +261,8 @@ class API(APIClass):
                                    property_file_path: str, 
                                    property_file_name: str, 
                                    file_reader_kwargs: str = {},
-                                   show_progress: bool = True, 
+                                   show_progress: bool = True,
+                                   skip_entries: list | None = None, 
                                    property_reader_kwargs: str = {}) -> List[Material]:
         """
         Get calculations from a local file-structure.
@@ -303,10 +304,15 @@ class API(APIClass):
         """
         calculations = []
         folders = os.listdir(os.path.join(self.root, folder_path))
+        skip_entries = set(skip_entries) if skip_entries is not None else None
         for folder in tqdm(folders, disable=not show_progress):
             if not os.path.isdir(os.path.join(self.root, folder_path, folder)):
                 safe_log(f"Skipping: {folder} - not a directory", logger=self.log, level="info")
                 continue
+            if skip_entries is not None:
+                mid = self._gen_mid(os.path.join(folder_path,folder), file_name)
+                if mid in skip_entries:
+                    continue
             try:
                 calculations.append(self.get_calculation(os.path.join(folder_path,folder), 
                                                          file_name, 
