@@ -157,7 +157,7 @@ class ASEBackend(Backend):
         mid = properties.pop(self.key_name)
         return Material(mid, row.toatoms(), row.data, properties)
 
-    def update_single(self, mid: str = None, **kwargs) -> None:
+    def update_single(self, mid: str = None, update_data: bool = False, **kwargs) -> None:
         """
         Update a single entry from the database.
 
@@ -168,7 +168,8 @@ class ASEBackend(Backend):
 
             Material identifier used in the database and madas.Material objects
 
-        Additional kwargs are used to identify entries from the database, e.g. if a single Material object has a specific property value. 
+        update_data: *bool*
+            Update the `data` attribute of the entry instead of the `property`.
         
         **Returns:**
 
@@ -185,12 +186,14 @@ class ASEBackend(Backend):
         *KeyError*
             If no material has the specified mid or property values, this error is raised.
         """
-        self._check_select_arguments(mid, **kwargs)
-        row = self._get_single_row(mid, **kwargs)
+        row = self._get_single_row(mid)
         _id = row.id
-        self._db.update(_id, **kwargs)
+        if update_data:
+            self._db.update(_id, data=kwargs)
+        else:
+            self._db.update(_id, **kwargs)
 
-    def update_many(self, mids: List[str] = None, kwargs_list: List[dict] = []) -> None:
+    def update_many(self, mids: List[str] = None, kwargs_list: List[dict] = [], update_data: bool = False) -> None:
         """
         Update a set of entries from the database.
 
@@ -205,6 +208,9 @@ class ASEBackend(Backend):
             default: `[]`
 
             List of dictionaries that contain the data that should be written as properties to the database.
+
+        update_data: *bool*
+            Update the `data` attributes of the entries instead of the `property`.
 
         **Returns:**
 
@@ -230,16 +236,21 @@ class ASEBackend(Backend):
         update_buffer = []
         for update_single in zip(ids, kwargs_list):
             if len(update_buffer) >= buffer_size:
-                self._update_buffer(update_buffer)
+                self._update_buffer(update_buffer, update_data=update_data)
                 update_buffer = []
             update_buffer.append(update_single)
         if len(update_buffer) > 0:
-            self._update_buffer(update_buffer)
+            self._update_buffer(update_buffer, update_data=update_data)
 
-    def _update_buffer(self, buffer):
+    def _update_buffer(self, buffer, update_data=False):
         with self._db:
-            for _id, kwargs in buffer:
-                self._db.update(_id, **kwargs)
+            if update_data:
+                for _id, kwargs in buffer:
+                    self._db.update(_id, data=kwargs)
+            else:
+                for _id, kwargs in buffer:
+                    self._db.update(_id, **kwargs)
+
 
 
     def update_metadata(self, **kwargs) -> None:

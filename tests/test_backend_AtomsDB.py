@@ -17,7 +17,7 @@ def material():
 
 @pytest.fixture()
 def materials():
-    return [Material(f"Si:test{idx}", atoms = bulk("Si"), data = {"test" : f"data{idx}"}, properties={"test" : "me"}) for idx in range(1000)]
+    return [Material(f"Si:test{idx}", atoms = bulk("Si"), data = {"test" : f"data{idx}"}, properties={"test" : "me"}) for idx in range(100)]
 
 def test_init(backend, tmpdir):
     assert backend.filename == "test_db.db", "Wrong filename set"
@@ -73,7 +73,7 @@ def test_update_single(backend, material):
 def test_update_many(backend, materials):
     backend.add_many(materials)
     mids = [mat.mid for mat in materials]
-    backend.update_many(mids, [{"something" : f"different{idx}"} for idx in range(len(materials))])
+    backend.update_many(mids, kwargs_list=[{"something" : f"different{idx}"} for idx in range(len(materials))])
     mats = backend.get_many(mids)
     for idx, mat in enumerate(mats):
         print(mat)

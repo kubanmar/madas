@@ -2,7 +2,7 @@ import os
 import json
 import random
 import logging
-from typing import Callable, List
+from typing import Callable, List, Iterable
 from typing import Any
 from traceback import format_exc as get_tb_string
 
@@ -678,6 +678,67 @@ class MaterialsDatabase():
             List of dictionaries htat contains data to update
         """
         self.backend.update_many(mid_list, dictionary_list)
+
+    def update_derived_properties(self,
+                             property_names: str | list[str],
+                             functions: Callable | list[Callable],
+                             *args,
+                             target: str = 'properties',
+                             **kwargs) -> None:
+        """
+        Add a derived properties to the database. The properties are derived by applying 
+        ``function``s to a each ``Material`` in the database, and subsequently updating
+        the entries. **If a property** (or data, respectively) **with** ``property_name`` **already
+        exists for any entry, it will be overwritten.**
+
+        Derived properties are kept in memory until they are written to the database.
+
+        **Arguments:**
+
+        property_names: *str* or *Iterable[str]*
+            Name of the property(ies) to be added.
+            Using 'numpy' string types may lead to problems.
+
+        functions: *Callable* or *Iterable[Callable]*
+            Function(s) to compute the property. Additional args and kwargs will be passed to the function as:
+            ``function(entry: Material, *args, **kwargs)``.
+
+        **Keyword Arguments**
+
+        target: *str*
+            Decides if the property should be written to ``Material.properties`` or ``Material.data``.
+            Raises ``ValueError`` if a invalid target is chosen.
+
+            Default: 'properties'.
+
+        overwrite: *bool*
+            Overwrite property if it exists. 
+            
+            Default: ``False``
+
+        Additional *args* and *kwargs* will be passed on to ``function``.
+        """
+        if isinstance(property_names, Iterable) and not isinstance(property_names, str):
+            assert isinstance(functions, Iterable), 'Recieved several property names, requires several functions'
+        if isinstance(functions, Iterable):
+            assert isinstance(property_names, Iterable), 'Recieved several functions, requires several property names'
+        if target.lower() not in {'properties', 'data'}:
+            raise ValueError(f'Target {target} is invalid, must be either "properties" or "data".')
+        mids = []
+        values = []
+        for entry in self:
+            mids.append(entry.mid)
+            if isinstance(functions, Iterable):
+                values.append({property_name: function_(entry, *args, **kwargs) for property_name, function_ in zip(property_names, functions)})
+            else:
+                values.append({property_names: functions(entry, *args, **kwargs)})
+        if target.lower()=='properties':
+            self.backend.update_many(mids, values)
+        elif target.lower()=='data':
+            self.backend.update_many(mids, values, update_data=True)
+        else:
+            assert False, "You should not have ended up here, something went very wrong. Please consult the source code."
+
 
     def add_property(self, mid, property_name, **kwargs):
         """

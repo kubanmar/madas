@@ -108,13 +108,13 @@ class Backend():
         """
         raise NotImplementedError(f"Function 'add_many' is not implemented for object of class {self.__class__}")
 
-    def update_single(self, *args, **kwargs) -> None:
+    def update_single(self, *args, update_data: bool = False, **kwargs) -> None:
         """
         Update a single entry in the database.
         """
         raise NotImplementedError(f"Function 'update_single' is not implemented for object of class {self.__class__}")
     
-    def update_many(self, *args, **kwargs) -> None:
+    def update_many(self, *args, update_data: bool = False, **kwargs) -> None:
         """
         Update several entries in the database.
         """
