@@ -123,7 +123,8 @@ class Material():
         return True
 
     def __repr__(self) -> str:
-        return f"Material(mid = {self.mid}, data = {set(self.data.keys())}, properties = {set(self.properties.keys())})"
+        formula = self.atoms.get_chemical_formula(mode='reduce') if self.atoms is not None else None
+        return f"Material(mid = {self.mid}, formula = {formula}, data = {set(self.data.keys())}, properties = {set(self.properties.keys())})"
 
     def __hash__(self) -> int:
         return hash(f"{self.mid}")
