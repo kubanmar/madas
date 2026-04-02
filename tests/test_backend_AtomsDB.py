@@ -66,18 +66,23 @@ def test_update_single(backend, material):
     backend.add_single(material)
     backend.update_single(material.mid, something = "new")
     backend.update_single(material.mid, different = 1)
+    backend.update_single(material.mid, something = "new1", update_data=True)
+    backend.update_single(material.mid, different = 12, update_data=True)
     mat = backend.get_single(material.mid)
     assert mat.properties["something"] == "new", "Failed to update property of single material"
     assert mat.properties["different"] == 1, "Failed to update integer property of single material"
+    assert mat.data["something"] == "new1", "Failed to update data of single material"
+    assert mat.data["different"] == 12, "Failed to update integer data of single material"
 
 def test_update_many(backend, materials):
     backend.add_many(materials)
     mids = [mat.mid for mat in materials]
     backend.update_many(mids, kwargs_list=[{"something" : f"different{idx}"} for idx in range(len(materials))])
+    backend.update_many(mids, kwargs_list=[{"data" : f"different{idx}"} for idx in range(len(materials))], update_data=True)
     mats = backend.get_many(mids)
     for idx, mat in enumerate(mats):
-        print(mat)
         assert mat.properties["something"] == f"different{idx}", f"Failed to update property of many materials: {mat}"
+        assert mat.data["data"] == f"different{idx}", f"Failed to update property of many materials: {mat}"
 
 def test_metadata(tmpdir):
     backend = ASEBackend(filename="test_db.db", filepath=tmpdir)

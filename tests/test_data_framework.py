@@ -85,6 +85,7 @@ class MockBackend(Backend):
         self._added_single = 0
         self._added_many = 0
         self._update_buffer = []
+        self._update_buffer_data = []
 
     def add_single(self, *args, **kwargs):
         self._added_single += 1
@@ -108,11 +109,17 @@ class MockBackend(Backend):
     def get_length(self):
         return self._added_single + self._added_many
 
-    def update_many(self, mids, kwargs_list):
-        self._update_buffer.append([mids, kwargs_list])
+    def update_many(self, mids, kwargs_list, update_data=False):
+        if update_data:
+            self._update_buffer_data.append([mids, kwargs_list])
+        else:       
+            self._update_buffer.append([mids, kwargs_list])
 
-    def update_single(self, mid, **kwargs):
-        self._update_buffer.append([mid, kwargs])
+    def update_single(self, mid, update_data=False, **kwargs):
+        if update_data:
+            self._update_buffer_data.append([mid, kwargs])
+        else:
+            self._update_buffer.append([mid, kwargs])
 
     def update_metadata(self, *args, **kwargs):
         self._metadata.update(**kwargs)
@@ -342,6 +349,8 @@ def test_fill_database_no_duplicates_from_api(materials_database):
 
     materials_database.fill_database("duplicates")
 
+    assert len(materials_database) == 1, "Added duplicate material twice"
+
 def test_get_random(materials_database):
 
     materials_database.add_material()
@@ -378,3 +387,27 @@ def test_update_metadata(tmpdir):
     db = MaterialsDatabase(filepath=tmpdir, log_mode="stream")
 
     assert db.get_metadata() == {'database_name': 'unnamed', "test":"this"}, "Did not recover metadata"
+
+def test_update_derived_properties_single(materials_database):
+
+    materials_database.fill_database({"a" : "a"})
+    
+    materials_database.update_derived_properties(property_names='new_properties', functions=lambda x: 1234, target='properties')
+    materials_database.update_derived_properties(property_names='new_data', functions=lambda x: 5678, target='data')
+    
+    print(materials_database.backend._update_buffer)
+
+    assert materials_database.backend._update_buffer == [[['a:b'], [{'new_properties':1234}]]]
+    assert materials_database.backend._update_buffer_data == [[['a:b'], [{'new_data':5678}]]]
+
+def test_update_derived_properties_multiple(materials_database):
+
+    materials_database.fill_database({"a" : "a"})
+    
+    materials_database.update_derived_properties(property_names=['new_properties', 'new_properties2'], functions=[lambda x: 1234, lambda x: 5678], target='properties')
+    materials_database.update_derived_properties(property_names=['new_data', 'new_data2'], functions=[lambda x: 5678, lambda x: 91011], target='data')
+    
+    print(materials_database.backend._update_buffer)
+
+    assert materials_database.backend._update_buffer == [[['a:b'], [{'new_properties':1234, 'new_properties2':5678}]]]
+    assert materials_database.backend._update_buffer_data == [[['a:b'], [{'new_data':5678, 'new_data2':91011}]]]
