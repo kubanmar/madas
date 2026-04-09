@@ -2,7 +2,7 @@ from typing import List
 import os
 
 import numpy as np
-from sklearn.cluster import DBSCAN
+from threshold_clusterer import ThresholdClusterer
 
 from madas import SimilarityMatrix
 
@@ -20,12 +20,13 @@ class SimilarityMatrixClusterer():
     custerer: `type`
         a class that implements a `fit()` method that is used to cluster a np.ndarray matrix
         
-        default: `sklearn.cluster.DBSCAN`
+        default: `threshold_clusterer.ThresholdClusterer`
+        from https://github.com/kubanmar/similarity_threshold_clusterer
     
     clusterer_kwargs: `dict`
         Keyword arguments to be passed to the clusterer upon initializaion
         
-        default: `{'metric':'precomputed', 'eps' : 0.15}`
+        default: `{'threshold':0.75}`
 
     use_complement: `bool` 
         Switch if the similarity matrix (set to `False`) or distance matrix (set to `True`)
@@ -35,14 +36,14 @@ class SimilarityMatrixClusterer():
         other require distances (or, dissimilarities, metrics). To treat them all on the same 
         footing, this variable allows to set the behavior of the `matrix` property accordingly.
         
-        default: `True`
+        default: `False`
     """
 
     def __init__(self, 
                  similarity_matrix: SimilarityMatrix, 
-                 clusterer: type = DBSCAN, 
-                 clusterer_kwargs: dict = {'metric':'precomputed', 'eps' : 0.15, 'min_samples' : 2}, 
-                 use_complement: bool = True):
+                 clusterer: type = ThresholdClusterer, 
+                 clusterer_kwargs: dict = {"threshold": 0.75}, 
+                 use_complement: bool = False):
         self.simat = similarity_matrix
         self.use_complement = use_complement
         self.clusterer = clusterer(**clusterer_kwargs)
@@ -201,17 +202,25 @@ class SimilarityMatrixClusterer():
         """
         return self.simat.get_sub_matrix(self.get_mids_by_cluster_label(cluster_label))
 
-    def get_sorted_similarity_matrix(self):
+    def get_sorted_similarity_matrix(self, remove_orphans: bool = False):
         """
         Return a `SimilarityMatrix` where all entries are sorted by ascending cluster label.
         This is helpful for visualization.
+
+        **Keyword arguments**
+
+        remove_orphans: `bool`
+            Return matrix containing only cluster members, no orphans.  
+            Orphans are identified by cluster label -1.
+
+            default: `False`
 
         **Returns:**
 
         similarity_matrix: `SimilarityMatrix`
             Similarity matrix with sorted entries.
         """
-        return self.simat.get_sub_matrix(self.get_mids_sorted_by_cluster_labels())
+        return self.simat.get_sub_matrix(self.get_mids_sorted_by_cluster_labels(remove_orphans=remove_orphans))
 
     @property
     def unique_labels(self) -> np.ndarray:

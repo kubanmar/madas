@@ -6,7 +6,7 @@ from madas import Material
 from madas.fingerprint import Fingerprint
 
 from nomad_dos_fingerprints import DOSFingerprint as NMDDOSFingerprint, Grid
-
+from nomad_dos_fingerprints.plotting import plot_fingerprint_in_grid, plot_grid
 
 def _initialize_fingerprint(fingerprint):
     fingerprint.fingerprint = DOSFingerprint.from_dict(fingerprint.data['fingerprint'])
@@ -76,7 +76,40 @@ class DOSFingerprint(Fingerprint):
         for key, value in data.items():
             self.set_data(key, value)
         self.fingerprint = NMDDOSFingerprint.from_dict(data['fingerprint'])
+        self.grid = self.get_grid()
         return self
+
+    def plot(self, 
+             show_grid: bool = True, 
+             show: bool = True, 
+             grid_show_horizontal_only_top: bool = True):
+        """
+        Plot the fingerprint.
+
+        **Keyword arguments:**
+
+        show: `bool`
+            Show the plot.
+
+            default: `True`
+
+
+        show_grid: `bool`
+            Show the grid that the fingerpront was created in.
+
+            default: `True`
+
+        grid_show_horizontal_only_top: `bool`
+            Show horizonal lines of the grid only on top of the grid. This is useful if the grid is too dense and 
+            the visualization does not work well.
+
+            default: `True`         
+        """
+        if show_grid:
+            plot_fingerprint_in_grid(self.fingerprint, show=False)
+            plot_grid(self.get_grid(), figure=False, horizontal_only_top=True, show=show)
+        else:
+            plot_fingerprint_in_grid(self.fingerprint, show=show)
 
     @classmethod
     def from_nomad_dos_fingerprint(cls, 

@@ -5,6 +5,8 @@ import os
 import json
 import multiprocessing
 from functools import partial
+import matplotlib.pyplot as plt
+from copy import deepcopy
 
 from .utils import report_error, BatchIterator
 from .fingerprint import Fingerprint
@@ -133,7 +135,8 @@ class SimilarityMatrix():
                   fingerprints: List[Fingerprint], 
                   mids: List[str] = None, 
                   multiprocess:  int | None = -1, 
-                  symmetric: bool = True):
+                  symmetric: bool = True,
+                  similarity_function: Callable | None = None):
         """
         Calculate similarity matrix.
 
@@ -162,6 +165,14 @@ class SimilarityMatrix():
             
             default: `True`
 
+        similarity_function: `Callable` or `None`
+            Similarity function to set to the fingerprints before calculating the matrix.
+            This will make a copy of the fingerprints, using additional memory.
+            When set to `None`, the similarity function of the fingerprints
+            (`Fingerprint.similarity_function`) will be used.
+
+            default: `None`
+
         **Returns:**
 
         self: `SimilarityMatrix`
@@ -169,6 +180,11 @@ class SimilarityMatrix():
         """
         matrix = []
         mids = mids if mids is not None else [fp.mid for fp in fingerprints]
+        if similarity_function is not None:
+            assert callable(similarity_function), "Similarity function is neither None, nor callable."
+            fingerprints = deepcopy(fingerprints)
+            for fp in fingerprints:
+                fp.set_similarity_function(similarity_function)
         try:
             self.fp_type = fingerprints[0].fp_type
         except Exception as e:
@@ -460,7 +476,7 @@ class SimilarityMatrix():
                 if item[0] == ref_mid:
                     row.pop(idx)
                     break
-        return {mid: entry for mid, entry in row[:k]}
+        return {str(mid): float(entry) for mid, entry in row[:k]}
 
     def save(self, 
              filename: str = 'similarity_matrix.npy', 
@@ -584,6 +600,29 @@ class SimilarityMatrix():
         new_mids = [mid for mid in self.mids if mid not in leave_out_mids]
         new_matrix = self.get_sub_matrix(new_mids, copy = copy)
         return new_matrix
+    
+    def plot(self, colorbar: bool = False, show: bool = True) -> None:
+        """
+        Plot the similarty matrix.
+
+        **Keyword arguments:**
+
+        colorbar: `bool`
+            Show a colorbar.
+
+            default: `False`
+
+        show: `bool`
+            Show the plot.
+
+            default: `True`
+        """
+        plt.imshow(self)
+        plt.clim(0,1)
+        if colorbar:
+            plt.colorbar()
+        if show:
+            plt.show()
 
     def _get_similarities_list_index(self, idx__list, square_matrix = False): # TODO refactor
         idx, fp_list = idx__list
@@ -663,10 +702,10 @@ class SimilarityMatrix():
 
     def __eq__(self, simat):
         try:
-            return ((self._dataframe == simat._dataframe).all()).all()
+            return bool(((self._dataframe == simat._dataframe).all()).all())
         except ValueError:
             sorted_self = self.get_sub_matrix(simat.mids)
-            return ((sorted_self._dataframe == simat._dataframe).all()).all()
+            return bool(((sorted_self._dataframe == simat._dataframe).all()).all())
             
     def __repr__(self) -> str:
         return f"SimilarityMatrix({self.fp_type}, {self.fp_name}, {len(self)})"
@@ -1062,6 +1101,9 @@ class OverlapSimilarityMatrix(SimilarityMatrix):
         except ValueError:
             sorted_self = self.get_sub_matrix(simat.row_mids, simat.column_mids)
             return ((sorted_self._dataframe == simat._dataframe).all()).all()            
+
+    def __repr__(self) -> str:
+        return f"OverlapSimilarityMatrix({self.fp_type}, {self.fp_name}, ({len(self.row_mids)}, {len(self.column_mids)}))"
 
 class BatchedSimilarityMatrix():
     """

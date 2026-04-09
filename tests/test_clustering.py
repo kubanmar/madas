@@ -3,6 +3,7 @@ from madas.clustering import SimilarityMatrixClusterer
 from madas import SimilarityMatrix, Fingerprint
 
 from sklearn.datasets import make_blobs
+from sklearn.cluster import DBSCAN
 
 @pytest.fixture()
 def blobs_and_labels():
@@ -21,15 +22,15 @@ def similarity_matrix(fingerprints):
 @pytest.fixture()
 def fitted_clusterer(similarity_matrix):
     simat = similarity_matrix
-    clus = SimilarityMatrixClusterer(simat)
+    clus = SimilarityMatrixClusterer(simat, clusterer=DBSCAN, clusterer_kwargs={'metric':'precomputed'}, use_complement=True)
     clus.set_clusterer_params(eps = 0.65)
     clus.cluster()
     return clus
 
-def test_fit(similarity_matrix, blobs_and_labels):
+def test_fit_DBSCAN(similarity_matrix, blobs_and_labels):
     _, labels = blobs_and_labels
     simat = similarity_matrix
-    clus = SimilarityMatrixClusterer(simat)
+    clus = SimilarityMatrixClusterer(simat, clusterer=DBSCAN, clusterer_kwargs={'metric':'precomputed'}, use_complement=True)
 
     assert (clus.matrix == 1 - simat.matrix).all(), "Distance matrix is not complement of similarity matrix"
     assert (clus.mids == simat.mids).all(), "Did not copy correct mids"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="madas"
-version="1.1.3"
+version="1.2.3"
 description = "The MAterials DAta Similarity framework."
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [
@@ -42,8 +42,16 @@ tests = [
 ]
 
 [tool.setuptools.packages.find]
-where=["src", "dependencies/dos-fingerprints"]
-include=["madas*", "nomad_dos_fingerprints*"]
+where=[
+    "src", 
+    "dependencies/dos-fingerprints", 
+    "dependencies/similarity-threshold-clusterer/src"
+]
+include=[
+    "madas*", 
+    "nomad_dos_fingerprints*", 
+    "threshold_clusterer*"
+]
 exclude=["tests*", "timing", "*venv"]
 
 [tool.pytest.ini_options]
@@ -51,4 +59,5 @@ addopts = "-vv"
 testpaths = [
     "tests",
     "dependencies/dos-fingerprints/tests",
+    "dependencies/similarity-threshold-clusterer/tests"
 ]

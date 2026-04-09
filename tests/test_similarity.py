@@ -14,23 +14,22 @@ def simat():
     simat.set_mids(mids)
     return simat
 
-class MockFingerpint():
+def Mock_similarity(fp1, fp2):
+    value1 = fp1.data['rnd']
+    value2 = fp2.data['rnd']
+    return 1/ (abs(value1 - value2) + 1)
+
+class MockFingerpint(Fingerprint):
 
     def __init__(self) -> None:
-        self.fp_type = "Mock"
-        self.name = "mock"
-        self.mid = str(np.round(random(), 5))
+        self.set_fp_type("Mock")
+        self.set_name("mock")
+        self.set_mid(str(np.round(random(), 5)))
+        self.set_similarity_function(Mock_similarity)
 
     def calculate(self, *args, **kwargs):
-        self.data =  random()
+        self.set_data('rnd',random())
         return self
-
-    def get_similarities(self, fps):
-        value = self.data
-        return [1/ (abs(value - other.data) + 1) for other in fps]
-
-    def get_similarity(self, other):
-        return 1/ (abs(self.data - other.data) + 1)
 
 def test_SimilarityMatrix_metadata():
 
@@ -118,6 +117,10 @@ def test_SimilarityMatrix_calculate():
     simat = SimilarityMatrix().calculate(fps, multiprocess=None, symmetric=False)
 
     assert np.allclose(simat.matrix, [fp.get_similarities(fps) for fp in fps]), "Calculated similarities (serial, not symmetric) are wrong"
+
+    simat = SimilarityMatrix().calculate(fps, similarity_function=lambda x,y: 1, multiprocess=None)
+
+    assert (simat.matrix == 1).all().all(), 'Setting similarity function failed'
 
 def test_SimilarityMatrix_get_sub_matrix(simat):
 

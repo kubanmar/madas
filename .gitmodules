@@ -1,3 +1,6 @@
 [submodule "dependencies/dos-fingerprints"]
 	path = dependencies/dos-fingerprints
 	url = https://github.com/kubanmar/dos-fingerprints.git
+[submodule "dependencies/similarity-threshold-clusterer"]
+	path = dependencies/similarity-threshold-clusterer
+	url = https://github.com/kubanmar/similarity_threshold_clusterer.git
