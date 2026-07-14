@@ -28,7 +28,11 @@ class Material():
         default: *None*
     """
 
-    def __init__(self, mid, atoms: Atoms | None = None, data = None, properties = None):
+    def __init__(self, 
+                 mid: str, 
+                 atoms: Atoms | None = None, 
+                 data: dict | None = None, 
+                 properties: dict | None = None):
         self.mid = str(mid)
         self.set_atoms(atoms)
         self.set_data(data)

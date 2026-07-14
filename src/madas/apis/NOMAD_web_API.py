@@ -211,7 +211,7 @@ class API(APIClass):
     def get_calculations_by_search(self, 
                                    query: dict, 
                                    required: dict = {"required" : "*"},
-                                   n_threads: int = 5,
+                                   n_threads: int = 1,
                                    max_entries: int | None = None,
                                    skip_entries: list | None = None) -> List[Material]:
         """
