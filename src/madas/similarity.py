@@ -11,6 +11,7 @@ from copy import deepcopy
 from .utils import report_error, BatchIterator
 from .fingerprint import Fingerprint
 
+
 class SimilarityMatrix():
     """
     A matrix, that stores all similarites between materials and the corresponding material identifier.    

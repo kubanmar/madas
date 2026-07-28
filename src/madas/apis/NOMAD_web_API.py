@@ -3,6 +3,7 @@ from functools import partial
 from itertools import islice
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
+from time import sleep
 import traceback
 
 import requests
@@ -123,6 +124,7 @@ class API(APIClass):
                 self.headers = None
         else:
             self.headers = None
+        self._last_used_required = None
 
     @property
     def processing(self):
@@ -146,9 +148,10 @@ class API(APIClass):
 
     def get_calculation(self, 
                         entry_id: str, 
-                        required: dict = {"required" : "*"}, 
+                        required: dict = {"required" : "*"},
+                        wait_before_request: float = 0.1, 
                         return_raw: bool = False,
-                        fail_quietly: bool = False) -> Material | dict:
+                        fail_quietly: bool = False,) -> Material | dict:
         """
         Download data for a single calculation from NOMAD.
 
@@ -165,6 +168,9 @@ class API(APIClass):
             in the NOMAD documentation. Downloads the full Archive by default.
 
             default: ``{'required' : '*'}``
+
+        wait_before_request: `float`
+            Wait time in seconds before performing the request. This can be used to implement rate limits.
 
         return_raw: `bool`
             Return the response from the NOMAD API withour processing. This is helpful for debugging
@@ -192,6 +198,7 @@ class API(APIClass):
             Format: ``{error_message: str, entry_id: entry_id, traceback: traceback}`` 
         """
         url = self._URL_from_entry_id(entry_id)
+        sleep(wait_before_request)
         try:
             resp = requests.post(
                 url, json=required, 
@@ -211,6 +218,7 @@ class API(APIClass):
     def get_calculations_by_search(self, 
                                    query: dict, 
                                    required: dict = {"required" : "*"},
+                                   rate_limit: float = 0.1, 
                                    n_threads: int = 1,
                                    max_entries: int | None = None,
                                    skip_entries: list | None = None) -> List[Material]:
@@ -232,6 +240,9 @@ class API(APIClass):
             in the NOMAD documentation. Downloads the full Archive by default.
 
             default: ``{'required' : '*'}``
+
+        rate_limit: `float`
+            Time in seconds to wait between calls to the API.
 
         n_threads: `int`
             Number of threads to start. A too high number may result in unexpected behaviour and unnecessary overhead.
@@ -267,7 +278,11 @@ class API(APIClass):
             for id in skip_entries:
                 ids.discard(id)
             self._report_error(f"Download data for {len(ids)} entries", level="info")
-        query_function = partial(self.get_calculation, required=required, fail_quietly=True)
+        query_function = partial(self.get_calculation, 
+                                 required=required, 
+                                 fail_quietly=True, 
+                                 wait_before_request=rate_limit)
+        self._last_used_required = required
         if n_threads < 1:
             materials = [query_function(id_) for id_ in ids]
         else:
@@ -329,7 +344,7 @@ class API(APIClass):
         """
         self._processing = processing
 
-    def retry(self, required: dict = {"required" : "*"}, use_progress_bar: bool= False) -> List[Material]:
+    def retry(self, required: dict | None = None, use_progress_bar: bool= False, rate_limit: float = 0.1) -> List[Material]:
         """
         Retry previously failed downloads.
 
@@ -345,6 +360,9 @@ class API(APIClass):
         use_progress_bar: `bool`
             Show progress bar when downloading data.
 
+        rate_limit: `float`
+            Time to wait in seconds between individual requests.
+
         **Returns:**
 
         materials: `List[madas.Material]`
@@ -353,10 +371,15 @@ class API(APIClass):
         if len(self.failed_download) == 0:
             self._report_error("Retry list is empty.")
             return []
+        if required is None:
+            if self._last_used_required is None:
+                self._report_error('No required specified and last required not set. Have you run `get_calculations_by_search` before?', level='error')
+                return []
+            required = self._last_used_required
         self._report_error(f"Retrying {len(self.failed_download)} entries.", level="info")
         materials = []
         for mid in tqdm(self.failed_download, disable=not use_progress_bar):
-            new_mat = self.get_calculation(mid, fail_quietly=True, required=required)
+            new_mat = self.get_calculation(mid, fail_quietly=True, required=required, wait_before_request=rate_limit)
             if not isinstance(new_mat, Material):
                 self._report_error(f"Retry failed for material with entry_id {mid}. Error message: {new_mat['error_message']}")
                 continue

@@ -5,6 +5,7 @@ import logging
 from typing import Callable, List, Iterable
 from typing import Any
 from traceback import format_exc as get_tb_string
+from time import sleep
 
 import numpy as np
 import pandas as pd
@@ -615,6 +616,47 @@ class MaterialsDatabase():
         self.backend.add_many(materials)
         if query_hash is not None:
             self._update_metadata({'search_queries':[query_hash]})
+
+    def retry_download(self, 
+                       max_retries: int = 20, retries_after_empty: int = 3, **kwargs):
+        """
+        If the used API supports retries, run these retries until the retry list is empty or a predefined
+        number of iterations has passed.
+
+        **Keyword arguments**
+
+        max_retries: `int`
+            Maximial number of retries
+
+        retries_after_empty: `int`
+            Number of times that the retry should be attempted if the `retry` method of the API did not
+            return any new entries.
+
+        Additional keyword arguments are passed on to the `retry` function of the API.
+        """
+        retry_list_counter = retries_after_empty
+        found_entries = 0
+        try:
+            if len(self.api.failed_download) == 0:
+                self.log.info('No entries to retry.')
+                return
+            for _ in range(max_retries):
+                if len(self.api.failed_download) == 0:
+                    self.log.info(f'Finished retry. Found {found_entries} new entries.')
+                    return
+                new_entries = self.api.retry(**kwargs)
+                if len(new_entries) == 0:
+                    retry_list_counter-=1
+                if retry_list_counter <= 0:
+                    self.log.error(f'Retrieved no new materials for {retries_after_empty} times.')
+                    return
+                found_entries+=len(new_entries)
+                self.backend.add_many(new_entries)
+                sleep(2)
+            self.log.info(f'Retried {max_retries} times, but {len(self.api.failed_download)} entries remain.')
+        except AttributeError:
+            self.log.error(f'API of type {type(self.api)} does not have a retry list.')
+            return
 
     def get_random(self, 
                    return_mid: bool = True) -> Material:
